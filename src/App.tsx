@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, NavLink, Route, Routes, useParams, useSearchParams } from "react-router-dom";
 
-const DATA_ROOT = "https://raw.githubusercontent.com/DeferW/ssmc-wiki-data/main/data/";
+const DATA_ROOT =
+  "https://raw.githubusercontent.com/DeferW/ssmc-wiki-data/main/data/";
 const DATA_URL = `${DATA_ROOT}equipment-catalog.json`;
 
 const CATEGORY_ORDER = [
@@ -335,9 +336,9 @@ function Equipment() {
   const selectedItem = selectedId && catalog ? catalog.items[selectedId] : null;
 
   useEffect(() => {
-    if (!selectedId && !filtersOpen) return;
+    if (!filtersOpen && !selectedId) return;
     const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    if (filtersOpen) document.body.style.overflow = "hidden";
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (filtersOpen) setFiltersOpen(false);
@@ -475,38 +476,44 @@ function Equipment() {
               </div>
             )}
 
-            <section className="equipment-grid" aria-live="polite">
-              {visibleIds.map((id) => {
-                const item = catalog.items[id];
-                return (
-                  <button className="equipment-card" key={id} onClick={() => setParam("item", id)}>
-                    <span className="equipment-section">{item.category || "Снаряжение"}</span>
-                    <Sprite item={item} />
-                    <strong>{capitalizeName(item.name)}</strong>
-                    <small className="equipment-id">{item.id}</small>
-                  </button>
-                );
-              })}
-            </section>
+            <div className={`results-workspace${selectedItem ? " has-selection" : ""}`}>
+              <section className="equipment-grid" aria-live="polite">
+                {visibleIds.map((id) => {
+                  const item = catalog.items[id];
+                  const isSelected = selectedItem?.id === id;
+                  return (
+                    <div className={`equipment-entry${isSelected ? " is-selected" : ""}`} key={id}>
+                      <button className="equipment-card" onClick={() => setParam("item", isSelected ? null : id)} aria-expanded={isSelected}>
+                        <span className="equipment-section">{item.category || "Снаряжение"}</span>
+                        <Sprite item={item} />
+                        <strong>{capitalizeName(item.name)}</strong>
+                        <small className="equipment-id">{item.id}</small>
+                        <span className="card-detail-hint">{isSelected ? "Свернуть" : "Подробнее"} <span aria-hidden="true">→</span></span>
+                      </button>
+                      {isSelected && (
+                        <div className="inline-inspector">
+                          <ItemInspector item={item} catalog={catalog} visibleIds={visibleIds} onClose={() => setParam("item", null)} onSelect={(nextId) => setParam("item", nextId)} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </section>
+              {selectedItem && (
+                <aside className="desktop-inspector" aria-label={`Подробности: ${selectedItem.name}`}>
+                  <ItemInspector item={selectedItem} catalog={catalog} visibleIds={visibleIds} onClose={() => setParam("item", null)} onSelect={(id) => setParam("item", id)} />
+                </aside>
+              )}
+            </div>
             {!visibleIds.length && <p className="empty-state">Ничего не найдено. Даже подозрительного ящика.</p>}
           </div>
         </div>
-      )}
-
-      {selectedItem && catalog && (
-        <ItemDialog
-          item={selectedItem}
-          catalog={catalog}
-          visibleIds={visibleIds}
-          onClose={() => setParam("item", null)}
-          onSelect={(id) => setParam("item", id)}
-        />
       )}
     </main>
   );
 }
 
-function ItemDialog({
+function ItemInspector({
   item,
   catalog,
   visibleIds,
@@ -525,27 +532,27 @@ function ItemDialog({
   const contained = (item.containsItemIds || []).filter((id) => catalog.items[id]);
 
   return (
-    <div className="dialog-backdrop" role="presentation" onMouseDown={onClose}>
-      <section className="item-dialog" role="dialog" aria-modal="true" aria-labelledby="item-dialog-title" onMouseDown={(event) => event.stopPropagation()}>
-        <header className="dialog-toolbar">
+    <section className="item-inspector" aria-labelledby={`item-title-${item.id}`}>
+        <header className="inspector-toolbar">
           <div className="dialog-stepper" aria-label="Навигация между предметами">
             <button disabled={!previousId} onClick={() => previousId && onSelect(previousId)}>← <span>Предыдущий</span></button>
             <small>{index >= 0 ? `${index + 1} / ${visibleIds.length}` : ""}</small>
             <button disabled={!nextId} onClick={() => nextId && onSelect(nextId)}><span>Следующий</span> →</button>
           </div>
-          <button className="close-button" onClick={onClose} aria-label="Закрыть">×</button>
+          <button className="close-button" onClick={onClose} aria-label="Закрыть подробности">×</button>
         </header>
 
-        <div className="dialog-layout">
-          <div className="dialog-summary">
-            <div className="dialog-sprite"><Sprite item={item} eager /></div>
-            <p className="eyebrow">{item.category || "Снаряжение"}</p>
-            <h2 id="item-dialog-title">{capitalizeName(item.name)}</h2>
-            <code className="prototype-id">{item.id}</code>
-            <p className="item-description">{item.description || "Описание пока отсутствует в локализации."}</p>
+        <div className="inspector-scroll">
+          <div className="inspector-summary">
+            <div className="inspector-sprite"><Sprite item={item} eager /></div>
+            <div>
+              <p className="eyebrow">{item.category || "Снаряжение"}</p>
+              <h2 id={`item-title-${item.id}`}>{capitalizeName(item.name)}</h2>
+              <code className="prototype-id">{item.id}</code>
+            </div>
           </div>
-
-          <div className="dialog-details">
+          <p className="item-description">{item.description || "Описание пока отсутствует в локализации."}</p>
+          <div className="inspector-details">
             <StatsDetails item={item} />
             <CompatibilityDetails item={item} catalog={catalog} onSelect={onSelect} />
             {contained.length > 0 && (
@@ -557,28 +564,40 @@ function ItemDialog({
           </div>
         </div>
       </section>
-    </div>
   );
 }
 
 function StatsDetails({ item }: { item: CatalogItem }) {
-  if (item.weaponStats) return <WeaponStats stats={item.weaponStats} />;
-  if (item.armorStats) return <ArmorStats stats={item.armorStats} />;
-  if (item.attachmentStats) return <AttachmentStats stats={item.attachmentStats} />;
-  return null;
+  return (
+    <>
+      {item.weaponStats && <WeaponStats stats={item.weaponStats} />}
+      {item.armorStats && <ArmorStats stats={item.armorStats} />}
+      {item.attachmentStats && <AttachmentStats stats={item.attachmentStats} />}
+      <CommonItemStats item={item} />
+    </>
+  );
 }
 
 function WeaponStats({ stats }: { stats: JsonMap }) {
+  const recoil = isMap(stats.recoil) ? stats.recoil : {};
+  const scatter = isMap(stats.scatter) ? stats.scatter : {};
+  const accuracy = isMap(stats.accuracy) ? stats.accuracy : {};
+  const wieldDelay = isMap(stats.wieldDelay) ? stats.wieldDelay : {};
   const rows: Array<[string, unknown]> = [
     ["Темп стрельбы", stats.roundsPerMinute != null ? `${formatNumber(stats.roundsPerMinute)} выстр./мин` : null],
-    ["Выстрелов в секунду", stats.shotsPerSecond],
-    ["Режим по умолчанию", stats.defaultFireMode],
-    ["Бронепробитие оружия", stats.weaponArmorPiercing],
-    ["Размер очереди", stats.burstSize],
-    ["Множитель урона", stats.damageMultiplier],
-    ["Режимы огня", Array.isArray(stats.fireModes) ? stats.fireModes.join(", ") : null],
+    ["Режимы огня", Array.isArray(stats.fireModes) ? stats.fireModes.map((mode) => fireModeLabel(String(mode))).join(", ") : null],
+    ["Основной режим", stats.defaultFireMode ? fireModeLabel(String(stats.defaultFireMode)) : null],
+    ["Очередь", stats.burstSize != null ? `${formatNumber(stats.burstSize)} выстр.` : null],
+    ["Бронепробитие", stats.weaponArmorPiercing],
+    ["Множитель урона", stats.damageMultiplier != null ? `×${formatNumber(stats.damageMultiplier)}` : null],
+    ["Отдача · в упоре", recoil.wielded],
+    ["Отдача · с рук", recoil.unwielded],
+    ["Разброс · в упоре", scatter.wielded],
+    ["Разброс · с рук", scatter.unwielded],
+    ["Точность · в упоре", asMultiplier(accuracy.wieldedMultiplier)],
+    ["Точность · с рук", asMultiplier(accuracy.unwieldedMultiplier)],
+    ["Время вскидывания", wieldDelay.baseDelay != null ? `${formatNumber(wieldDelay.baseDelay)} с` : null],
     ["IFF", stats.iffEnabled],
-    ["Стрельба с двух рук", stats.dualWielding],
   ];
   const provider = isMap(stats.ammoProvider) ? stats.ammoProvider : null;
   if (provider) {
@@ -592,16 +611,22 @@ function WeaponStats({ stats }: { stats: JsonMap }) {
       <StatGrid rows={rows} />
       {ammunition.length > 0 && (
         <div className="ammo-list">
-          <h4>Боеприпасы и урон</h4>
+          <h4>Магазины, боеприпасы и урон</h4>
           {ammunition.map((entry, index) => {
             const projectiles = Array.isArray(entry.projectiles) ? entry.projectiles.filter(isMap) : [];
             return (
               <article key={`${String(entry.ammoId)}:${index}`}>
-                <strong>{String(entry.ammoName || entry.ammoId || "Боеприпас")}</strong>
+                <div className="ammo-heading">
+                  <strong>{String(entry.magazineName || entry.ammoName || entry.magazineId || entry.ammoId || "Боеприпас")}</strong>
+                  {entry.capacity != null && <span>{formatNumber(entry.capacity)} шт.</span>}
+                </div>
                 {projectiles.map((projectile, projectileIndex) => (
-                  <div className="damage-line" key={`${String(projectile.projectileId)}:${projectileIndex}`}>
-                    <span>{formatDamage(projectile.damage)}</span>
-                    {projectile.armorPiercing != null && <small>Бронепробитие: {formatNumber(projectile.armorPiercing)}</small>}
+                  <div className="projectile-card" key={`${String(projectile.projectileId)}:${projectileIndex}`}>
+                    <div className="damage-line">
+                      <span>{formatDamage(projectile.effectiveDamage || projectile.damage)}</span>
+                      {projectile.armorPiercing != null && <small>Бронепробитие {formatNumber(projectile.armorPiercing)}</small>}
+                    </div>
+                    <ProjectileRange projectile={projectile} />
                   </div>
                 ))}
               </article>
@@ -609,18 +634,14 @@ function WeaponStats({ stats }: { stats: JsonMap }) {
           })}
         </div>
       )}
-      <NestedStatGroups
+      <ReadableStatGroups
         groups={[
-          ["Отдача", stats.recoil],
-          ["Разброс", stats.scatter],
-          ["Точность", stats.accuracy],
           ["Модификаторы режимов огня", stats.fireModeModifiers],
           ["Падение урона с расстоянием", stats.weaponDamageFalloff],
           ["Ближний бой", stats.melee],
-          ["Время вскидывания", stats.wieldDelay],
           ["Скорость с оружием", stats.wieldedMovement],
           ["Требования к навыкам", stats.skillRequirements],
-          ["Параметры оружия", stats.gunParameters],
+          ["Дополнительные параметры", stats.gunParameters],
         ]}
       />
     </section>
@@ -643,13 +664,13 @@ function ArmorStats({ stats }: { stats: JsonMap }) {
         ["Игнорирует бронепробитие", stats.immuneToArmorPiercing],
       ]} />
       <h4 className="subsection-title">Сопротивления</h4>
-      <StatGrid rows={protectionRows} />
+      <ProtectionBars rows={protectionRows} />
       <div className="flag-list">
         {stats.hardArmor === true && <span>Твёрдая броня</span>}
         {stats.bulkyArmor === true && <span>Громоздкая</span>}
         {stats.immuneToArmorPiercing === true && <span>Игнорирует бронепробитие</span>}
       </div>
-      <NestedStatGroups groups={[
+      <ReadableStatGroups groups={[
         ["Скорость движения", stats.movement],
         ["Сопротивление взрывам", stats.explosionResistance],
       ]} />
@@ -667,34 +688,155 @@ function AttachmentStats({ stats }: { stats: JsonMap }) {
         <div className="flag-list">{effects.map((effect) => <span key={effect}>{effect}</span>)}</div>
       )}
       {Object.keys(modifiers).length > 0 && (
-        <div className="modifier-list">
+        <div className="modifier-list readable-modifiers">
           {Object.entries(modifiers).map(([group, value]) => (
             <details key={group}>
               <summary>{componentLabel(group)}</summary>
-              <pre>{prettyJson(value)}</pre>
+              <div className="readable-detail"><ReadableValue value={value} /></div>
             </details>
           ))}
         </div>
       )}
-      <NestedStatGroups groups={[["Совместимость", stats.compatibleWith]]} />
+      <ReadableStatGroups groups={[["Совместимость", stats.compatibleWith]]} />
     </section>
   );
 }
 
-function NestedStatGroups({ groups }: { groups: Array<[string, unknown]> }) {
+function CommonItemStats({ item }: { item: CatalogItem }) {
+  const properties = item.properties || {};
+  const solutionManager = isMap(properties.SolutionContainerManager) ? properties.SolutionContainerManager : null;
+  const solutions = solutionManager && isMap(solutionManager.solutions) ? solutionManager.solutions : {};
+  const storage = isMap(properties.Storage) ? properties.Storage : null;
+  const melee = isMap(properties.MeleeWeapon) ? properties.MeleeWeapon : null;
+  const armor = isMap(properties.CMArmor) ? properties.CMArmor : null;
+  const armorPiercing = isMap(properties.CMArmorPiercing) ? properties.CMArmorPiercing : null;
+  const explosion = isMap(properties.ExplosionResistance) ? properties.ExplosionResistance : null;
+  const speed = isMap(properties.ClothingSpeedModifier) ? properties.ClothingSpeedModifier : null;
+  const ammoProvider = ["BallisticAmmoProvider", "RevolverAmmoProvider", "CartridgeAmmo", "RMCFlamerTank"]
+    .map((key) => [key, properties[key]] as [string, unknown])
+    .find(([, value]) => isMap(value));
+
+  const overviewRows: Array<[string, unknown]> = [
+    ["Слоты экипировки", item.equipmentSlots?.length ? item.equipmentSlots.map(slotLabel).join(", ") : null],
+    ["Бронепробитие в ближнем бою", armorPiercing?.amount],
+    ["Скорость ходьбы", speed?.walkModifier != null ? asPercent(speed.walkModifier) : null],
+    ["Скорость бега", speed?.sprintModifier != null ? asPercent(speed.sprintModifier) : null],
+    ["Получаемый урон от взрыва", explosion?.damageCoefficient != null ? asPercent(explosion.damageCoefficient) : null],
+  ];
+  const hasOverview = overviewRows.some(([, value]) => value !== null && value !== undefined && value !== "");
+
+  return (
+    <>
+      {hasOverview && <section className="detail-section"><h3>Основные свойства</h3><StatGrid rows={overviewRows} /></section>}
+      {Object.keys(solutions).length > 0 && (
+        <section className="detail-section solution-section">
+          <h3>Состав и объём</h3>
+          <div className="solution-list">
+            {Object.entries(solutions).map(([name, raw]) => {
+              const solution = isMap(raw) ? raw : {};
+              const reagents = Array.isArray(solution.reagents) ? solution.reagents.filter(isMap) : [];
+              return (
+                <article key={name}>
+                  <div><strong>{solutionLabel(name)}</strong>{solution.maxVol != null && <span>{formatNumber(solution.maxVol)} ед.</span>}</div>
+                  {reagents.length ? <ul>{reagents.map((reagent, index) => <li key={`${String(reagent.ReagentId)}:${index}`}><span>{readableId(String(reagent.ReagentId || "Реагент"))}</span><strong>{formatNumber(reagent.Quantity)} ед.</strong></li>)}</ul> : <small>Пусто</small>}
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
+      {storage && (
+        <section className="detail-section">
+          <h3>Хранилище</h3>
+          <StatGrid rows={[
+            ["Максимальный размер предмета", itemSizeLabel(storage.maxItemSize)],
+            ["Ячеек хранения", storageCells(storage.grid)],
+            ["Быстрая загрузка", storage.quickInsert],
+            ["Загрузка по области", storage.areaInsert],
+          ]} />
+          {(Boolean(storage.whitelist) || Boolean(storage.blacklist)) && <ReadableStatGroups groups={[["Ограничения содержимого", { разрешено: storage.whitelist, запрещено: storage.blacklist }]]} />}
+        </section>
+      )}
+      {melee && !item.weaponStats && (
+        <section className="detail-section">
+          <h3>Ближний бой</h3>
+          <StatGrid rows={[
+            ["Урон", isMap(melee.damage) && isMap(melee.damage.types) ? formatDamage(melee.damage.types) : null],
+            ["Атак в секунду", melee.attackRate],
+            ["Угол атаки", melee.angle != null ? `${formatNumber(melee.angle)}°` : null],
+          ]} />
+        </section>
+      )}
+      {armor && !item.armorStats && (
+        <section className="detail-section">
+          <h3>Дополнительная защита</h3>
+          <ProtectionBars rows={Object.entries(armor).map(([key, value]) => [armorLabel(key), value] as [string, unknown])} />
+        </section>
+      )}
+      {ammoProvider && !item.weaponStats && (
+        <section className="detail-section">
+          <h3>Боеприпасы</h3>
+          <ReadableValue value={ammoProvider[1]} />
+        </section>
+      )}
+      <TechnicalDetails item={item} />
+    </>
+  );
+}
+
+function ProjectileRange({ projectile }: { projectile: JsonMap }) {
+  const accuracy = isMap(projectile.accuracy) ? projectile.accuracy : {};
+  const falloff = isMap(projectile.damageFalloff) ? projectile.damageFalloff : {};
+  const thresholds: Array<{ kind: string; range?: unknown; falloff?: unknown }> = [
+    ...(Array.isArray(accuracy.thresholds) ? accuracy.thresholds.filter(isMap).map((entry) => ({ kind: "Точность", range: entry.range, falloff: entry.falloff })) : []),
+    ...(Array.isArray(falloff.thresholds) ? falloff.thresholds.filter(isMap).map((entry) => ({ kind: "Урон", range: entry.range, falloff: entry.falloff })) : []),
+  ];
+  if (accuracy.accuracy == null && !thresholds.length) return null;
+  return (
+    <div className="range-summary">
+      {accuracy.accuracy != null && <span>Точность {formatNumber(accuracy.accuracy)}</span>}
+      {thresholds.slice(0, 3).map((entry, index) => <span key={index}>{entry.kind}: после {formatNumber(entry.range)} тайл. −{formatNumber(entry.falloff)}</span>)}
+    </div>
+  );
+}
+
+function ProtectionBars({ rows }: { rows: Array<[string, unknown]> }) {
+  const visible = rows.filter(([, value]) => typeof value === "number" && value !== 0);
+  if (!visible.length) return <p className="muted">Сопротивления не указаны.</p>;
+  return (
+    <div className="protection-bars">
+      {visible.map(([label, value]) => {
+        const amount = Number(value);
+        return <div key={label}><span>{label}</span><div><i style={{ width: `${Math.min(100, Math.max(0, amount))}%` }} /></div><strong>{formatNumber(amount)}%</strong></div>;
+      })}
+    </div>
+  );
+}
+
+function ReadableStatGroups({ groups }: { groups: Array<[string, unknown]> }) {
   const visible = groups.filter(([, value]) => value !== null && value !== undefined
     && (!Array.isArray(value) || value.length > 0)
     && (!isMap(value) || Object.keys(value).length > 0));
   if (!visible.length) return null;
   return (
-    <div className="nested-stat-groups">
+    <div className="nested-stat-groups readable-groups">
       {visible.map(([title, value]) => (
         <details key={title}>
           <summary>{title}</summary>
-          <pre>{prettyJson(value)}</pre>
+          <div className="readable-detail"><ReadableValue value={value} /></div>
         </details>
       ))}
     </div>
+  );
+}
+
+function ReadableValue({ value }: { value: unknown }) {
+  const { rows, complex } = flattenReadable(value);
+  return (
+    <>
+      {rows.length > 0 && <StatGrid rows={rows} />}
+      {complex.length > 0 && <pre>{prettyJson(complex.length === 1 ? complex[0] : complex)}</pre>}
+    </>
   );
 }
 
@@ -707,6 +849,23 @@ function StatGrid({ rows }: { rows: Array<[string, unknown]> }) {
         <div key={label}><dt>{label}</dt><dd>{formatValue(value)}</dd></div>
       ))}
     </dl>
+  );
+}
+
+function TechnicalDetails({ item }: { item: CatalogItem }) {
+  const payload = {
+    properties: item.properties || {},
+    tags: item.tags || [],
+    componentTypes: item.componentTypes || [],
+    classification: item.classification || {},
+  };
+  if (!Object.keys(item.properties || {}).length && !item.tags?.length && !item.componentTypes?.length) return null;
+  return (
+    <details className="technical-details detail-section">
+      <summary>Технические данные</summary>
+      <p>Сложные поля из прототипа. Полезно для проверки сборщика и редких механик.</p>
+      <pre>{prettyJson(payload)}</pre>
+    </details>
   );
 }
 
@@ -761,6 +920,7 @@ function Sprite({ item, compact = false, eager = false }: { item: CatalogItem; c
   if (!item.image) return <span className={`sprite-placeholder${compact ? " compact" : ""}`} aria-hidden="true">?</span>;
   return (
     <span className={`sprite-frame${compact ? " compact" : ""}`}>
+      {/* Pixel-art sprites are already generated at their final catalog size. */}
       <img src={`${DATA_ROOT}${item.image}`} alt="" loading={eager ? "eager" : "lazy"} decoding="async" />
     </span>
   );
@@ -936,8 +1096,138 @@ function formatNumber(value: unknown) {
 function formatValue(value: unknown): string {
   if (typeof value === "number") return formatNumber(value);
   if (typeof value === "boolean") return value ? "Да" : "Нет";
-  if (Array.isArray(value)) return value.map(formatValue).join(", ");
+  if (Array.isArray(value)) return value.map((entry) => formatValue(entry)).join(", ");
+  if (typeof value === "string") {
+    const translated = value.split(",").map((entry) => enumLabel(entry.trim())).join(", ");
+    return translated || "—";
+  }
   return String(value ?? "—");
+}
+
+function flattenReadable(value: unknown, path: string[] = []): { rows: Array<[string, unknown]>; complex: unknown[] } {
+  const rows: Array<[string, unknown]> = [];
+  const complex: unknown[] = [];
+  if (!isMap(value)) {
+    if (Array.isArray(value) && value.every((entry) => ["string", "number", "boolean"].includes(typeof entry))) {
+      rows.push([path.map(statLabel).join(" · ") || "Значение", value]);
+    } else if (["string", "number", "boolean"].includes(typeof value)) {
+      rows.push([path.map(statLabel).join(" · ") || "Значение", value]);
+    } else if (value != null) complex.push(value);
+    return { rows, complex };
+  }
+  for (const [key, child] of Object.entries(value)) {
+    const nextPath = [...path, key];
+    if ((key === "damage" || key === "bonusDamage") && isMap(child)) {
+      const damage = isMap(child.types) ? child.types : child;
+      rows.push([nextPath.map(statLabel).join(" · "), formatDamage(damage)]);
+      continue;
+    }
+    if (["string", "number", "boolean"].includes(typeof child)) {
+      rows.push([nextPath.map(statLabel).join(" · "), formatFieldValue(key, child)]);
+      continue;
+    }
+    if (Array.isArray(child) && child.every((entry) => ["string", "number", "boolean"].includes(typeof entry))) {
+      rows.push([nextPath.map(statLabel).join(" · "), child]);
+      continue;
+    }
+    if (isMap(child)) {
+      const nested = flattenReadable(child, nextPath);
+      rows.push(...nested.rows);
+      complex.push(...nested.complex);
+      continue;
+    }
+    if (child != null) complex.push({ [key]: child });
+  }
+  return { rows, complex };
+}
+
+function formatFieldValue(key: string, value: unknown) {
+  if (typeof value !== "number") return value;
+  if (/delay|cooldown|doAfter/i.test(key)) return `${formatNumber(value)} с`;
+  if (/multiplier|modifier/i.test(key)) return `×${formatNumber(value)}`;
+  if (/walk|sprint/i.test(key)) return asPercent(value);
+  if (/angle|rotation/i.test(key)) return `${formatNumber(value)}°`;
+  if (/range|radius/i.test(key)) return `${formatNumber(value)} тайл.`;
+  return value;
+}
+
+function statLabel(value: string) {
+  const labels: Record<string, string> = {
+    wielded: "В упоре", unwielded: "С рук", wieldedOnly: "Только в упоре", unwieldedOnly: "Только с рук",
+    activeOnly: "Только во включённом состоянии", inactiveOnly: "Только в выключенном состоянии",
+    accuracy: "Точность", wieldedMultiplier: "В упоре", unwieldedMultiplier: "С рук",
+    recoilFlat: "Отдача", scatterFlat: "Разброс", accuracyAddMult: "Точность", damageAddMult: "Урон",
+    fireDelay: "Задержка между выстрелами", maxScatterModifier: "Максимальный разброс",
+    shotsToMaxScatter: "Выстрелов до максимального разброса", unwieldedScatterMultiplier: "Разброс с рук",
+    useBurstScatterMult: "Учитывать разброс очереди", falloffMultiplier: "Множитель падения урона",
+    attacksPerSecond: "Атак в секунду", angle: "Угол атаки", damage: "Урон", bonusDamage: "Дополнительный урон",
+    baseDelay: "Базовая задержка", preventFiring: "Нельзя стрелять во время вскидывания",
+    base: "Базовый", light: "Лёгкая броня", medium: "Средняя броня", heavy: "Тяжёлая броня",
+    skills: "Навыки", weaponGroup: "Группа оружия", conditions: "Условия", modifiers: "Модификаторы",
+    capacity: "Ёмкость", proto: "Боеприпас", cycleable: "Перезаряжается вручную", mayTransfer: "Можно извлечь патроны",
+    maxRange: "Дальность", maxDuration: "Длительность", maxIntensity: "Интенсивность",
+    FullAuto: "Автоматический", SemiAuto: "Одиночный", Burst: "Очередь",
+  };
+  return labels[value] || readableId(value);
+}
+
+function enumLabel(value: string) {
+  return fireModeLabel(value) !== value ? fireModeLabel(value) : ({
+    light: "Лёгкий", medium: "Средний", heavy: "Тяжёлый", Handgun: "Пистолет", Rifle: "Винтовка",
+    Small: "Маленький", Normal: "Обычный", Large: "Большой", Huge: "Огромный",
+  } as Record<string, string>)[value] || slotLabel(value);
+}
+
+function fireModeLabel(value: string) {
+  return ({ SemiAuto: "Одиночный", Burst: "Очередь", FullAuto: "Автоматический" } as Record<string, string>)[value] || value;
+}
+
+function slotLabel(value: string) {
+  const labels: Record<string, string> = {
+    Back: "Спина", back: "Спина", suitStorage: "Крепление на броне", suitstorage: "Крепление на броне",
+    outerClothing: "Верхняя одежда", head: "Голова", eyes: "Глаза", ears: "Уши", mask: "Маска",
+    belt: "Пояс", pocket: "Карман", gloves: "Перчатки", neck: "Шея", shoes: "Обувь", jumpsuit: "Униформа",
+  };
+  return labels[value] || value;
+}
+
+function itemSizeLabel(value: unknown) {
+  if (value == null) return null;
+  return ({ Tiny: "Крошечный", Small: "Маленький", Normal: "Обычный", Large: "Большой", Huge: "Огромный", Ginormous: "Гигантский" } as Record<string, string>)[String(value)] || String(value);
+}
+
+function solutionLabel(value: string) {
+  return ({ pen: "Инъектор", drink: "Раствор", pack: "Пакет", food: "Содержимое", tank: "Резервуар" } as Record<string, string>)[value] || readableId(value);
+}
+
+function readableId(value: string) {
+  const known: Record<string, string> = {
+    CMBicaridine: "Бикаридин", CMKelotane: "Келотан", CMTricordrazine: "Трикордразин", CMDexalin: "Дексалин",
+    CMDylovene: "Диловен", CMInaprovaline: "Инапровалин", CMEpinephrine: "Эпинефрин", Blood: "Кровь",
+    Fiber: "Волокно", RMCSkillFirearms: "Огнестрельное оружие", RMCSkillEngineer: "Инженерия",
+    RMCSkillSmartGun: "Умное оружие", RMCSkillPolice: "Военная полиция",
+  };
+  if (known[value]) return known[value];
+  return value.replace(/^RMC|^CM/, "").replace(/([a-zа-я])([A-ZА-Я])/g, "$1 $2").replace(/_/g, " ");
+}
+
+function asMultiplier(value: unknown) {
+  return typeof value === "number" ? `×${formatNumber(value)}` : null;
+}
+
+function asPercent(value: unknown) {
+  return typeof value === "number" ? `${formatNumber(value * 100)}%` : null;
+}
+
+function storageCells(value: unknown) {
+  if (!Array.isArray(value)) return null;
+  let total = 0;
+  for (const entry of value) {
+    const parts = String(entry).split(",").map(Number);
+    if (parts.length !== 4 || parts.some(Number.isNaN)) continue;
+    total += Math.max(0, parts[2] - parts[0] + 1) * Math.max(0, parts[3] - parts[1] + 1);
+  }
+  return total || null;
 }
 
 function formatDamage(value: unknown) {
