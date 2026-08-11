@@ -1,0 +1,2545 @@
+{
+  "schemaVersion": 1,
+  "gameCommit": "17193e0f0b25bc1d47265ec98c148f0d11017019",
+  "source": "MetalSage/space-stories-cm14",
+  "counts": {
+    "indexedEntityPrototypes": 25596,
+    "catalogEntityPrototypes": 312,
+    "resolvedEntityPrototypes": 479
+  },
+  "entries": {
+    "Bullet10x20mm": {
+      "parents": [
+        "RMCBaseBullet"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/SMGs/m63_smg.yml"
+    },
+    "Bullet10x20mmAP": {
+      "parents": [
+        "Bullet10x20mm"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/SMGs/m63_smg.yml"
+    },
+    "BulletRifle10x24mm": {
+      "parents": [
+        "RMCBaseBullet"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Rifles/m54c_rifle.yml"
+    },
+    "BulletRifle10x24mmAP": {
+      "parents": [
+        "BulletRifle10x24mm"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Rifles/m54c_rifle.yml"
+    },
+    "BulletRifle10x24mmHT": {
+      "parents": [
+        "BulletRifle10x24mm"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Rifles/m54c_heavy_rifle.yml"
+    },
+    "CMBackpackMarine": {
+      "parents": [
+        "CMBackpack"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Back/backpacks.yml"
+    },
+    "CMBackpackMortar": {
+      "parents": [
+        "CMBackpack"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Back/backpacks.yml"
+    },
+    "CMBackpackWelder": {
+      "parents": [
+        "CMBackpack"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Back/backpacks.yml"
+    },
+    "CMBeltKnifeFilled": {
+      "parents": [
+        "CMBeltKnife"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Catalog/Fills/Clothing/belt.yml"
+    },
+    "CMBeltMarine": {
+      "parents": [
+        "CMBeltBaseStorage"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Belt/belts.yml"
+    },
+    "CMBeltMortar": {
+      "parents": [
+        "CMBeltBaseStorage"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Belt/belts.yml"
+    },
+    "CMBicaridineAutoInjector": {
+      "parents": [
+        "CMAutoInjector"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Medical/auto_injectors.yml"
+    },
+    "CMBulletPistol9mm": {
+      "parents": [
+        "CMBulletBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/m1984_pistol.yml"
+    },
+    "CMBulletPistolM77AP": {
+      "parents": [
+        "CMBulletBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/m77_pistol.yml"
+    },
+    "CMBulletRevolver44": {
+      "parents": [
+        "CMBulletBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Revolvers/m44_revolver.yml"
+    },
+    "CMBulletSmartGun10x30mm": {
+      "parents": [
+        "CMBulletBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/SmartGuns/smart_gun.yml"
+    },
+    "CMCartridge10x20mm": {
+      "parents": [
+        "CMCartridgeSMGBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/SMGs/m63_smg.yml"
+    },
+    "CMCartridge10x20mmAP": {
+      "parents": [
+        "CMCartridge10x20mm"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/SMGs/m63_smg.yml"
+    },
+    "CMCartridgePistol9mm": {
+      "parents": [
+        "CMCartridgePistolBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/m1984_pistol.yml"
+    },
+    "CMCartridgePistolM77AP": {
+      "parents": [
+        "CMCartridgePistolBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/m77_pistol.yml"
+    },
+    "CMCartridgeRifle10x24mm": {
+      "parents": [
+        "CMBaseCartridgeRifle"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Rifles/m54c_rifle.yml"
+    },
+    "CMCartridgeRifle10x24mmAP": {
+      "parents": [
+        "CMCartridgeRifle10x24mm"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Rifles/m54c_rifle.yml"
+    },
+    "CMCartridgeRifle10x24mmHT": {
+      "parents": [
+        "CMCartridgeRifle10x24mm"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Rifles/m54c_heavy_rifle.yml"
+    },
+    "CMCartridgeSmartGun10x30mm": {
+      "parents": [
+        "CMBaseCartridgeRifle"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/SmartGuns/smart_gun.yml"
+    },
+    "CMEmergencyAutoInjector": {
+      "parents": [
+        "CMAutoInjector"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Medical/auto_injectors.yml"
+    },
+    "CMEntrenchingTool": {
+      "parents": [
+        "BaseItem"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Tools/etool.yml"
+    },
+    "CMFireExtinguisherPortable": {
+      "parents": [
+        "CMFireExtinguisher"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Tools/fire_extinguisher.yml"
+    },
+    "CMFlare": {
+      "parents": [
+        "BaseItem"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Tools/flares.yml"
+    },
+    "CMFoldingBarricadesMB6x3": {
+      "parents": [
+        "CMFoldingBarricade"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Tools/folding_barricade.yml"
+    },
+    "CMGrenadeFragOld": {
+      "parents": [
+        "CMGrenadeHighExplosive"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Throwable/grenades.yml"
+    },
+    "CMGrenadeHighExplosive": {
+      "parents": [
+        "CMGrenadeBase",
+        "RMCM40DPTags"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Throwable/grenades.yml"
+    },
+    "CMGrenadeSmoke": {
+      "parents": [
+        "GrenadeBase",
+        "RMCM40DPTags"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Throwable/grenades.yml"
+    },
+    "CMKelotaneAutoInjector": {
+      "parents": [
+        "CMAutoInjector"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Medical/auto_injectors.yml"
+    },
+    "CMM11Knife": {
+      "parents": [
+        "RMCBaseMeleeWeapon",
+        "BaseKnife"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Melee/knife.yml"
+    },
+    "CMM2132Machete": {
+      "parents": [
+        "RMCBaseMeleeWeapon",
+        "BaseKnife"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Melee/knife.yml"
+    },
+    "CMMagazinePistolM1984": {
+      "parents": [
+        "CMBaseMagazinePistol"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/m1984_pistol.yml"
+    },
+    "CMMagazinePistolM77AP": {
+      "parents": [
+        "CMBaseMagazinePistol"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/m77_pistol.yml"
+    },
+    "CMMagazinePistolMK80": {
+      "parents": [
+        "CMBaseMagazinePistol"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/mk80_pistol.yml"
+    },
+    "CMMagazineRifleM4SPR": {
+      "parents": [
+        "CMMagazineRifleBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Rifles/m4spr_rifle.yml"
+    },
+    "CMMagazineRifleM4SPRAP": {
+      "parents": [
+        "CMMagazineRifleM4SPR"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Rifles/m4spr_rifle.yml"
+    },
+    "CMMagazineRifleM4SPRExt": {
+      "parents": [
+        "CMMagazineRifleM4SPR"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Rifles/m4spr_rifle.yml"
+    },
+    "CMMagazineRifleM54C": {
+      "parents": [
+        "CMMagazineRifleBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Rifles/m54c_rifle.yml"
+    },
+    "CMMagazineRifleM54CAP": {
+      "parents": [
+        "CMMagazineRifleM54C"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Rifles/m54c_rifle.yml"
+    },
+    "CMMagazineRifleM54CE2": {
+      "parents": [
+        "CMMagazineRifleM54C"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Rifles/m54c_heavy_rifle.yml"
+    },
+    "CMMagazineRifleM54CE2HT": {
+      "parents": [
+        "CMMagazineRifleM54CE2"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Rifles/m54c_heavy_rifle.yml"
+    },
+    "CMMagazineRifleM54CExt": {
+      "parents": [
+        "CMMagazineRifleM54C"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Rifles/m54c_rifle.yml"
+    },
+    "CMMagazineRifleM54CMK1": {
+      "parents": [
+        "CMMagazineRifleBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Rifles/m54c_mk1_rifle.yml"
+    },
+    "CMMagazineRifleM54CMK1AP": {
+      "parents": [
+        "CMMagazineRifleM54CMK1"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Rifles/m54c_mk1_rifle.yml"
+    },
+    "CMMagazineSMGM63": {
+      "parents": [
+        "CMMagazineRifleBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/SMGs/m63_smg.yml"
+    },
+    "CMMagazineSMGM63AP": {
+      "parents": [
+        "CMMagazineSMGM63"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/SMGs/m63_smg.yml"
+    },
+    "CMMagazineSMGM63Ext": {
+      "parents": [
+        "CMMagazineSMGM63"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/SMGs/m63_smg.yml"
+    },
+    "CMMaskGas": {
+      "parents": [
+        "CMBaseMask"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Masks/masks.yml"
+    },
+    "CMMultitool": {
+      "parents": [
+        "Multitool"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Tools/tools.yml"
+    },
+    "CMPackFlare": {
+      "parents": [
+        "CMPackFlareBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Tools/flares.yml"
+    },
+    "CMPacketGrenadeFragOldFilled": {
+      "parents": [
+        "CMPacketGrenadeFragOld"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Throwable/packets.yml"
+    },
+    "CMPacketGrenadeHighExplosiveFilled": {
+      "parents": [
+        "CMPacketGrenadeHighExplosive"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Throwable/packets.yml"
+    },
+    "CMPamphletEngineer": {
+      "parents": [
+        "CMPamphlet"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Misc/pamphlets.yml"
+    },
+    "CMPamphletJTAC": {
+      "parents": [
+        "CMPamphlet"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Misc/pamphlets.yml"
+    },
+    "CMPamphletPowerloader": {
+      "parents": [
+        "CMPamphlet"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Misc/pamphlets.yml"
+    },
+    "CMPelletShotgunBuckshot": {
+      "parents": [
+        "CMPelletShotgunBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Shotguns/shotgun_pellets.yml"
+    },
+    "CMPelletShotgunFlechette": {
+      "parents": [
+        "CMPelletShotgunBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Shotguns/shotgun_pellets.yml"
+    },
+    "CMPelletShotgunSlug": {
+      "parents": [
+        "CMPelletShotgunBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Shotguns/shotgun_pellets.yml"
+    },
+    "CMScrewdriver": {
+      "parents": [
+        "Screwdriver"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Tools/tools.yml"
+    },
+    "CMShellShotgunBuckshot": {
+      "parents": [
+        "CMShellShotgunBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Shotguns/shotgun_handfuls.yml"
+    },
+    "CMShellShotgunFlechette": {
+      "parents": [
+        "CMShellShotgunBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Shotguns/shotgun_handfuls.yml"
+    },
+    "CMShellShotgunSlugs": {
+      "parents": [
+        "CMShellShotgunBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Shotguns/shotgun_handfuls.yml"
+    },
+    "CMSparePDTLBattleBuddyKit": {
+      "parents": [
+        "RMCWatchCase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Devices/pdt.yml"
+    },
+    "CMWeaponPistolM1984Empty": {
+      "parents": [
+        "CMWeaponPistolM1984"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/m1984_pistol.yml"
+    },
+    "CMWebbing": {
+      "parents": [
+        "CMWebbingBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Accessory/webbing.yml"
+    },
+    "CMWebbingBlack": {
+      "parents": [
+        "CMWebbingBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Accessory/webbing.yml"
+    },
+    "CMWebbingBrown": {
+      "parents": [
+        "CMWebbingBlack"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Accessory/webbing.yml"
+    },
+    "CMWebbingHolster": {
+      "parents": [
+        "CMWebbingBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Accessory/webbing.yml"
+    },
+    "CMWebbingKnivesFilled": {
+      "parents": [
+        "CMWebbingKnives"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Accessory/webbing.yml"
+    },
+    "CMWirecutter": {
+      "parents": [
+        "Wirecutter"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Tools/tools.yml"
+    },
+    "CMWrench": {
+      "parents": [
+        "Wrench"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Tools/tools.yml"
+    },
+    "RCMBulletPistol9mmSquashHead": {
+      "parents": [
+        "CMBulletBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/mk80_pistol.yml"
+    },
+    "RMC40MMGrenadeM74AGMF": {
+      "parents": [
+        "RMCBaseAirBurstGrenade"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Launchers/m74_airburst_grenades.yml"
+    },
+    "RMC40MMGrenadeM74AGMI": {
+      "parents": [
+        "RMC40MMGrenadeM74AGMF"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Launchers/m74_airburst_grenades.yml"
+    },
+    "RMC40MMGrenadeM74AGMS": {
+      "parents": [
+        "RMC40MMGrenadeM74AGMF"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Launchers/m74_airburst_grenades.yml"
+    },
+    "RMCAirBurstProjectileFrag": {
+      "parents": [
+        "RMCBaseAirBurstProjectile"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Launchers/m74_airburst_grenades.yml"
+    },
+    "RMCAirBurstProjectileHornet": {
+      "parents": [
+        "RMCBaseAirBurstProjectile"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Launchers/m74_airburst_grenades.yml"
+    },
+    "RMCAirBurstProjectileIncendiary": {
+      "parents": [
+        "RMCBaseAirBurstProjectile"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Launchers/m74_airburst_grenades.yml"
+    },
+    "RMCAirBurstProjectileSmoke": {
+      "parents": [
+        "RMCBaseAirBurstProjectile"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Launchers/m74_airburst_grenades.yml"
+    },
+    "RMCAirBurstProjectileStarShell": {
+      "parents": [
+        "RMCBaseAirBurstProjectile"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Launchers/m74_airburst_grenades.yml"
+    },
+    "RMCAttachmentAngledGrip": {
+      "parents": [
+        "RMCUnderAttachmentBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/under_attachments.yml"
+    },
+    "RMCAttachmentB8SmartScope": {
+      "parents": [
+        "RMCAttachmentS42xTelescopicMiniscope"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/rail_attachments.yml"
+    },
+    "RMCAttachmentBipod": {
+      "parents": [
+        "RMCUnderAttachmentBase",
+        "RMCAttachableToggleableBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/under_attachments.yml"
+    },
+    "RMCAttachmentBurstFireAssembly": {
+      "parents": [
+        "RMCUnderAttachmentBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/under_attachments.yml"
+    },
+    "RMCAttachmentExtendedBarrel": {
+      "parents": [
+        "RMCBarrelAttachmentBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/barrel_attachments.yml"
+    },
+    "RMCAttachmentFlashlightGrip": {
+      "parents": [
+        "RMCUnderAttachmentBase",
+        "RMCAttachableToggleableBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/under_attachments.yml"
+    },
+    "RMCAttachmentGyroscopicStabilizer": {
+      "parents": [
+        "RMCUnderAttachmentBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/under_attachments.yml"
+    },
+    "RMCAttachmentLaserLightModule": {
+      "parents": [
+        "RMCAttachmentFlashlightGrip"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/under_attachments.yml"
+    },
+    "RMCAttachmentLaserSight": {
+      "parents": [
+        "RMCUnderAttachmentBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/under_attachments.yml"
+    },
+    "RMCAttachmentM13StockCollapsible": {
+      "parents": [
+        "RMCStockAttachmentCollapsibleBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/stock_attachments.yml"
+    },
+    "RMCAttachmentM13StockSolid": {
+      "parents": [
+        "RMCStockAttachmentBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/stock_attachments.yml"
+    },
+    "RMCAttachmentM42A2CollapsibleStock": {
+      "parents": [
+        "RMCStockAttachmentCollapsibleBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/stock_attachments.yml"
+    },
+    "RMCAttachmentM44MagnumSharpshooterStock": {
+      "parents": [
+        "RMCStockAttachmentCollapsibleBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/stock_attachments.yml"
+    },
+    "RMCAttachmentM54CMK1StockCollapsible": {
+      "parents": [
+        "RMCAttachmentM54CStockCollapsible"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/stock_attachments.yml"
+    },
+    "RMCAttachmentM54CStockCollapsible": {
+      "parents": [
+        "RMCStockAttachmentCollapsibleBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/stock_attachments.yml"
+    },
+    "RMCAttachmentM54CStockSolid": {
+      "parents": [
+        "RMCStockAttachmentBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/stock_attachments.yml"
+    },
+    "RMCAttachmentM63ArmBrace": {
+      "parents": [
+        "RMCStockAttachmentCollapsibleBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/stock_attachments.yml"
+    },
+    "RMCAttachmentM63Stock": {
+      "parents": [
+        "RMCStockAttachmentBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/stock_attachments.yml"
+    },
+    "RMCAttachmentM63StockCollapsible": {
+      "parents": [
+        "RMCStockAttachmentCollapsibleBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/stock_attachments.yml"
+    },
+    "RMCAttachmentMK1GrenadeLauncher": {
+      "parents": [
+        "RMCAttachmentU1GrenadeLauncher"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/under_attachments.yml"
+    },
+    "RMCAttachmentMOU53Stock": {
+      "parents": [
+        "RMCStockAttachmentBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/stock_attachments.yml"
+    },
+    "RMCAttachmentMagneticHarness": {
+      "parents": [
+        "RMCRailAttachmentBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/rail_attachments.yml"
+    },
+    "RMCAttachmentMicroLaserSight": {
+      "parents": [
+        "RMCUnderAttachmentBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/under_attachments.yml"
+    },
+    "RMCAttachmentMiniFlamethrower": {
+      "parents": [
+        "RMCUnderAttachmentBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/under_attachments.yml"
+    },
+    "RMCAttachmentRailFlashlight": {
+      "parents": [
+        "RMCRailAttachmentBase",
+        "RMCAttachableToggleableBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/rail_attachments.yml"
+    },
+    "RMCAttachmentRecoilCompensator": {
+      "parents": [
+        "RMCBarrelAttachmentBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/barrel_attachments.yml"
+    },
+    "RMCAttachmentRecoilCompensatorM13": {
+      "parents": [
+        "RMCBarrelAttachmentBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/barrel_attachments.yml"
+    },
+    "RMCAttachmentRecoilCompensatorM13Spiked": {
+      "parents": [
+        "RMCAttachmentRecoilCompensatorM13"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/barrel_attachments.yml"
+    },
+    "RMCAttachmentS42xTelescopicMiniscope": {
+      "parents": [
+        "RMCAttachmentScopeBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/rail_attachments.yml"
+    },
+    "RMCAttachmentS5MicroRedDotSight": {
+      "parents": [
+        "RMCRailAttachmentBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/rail_attachments.yml"
+    },
+    "RMCAttachmentS5RedDotSight": {
+      "parents": [
+        "RMCRailAttachmentBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/rail_attachments.yml"
+    },
+    "RMCAttachmentS6ReflexSight": {
+      "parents": [
+        "RMCRailAttachmentBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/rail_attachments.yml"
+    },
+    "RMCAttachmentS84xTelescopicScope": {
+      "parents": [
+        "RMCAttachmentScopeBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/rail_attachments.yml"
+    },
+    "RMCAttachmentShotgunChoke": {
+      "parents": [
+        "RMCBarrelAttachmentBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/barrel_attachments.yml"
+    },
+    "RMCAttachmentSuppressor": {
+      "parents": [
+        "RMCBarrelAttachmentBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/barrel_attachments.yml"
+    },
+    "RMCAttachmentSuppressorCompact": {
+      "parents": [
+        "RMCAttachmentSuppressor"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/barrel_attachments.yml"
+    },
+    "RMCAttachmentU1GrenadeLauncher": {
+      "parents": [
+        "RMCUnderAttachmentBase",
+        "RMCAttachableToggleableBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/under_attachments.yml"
+    },
+    "RMCAttachmentU7UnderbarrelShotgun": {
+      "parents": [
+        "RMCUnderAttachmentBase",
+        "RMCAttachableToggleableBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/under_attachments.yml"
+    },
+    "RMCAttachmentUnderbarrelExtinguisher": {
+      "parents": [
+        "RMCUnderAttachmentBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/under_attachments.yml"
+    },
+    "RMCAttachmentVerticalGrip": {
+      "parents": [
+        "RMCUnderAttachmentBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/under_attachments.yml"
+    },
+    "RMCAttachmentXM88Stock": {
+      "parents": [
+        "RMCStockAttachmentBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/stock_attachments.yml"
+    },
+    "RMCAttachmentXS-9": {
+      "parents": [
+        "RMCAttachmentScopeBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Attachments/rail_attachments.yml"
+    },
+    "RMCBackpackAmmo": {
+      "parents": [
+        "CMBackpack"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Back/backpacks.yml"
+    },
+    "RMCBackpackFlamer": {
+      "parents": [
+        "CMPersonalStorageBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Back/backpack_flamer.yml"
+    },
+    "RMCBackpackRTO": {
+      "parents": [
+        "CMSatchel"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Back/satchels.yml"
+    },
+    "RMCBatonSlugHIRR": {
+      "parents": [
+        "RMC40MMGrenadeM74AGMF"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Launchers/m74_airburst_grenades.yml"
+    },
+    "RMCBatonSlugProjectile": {
+      "parents": [
+        "RMCBaseBullet"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Launchers/m74_airburst_grenades.yml"
+    },
+    "RMCBeltGrenade": {
+      "parents": [
+        "CMBeltMarine"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Belt/belts.yml"
+    },
+    "RMCBeltHolsterM13": {
+      "parents": [
+        "CMBeltMarine"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Belt/belts.yml"
+    },
+    "RMCBeltHolsterPistol": {
+      "parents": [
+        "CMBeltMarine"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Belt/belts.yml"
+    },
+    "RMCBeltHolsterRevolver": {
+      "parents": [
+        "CMBeltMarine"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Belt/belts.yml"
+    },
+    "RMCBeltHolsterSMG": {
+      "parents": [
+        "ClothingBeltBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Belt/belts.yml"
+    },
+    "RMCBeltHolsterSMGPouch": {
+      "parents": [
+        "CMBeltBaseStorage"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Belt/belts.yml"
+    },
+    "RMCBeltMachineGunner": {
+      "parents": [
+        "CMBeltUtility"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Belt/belts.yml"
+    },
+    "RMCBeltSmartPistolFilled": {
+      "parents": [
+        "RMCBeltSmartPistol"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Catalog/Fills/Clothing/belt.yml"
+    },
+    "RMCBeltUtilityGeneral": {
+      "parents": [
+        "CMBeltBaseStorage"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Belt/belts.yml"
+    },
+    "RMCBinoculars": {
+      "parents": [
+        "BaseItem"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Devices/binoculars.yml"
+    },
+    "RMCBox458SOCOM": {
+      "parents": [
+        "RMCBoxShotgunBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Rifles/xm88_rifle.yml"
+    },
+    "RMCBoxBullets458": {
+      "parents": [
+        "RMCBoxBullets458Empty"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/magazine_boxes.yml"
+    },
+    "RMCBoxBulletsPistol": {
+      "parents": [
+        "RMCBoxBulletsBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/bullet_boxes.yml"
+    },
+    "RMCBoxBulletsRifle": {
+      "parents": [
+        "RMCBoxBulletsBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/bullet_boxes.yml"
+    },
+    "RMCBoxBulletsRifleAP": {
+      "parents": [
+        "RMCBoxBulletsBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/bullet_boxes.yml"
+    },
+    "RMCBoxBulletsSMG": {
+      "parents": [
+        "RMCBoxBulletsBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/bullet_boxes.yml"
+    },
+    "RMCBoxBulletsSMGAP": {
+      "parents": [
+        "RMCBoxBulletsBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/bullet_boxes.yml"
+    },
+    "RMCBoxBulletsSmartGun": {
+      "parents": [
+        "RMCBoxBulletsBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/bullet_boxes.yml"
+    },
+    "RMCBoxClaymoreMineFilled": {
+      "parents": [
+        "RMCBoxSmallBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Explosives/boxes.yml"
+    },
+    "RMCBoxMagazinePistolM13": {
+      "parents": [
+        "RMCBoxMagazinePistolM13Empty"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/magazine_boxes.yml"
+    },
+    "RMCBoxMagazinePistolM13Ext": {
+      "parents": [
+        "RMCBoxMagazinePistolM13ExtEmpty"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/magazine_boxes.yml"
+    },
+    "RMCBoxMagazinePistolM1984": {
+      "parents": [
+        "RMCBoxMagazinePistolM1984Empty"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/magazine_boxes.yml"
+    },
+    "RMCBoxMagazinePistolM1984AP": {
+      "parents": [
+        "RMCBoxMagazinePistolM1984APEmpty"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/magazine_boxes.yml"
+    },
+    "RMCBoxMagazinePistolM1984HP": {
+      "parents": [
+        "RMCBoxMagazinePistolM1984HPEmpty"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/magazine_boxes.yml"
+    },
+    "RMCBoxMagazinePistolM77AP": {
+      "parents": [
+        "RMCBoxMagazinePistolM77APEmpty"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/magazine_boxes.yml"
+    },
+    "RMCBoxMagazinePistolMK80": {
+      "parents": [
+        "RMCBoxMagazinePistolMK80Empty"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/magazine_boxes.yml"
+    },
+    "RMCBoxMagazinePistolSU6": {
+      "parents": [
+        "RMCBoxMagazinePistolSU6Empty"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/magazine_boxes.yml"
+    },
+    "RMCBoxMagazineRevolverM44": {
+      "parents": [
+        "RMCBoxMagazineRevolverM44Empty"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/magazine_boxes.yml"
+    },
+    "RMCBoxMagazineRevolverM44Marksman": {
+      "parents": [
+        "RMCBoxMagazineRevolverM44MarksmanEmpty"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/magazine_boxes.yml"
+    },
+    "RMCBoxMagazineRifleM4SPR": {
+      "parents": [
+        "RMCBoxMagazineRifleM4SPREmpty"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/magazine_boxes.yml"
+    },
+    "RMCBoxMagazineRifleM4SPRAP": {
+      "parents": [
+        "RMCBoxMagazineRifleM4SPRAPEmpty"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/magazine_boxes.yml"
+    },
+    "RMCBoxMagazineRifleM4SPRExt": {
+      "parents": [
+        "RMCBoxMagazineRifleM4SPRExtEmpty"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/magazine_boxes.yml"
+    },
+    "RMCBoxMagazineRifleM54C": {
+      "parents": [
+        "RMCBoxMagazineRifleM54CEmpty"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/magazine_boxes.yml"
+    },
+    "RMCBoxMagazineRifleM54CAP": {
+      "parents": [
+        "RMCBoxMagazineRifleM54CAPEmpty"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/magazine_boxes.yml"
+    },
+    "RMCBoxMagazineRifleM54CExt": {
+      "parents": [
+        "RMCBoxMagazineRifleM54CExtEmpty"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/magazine_boxes.yml"
+    },
+    "RMCBoxMagazineSMGM63": {
+      "parents": [
+        "RMCBoxMagazineSMGM63Empty"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/magazine_boxes.yml"
+    },
+    "RMCBoxMagazineSMGM63AP": {
+      "parents": [
+        "RMCBoxMagazineSMGM63APEmpty"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/magazine_boxes.yml"
+    },
+    "RMCBoxMagazineSMGM63Ext": {
+      "parents": [
+        "RMCBoxMagazineSMGM63ExtEmpty"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/magazine_boxes.yml"
+    },
+    "RMCBoxShellsBuckshot": {
+      "parents": [
+        "RMCBoxShellsBuckshotEmpty"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/magazine_boxes.yml"
+    },
+    "RMCBoxShellsFlechette": {
+      "parents": [
+        "RMCBoxShellsFlechetteEmpty"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/magazine_boxes.yml"
+    },
+    "RMCBoxShellsSlugs": {
+      "parents": [
+        "RMCBoxShellsSlugsEmpty"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Ammunition/Boxes/magazine_boxes.yml"
+    },
+    "RMCBoxShotgunBuckshot": {
+      "parents": [
+        "RMCBoxShotgunBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Shotguns/shotgun_boxes.yml"
+    },
+    "RMCBoxShotgunFlechette": {
+      "parents": [
+        "RMCBoxShotgunBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Shotguns/shotgun_boxes.yml"
+    },
+    "RMCBoxShotgunSlugs": {
+      "parents": [
+        "RMCBoxShotgunBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Shotguns/shotgun_boxes.yml"
+    },
+    "RMCBullet458SOCOM": {
+      "parents": [
+        "BulletRifle10x24mm"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Rifles/xm88_rifle.yml"
+    },
+    "RMCBulletAutoPistol": {
+      "parents": [
+        "RMCBaseBullet"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/m13_auto_pistol.yml"
+    },
+    "RMCBulletHMG10x28mm": {
+      "parents": [
+        "CMBulletBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/HMGs/ml66d.yml"
+    },
+    "RMCBulletHMG10x28mmTungsten": {
+      "parents": [
+        "CMBulletBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/HMGs/m2c.yml"
+    },
+    "RMCBulletPistol45ACP": {
+      "parents": [
+        "CMBulletBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/su6_pistol.yml"
+    },
+    "RMCBulletPistol9mmHP": {
+      "parents": [
+        "CMBulletBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/m1984_pistol.yml"
+    },
+    "RMCBulletRevolver44Marksman": {
+      "parents": [
+        "CMBulletBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Revolvers/m44_revolver.yml"
+    },
+    "RMCCartridge458SOCOM": {
+      "parents": [
+        "CMShellShotgunBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Rifles/rifle_handfuls.yml"
+    },
+    "RMCCartridge7x45mm": {
+      "parents": [
+        "CMCartridgeSMGBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/SMGs/nailgun.yml"
+    },
+    "RMCCartridgeAutoPistol": {
+      "parents": [
+        "CMCartridgeSMGBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/m13_auto_pistol.yml"
+    },
+    "RMCCartridgeHMG10x28mm": {
+      "parents": [
+        "CMBaseCartridgeRifle"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/HMGs/ml66d.yml"
+    },
+    "RMCCartridgeHMG10x28mmTungsten": {
+      "parents": [
+        "CMBaseCartridgeRifle"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/HMGs/m2c.yml"
+    },
+    "RMCCartridgePistol45ACP": {
+      "parents": [
+        "CMCartridgePistolBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/su6_pistol.yml"
+    },
+    "RMCCartridgePistol9mmHP": {
+      "parents": [
+        "CMCartridgePistol9mm"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/m1984_pistol.yml"
+    },
+    "RMCCartridgePistol9mmSquashHead": {
+      "parents": [
+        "CMCartridgePistolBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/mk80_pistol.yml"
+    },
+    "RMCCartridgeRevolver44": {
+      "parents": [
+        "CMCartridgePistolBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Revolvers/m44_revolver.yml"
+    },
+    "RMCCartridgeRevolver44Marksman": {
+      "parents": [
+        "CMCartridgePistolBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Revolvers/m44_revolver.yml"
+    },
+    "RMCCaseFlamer": {
+      "parents": [
+        "RMCGunCaseBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Flamethrowers/m34_flamer.yml"
+    },
+    "RMCCaseXM88": {
+      "parents": [
+        "RMCGunCaseBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Cases/gun_cases.yml"
+    },
+    "RMCExplosiveBreachingCharge": {
+      "parents": [
+        "BaseItem"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Explosives/breaching_charge.yml"
+    },
+    "RMCExplosiveClaymoreMine": {
+      "parents": [
+        "BaseItem"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Explosives/claymore_mine.yml"
+    },
+    "RMCExplosivePlastic": {
+      "parents": [
+        "RMCExplosiveBreachingCharge"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Explosives/breaching_charge.yml"
+    },
+    "RMCFlareBullet": {
+      "parents": [
+        "RMCBaseBullet"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Tools/flares.yml"
+    },
+    "RMCFlareCAS": {
+      "parents": [
+        "CMFlare"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Tools/flares.yml"
+    },
+    "RMCFlareCASBullet": {
+      "parents": [
+        "RMCFlareBullet"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Tools/flares.yml"
+    },
+    "RMCFlashlight": {
+      "parents": [
+        "RMCFlashlightBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Tools/flashlights.yml"
+    },
+    "RMCFulton20": {
+      "parents": [
+        "RMCFulton"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Tools/rmc_fulton.yml"
+    },
+    "RMCGrenadeIncendiary": {
+      "parents": [
+        "RMCM40DPTags",
+        "CMGrenadeBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Throwable/grenades.yml"
+    },
+    "RMCGrenadeWhitePhosphorusCompound": {
+      "parents": [
+        "RMCGrenadeWhitePhosphorus"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Throwable/grenades.yml"
+    },
+    "RMCGunCasePistolM13": {
+      "parents": [
+        "RMCGunCaseBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Cases/gun_cases.yml"
+    },
+    "RMCGunCasePistolMK80": {
+      "parents": [
+        "RMCGunCaseBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Cases/gun_cases.yml"
+    },
+    "RMCGunCasePistolSmart": {
+      "parents": [
+        "RMCGunCaseBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Cases/gun_cases.yml"
+    },
+    "RMCGunCaseRifleM54CE2": {
+      "parents": [
+        "RMCGunCaseBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Cases/gun_cases.yml"
+    },
+    "RMCHornetShellM74AGMS": {
+      "parents": [
+        "RMC40MMGrenadeM74AGMF"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Launchers/m74_airburst_grenades.yml"
+    },
+    "RMCIntelDetector": {
+      "parents": [
+        "BaseItem"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Tools/intel_detector.yml"
+    },
+    "RMCLaserDesignator": {
+      "parents": [
+        "RMCRangefinder"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Devices/binoculars.yml"
+    },
+    "RMCM276ShotgunShellLoadingRig": {
+      "parents": [
+        "RMCBeltBaseStorageNoVisuals"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Belt/belts.yml"
+    },
+    "RMCM2CCase": {
+      "parents": [
+        "RMCGunCaseBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Cases/gun_cases.yml"
+    },
+    "RMCM2CMount": {
+      "parents": [
+        "RMCBaseWeaponMount",
+        "BaseItem"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/HMGs/weapon_mounts.yml"
+    },
+    "RMCM300SOCOMBelt": {
+      "parents": [
+        "CMBeltBaseStorage"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Belt/belts.yml"
+    },
+    "RMCM54CMK1Case": {
+      "parents": [
+        "RMCGunCaseBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Cases/gun_cases.yml"
+    },
+    "RMCM5Bayonet": {
+      "parents": [
+        "RMCBaseMeleeWeapon",
+        "BaseKnife",
+        "RMCAttachableBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Melee/knife.yml"
+    },
+    "RMCM82FHolster": {
+      "parents": [
+        "RMCBeltBaseStorageNoVisuals"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Belt/belts.yml"
+    },
+    "RMCM85A1Case": {
+      "parents": [
+        "RMCGunCaseBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Cases/gun_cases.yml"
+    },
+    "RMCMK80": {
+      "parents": [
+        "RMCBaseSlideMagazineVisuals",
+        "CMWeaponPistolBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/mk80_pistol.yml"
+    },
+    "RMCML66DCase": {
+      "parents": [
+        "RMCGunCaseBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Cases/gun_cases.yml"
+    },
+    "RMCML66DMount": {
+      "parents": [
+        "RMCBaseWeaponMount",
+        "BaseDeployFoldable",
+        "BaseItem"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/HMGs/weapon_mounts.yml"
+    },
+    "RMCMOU53Case": {
+      "parents": [
+        "RMCGunCaseBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Cases/gun_cases.yml"
+    },
+    "RMCMagazineM2C": {
+      "parents": [
+        "CMMagazineRifleBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/HMGs/m2c.yml"
+    },
+    "RMCMagazineML66D": {
+      "parents": [
+        "CMMagazineRifleBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/HMGs/ml66d.yml"
+    },
+    "RMCMagazinePistolM13": {
+      "parents": [
+        "CMBaseMagazinePistol"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/m13_auto_pistol.yml"
+    },
+    "RMCMagazinePistolM13Ext": {
+      "parents": [
+        "CMBaseMagazinePistol"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/m13_auto_pistol.yml"
+    },
+    "RMCMagazinePistolM1984AP": {
+      "parents": [
+        "CMMagazinePistolM1984"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/m1984_pistol.yml"
+    },
+    "RMCMagazinePistolM1984HP": {
+      "parents": [
+        "CMMagazinePistolM1984"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/m1984_pistol.yml"
+    },
+    "RMCMagazinePistolSU6": {
+      "parents": [
+        "CMBaseMagazinePistol"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/su6_pistol.yml"
+    },
+    "RMCMagazineSMGNailgun": {
+      "parents": [
+        "CMMagazineRifleBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/SMGs/nailgun.yml"
+    },
+    "RMCMagazineSmartGun": {
+      "parents": [
+        "CMMagazineRifleBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/SmartGuns/smart_gun.yml"
+    },
+    "RMCMotionDetector": {
+      "parents": [
+        "BaseItem"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Tools/motion_detector.yml"
+    },
+    "RMCNail7x45mm": {
+      "parents": [
+        "RMCBaseBullet"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/SMGs/nailgun.yml"
+    },
+    "RMCOuterClothingExternalWebbing": {
+      "parents": [
+        "ClothingOuterStorageBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/OuterClothing/webbing.yml"
+    },
+    "RMCOverwatchCameraTripod": {
+      "parents": [
+        "BaseItem"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Devices/overwatch_tripod_camera.yml"
+    },
+    "RMCPDTBracelet": {
+      "parents": [
+        "RMCWatchBaseL"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Devices/pdt.yml"
+    },
+    "RMCPDTLocatorTube": {
+      "parents": [
+        "BaseItem",
+        "PowerCellSlotSmallItem"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Devices/pdt.yml"
+    },
+    "RMCPackFlareCAS": {
+      "parents": [
+        "CMPackFlareBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Tools/flares.yml"
+    },
+    "RMCPacketGrenadeBatonSlugHIRRFilled": {
+      "parents": [
+        "RMCPacketGrenadeBatonSlugHIRR"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Throwable/packets.yml"
+    },
+    "RMCPacketGrenadeIncendiaryFilled": {
+      "parents": [
+        "RMCPacketGrenadeIncendiary"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Throwable/packets.yml"
+    },
+    "RMCPacketGrenadeM74AGMFFilled": {
+      "parents": [
+        "RMCPacketGrenadeM74AGMF"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Throwable/packets.yml"
+    },
+    "RMCPacketGrenadeM74AGMIFilled": {
+      "parents": [
+        "RMCPacketGrenadeM74AGMI"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Throwable/packets.yml"
+    },
+    "RMCPacketGrenadeM74AGMSFilled": {
+      "parents": [
+        "RMCPacketGrenadeM74AGMS"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Throwable/packets.yml"
+    },
+    "RMCPacketGrenadeM74AGMSHornetFilled": {
+      "parents": [
+        "RMCPacketGrenadeM74AGMSHornet"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Throwable/packets.yml"
+    },
+    "RMCPacketGrenadeM74AGMSStarShellFilled": {
+      "parents": [
+        "RMCPacketGrenadeM74AGMSStarShell"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Throwable/packets.yml"
+    },
+    "RMCPacketGrenadeSmokeFilled": {
+      "parents": [
+        "RMCPacketGrenadeSmoke"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Throwable/packets.yml"
+    },
+    "RMCPacketGrenadeWhitePhosphorusCompoundFilled": {
+      "parents": [
+        "RMCPacketGrenadeWhitePhosphorusCompound"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Throwable/packets.yml"
+    },
+    "RMCPamphletHeavyMachineGunner": {
+      "parents": [
+        "CMPamphlet"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Misc/pamphlets.yml"
+    },
+    "RMCParachute": {
+      "parents": [
+        "Clothing"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Back/utility.yml"
+    },
+    "RMCPouchAutoinjector": {
+      "parents": [
+        "RMCPouchOpenClosed",
+        "RMCPouchStorage"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Pouches/medical.yml"
+    },
+    "RMCPouchBayonetFill": {
+      "parents": [
+        "RMCPouchBayonet"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Pouches/weapons.yml"
+    },
+    "RMCPouchConstruction": {
+      "parents": [
+        "RMCPouchOpenClosed",
+        "RMCPouchStorage"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Pouches/construction_pouch.yml"
+    },
+    "RMCPouchDocumentSmall": {
+      "parents": [
+        "RMCPouchDocument"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Pouches/storage.yml"
+    },
+    "RMCPouchElectronics": {
+      "parents": [
+        "RMCPouchOpenClosed",
+        "RMCPouchStorage"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Pouches/storage.yml"
+    },
+    "RMCPouchExplosive": {
+      "parents": [
+        "RMCPouchOpenClosed",
+        "RMCPouchStorage"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Pouches/explosive_pouch.yml"
+    },
+    "RMCPouchFirstAidInjectors": {
+      "parents": [
+        "RMCPouchFirstAid"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Pouches/first_aid_pouch.yml"
+    },
+    "RMCPouchFirstResponder": {
+      "parents": [
+        "RMCPouchOpenClosed",
+        "RMCPouchStorage"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Pouches/medical.yml"
+    },
+    "RMCPouchFlareFilled": {
+      "parents": [
+        "RMCPouchFlare"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Catalog/Fills/Clothing/pouch.yml"
+    },
+    "RMCPouchFuelTank": {
+      "parents": [
+        "RMCPouchOpenClosed",
+        "RMCPouchStorage"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Pouches/fuel_tank_pouch.yml"
+    },
+    "RMCPouchGeneralLarge": {
+      "parents": [
+        "RMCPouchGeneral"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Pouches/large_general_pouch.yml"
+    },
+    "RMCPouchGeneralMedium": {
+      "parents": [
+        "RMCPouchGeneral"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Pouches/storage.yml"
+    },
+    "RMCPouchMacheteFilled": {
+      "parents": [
+        "RMCPouchMachete"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Pouches/weapons.yml"
+    },
+    "RMCPouchMagazine": {
+      "parents": [
+        "RMCPouchOpenClosed",
+        "RMCPouchStorage"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Pouches/storage.yml"
+    },
+    "RMCPouchMagazineLarge": {
+      "parents": [
+        "RMCPouchMagazine"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Pouches/storage.yml"
+    },
+    "RMCPouchMagazinePistolLarge": {
+      "parents": [
+        "RMCPouchMagazinePistol"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Pouches/storage.yml"
+    },
+    "RMCPouchMedkit": {
+      "parents": [
+        "RMCPouchOpenClosed",
+        "RMCPouchStorage"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Pouches/medical_kit_pouch.yml"
+    },
+    "RMCPouchPistol": {
+      "parents": [
+        "RMCPouch"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Pouches/weapons.yml"
+    },
+    "RMCPouchShotgun": {
+      "parents": [
+        "RMCPouchStorage"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Pouches/storage.yml"
+    },
+    "RMCPouchShotgunLarge": {
+      "parents": [
+        "RMCPouchShotgun"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Pouches/storage.yml"
+    },
+    "RMCPouchSling": {
+      "parents": [
+        "RMCPouchClosed",
+        "RMCPouchStorage"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Pouches/storage.yml"
+    },
+    "RMCPouchSyringe": {
+      "parents": [
+        "RMCPouchOpenClosed",
+        "RMCPouchStorage"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Pouches/medical.yml"
+    },
+    "RMCPouchToolsFill": {
+      "parents": [
+        "RMCPouchTools"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Catalog/Fills/Clothing/pouch.yml"
+    },
+    "RMCPowerCellCrap": {
+      "parents": [
+        "RMCPowerCell"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Power/cells.yml"
+    },
+    "RMCPowerCellHigh": {
+      "parents": [
+        "RMCPowerCell"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Power/cells.yml"
+    },
+    "RMCPowerCellSmartgun": {
+      "parents": [
+        "RMCPowerCell"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Power/cells.yml"
+    },
+    "RMCProjectileM5510Brute": {
+      "parents": [
+        "RMCBaseProjectileRocket84mm"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Launchers/m6h_brute_launcher.yml"
+    },
+    "RMCRangefinder": {
+      "parents": [
+        "RMCBinoculars"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Devices/binoculars.yml"
+    },
+    "RMCRocketM5510Brute": {
+      "parents": [
+        "BaseItem"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Launchers/m6h_brute_launcher.yml"
+    },
+    "RMCSatchelGrenadeSpec": {
+      "parents": [
+        "CMSatchel"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Back/satchels.yml"
+    },
+    "RMCSatchelWelder": {
+      "parents": [
+        "CMSatchel"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Back/satchels.yml"
+    },
+    "RMCScabbardMacheteFilled": {
+      "parents": [
+        "RMCScabbardMachete"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Back/scabbards.yml"
+    },
+    "RMCScabbardShotgun": {
+      "parents": [
+        "RMCScabbardBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Back/scabbards.yml"
+    },
+    "RMCSentryLaptop": {
+      "parents": [
+        "BaseItem"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Tools/sentry_laptop.yml"
+    },
+    "RMCSmartGunMounted": {
+      "parents": [
+        "CMBaseWeaponGun",
+        "BaseItem"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/HMGs/ml66d.yml"
+    },
+    "RMCSpeedLoader44Marksman": {
+      "parents": [
+        "RMCSpeedLoaderM44"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Revolvers/m44_revolver.yml"
+    },
+    "RMCSpeedLoaderM44": {
+      "parents": [
+        "RMCBaseSpeedLoader44"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Revolvers/m44_revolver.yml"
+    },
+    "RMCStarShellM74AGMS": {
+      "parents": [
+        "RMC40MMGrenadeM74AGMF"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Launchers/m74_airburst_grenades.yml"
+    },
+    "RMCTankFlamer": {
+      "parents": [
+        "RMCBaseTankFlamer"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Flamethrowers/m34_flamer.yml"
+    },
+    "RMCWeaponFlamer": {
+      "parents": [
+        "CMBaseWeaponGun",
+        "BaseItem",
+        "RMCBaseAttachableHolder"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Flamethrowers/m34_flamer.yml"
+    },
+    "RMCWeaponLauncherM85A1": {
+      "parents": [
+        "RMCBaseSlideMagazineVisualsBallistic",
+        "RMCBaseWeaponGrenadeLauncher"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Launchers/m85a1_grenade_launcher.yml"
+    },
+    "RMCWeaponPistolM13": {
+      "parents": [
+        "CMWeaponPistolBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/m13_auto_pistol.yml"
+    },
+    "RMCWeaponPistolM13Empty": {
+      "parents": [
+        "RMCWeaponPistolM13"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/m13_auto_pistol.yml"
+    },
+    "RMCWeaponPistolM77Empty": {
+      "parents": [
+        "RMCWeaponPistolM77"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/m77_pistol.yml"
+    },
+    "RMCWeaponPistolM82FEmpty": {
+      "parents": [
+        "RMCWeaponPistolM82F"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/m82f.yml"
+    },
+    "RMCWeaponPistolSU6": {
+      "parents": [
+        "CMWeaponPistolBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Pistols/su6_pistol.yml"
+    },
+    "RMCWeaponRevolverM44Empty": {
+      "parents": [
+        "RMCWeaponRevolverM44"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Revolvers/m44_revolver.yml"
+    },
+    "RMCWeaponRifleM54C": {
+      "parents": [
+        "CMBaseWeaponRifle",
+        "RMCBaseWeaponMagazineVisuals"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Rifles/m54c_rifle.yml"
+    },
+    "RMCWeaponRifleM54CE2": {
+      "parents": [
+        "CMBaseWeaponRifle",
+        "RMCBaseWeaponMagazineVisuals"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Rifles/m54c_heavy_rifle.yml"
+    },
+    "RMCWeaponRifleM54CMK1": {
+      "parents": [
+        "CMBaseWeaponRifle",
+        "RMCBaseWeaponMagazineVisuals"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Rifles/m54c_mk1_rifle.yml"
+    },
+    "RMCWebbingBlackSmall": {
+      "parents": [
+        "CMWebbing"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Accessory/webbing.yml"
+    },
+    "RMCWebbingDropPouch": {
+      "parents": [
+        "CMWebbingBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Accessory/webbing.yml"
+    },
+    "RMCWebbingDropPouchBlack": {
+      "parents": [
+        "RMCWebbingDropPouch"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Accessory/webbing.yml"
+    },
+    "RMCWebbingHolsterBlack": {
+      "parents": [
+        "CMWebbingHolster"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Accessory/webbing.yml"
+    },
+    "RMCWebbingLegPouch": {
+      "parents": [
+        "CMWebbingBrown"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Accessory/webbing.yml"
+    },
+    "RMCWebbingLegPouchBlack": {
+      "parents": [
+        "CMWebbingBrown"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Accessory/webbing.yml"
+    },
+    "RMCWeldingGoggles": {
+      "parents": [
+        "ClothingEyesBase"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Clothing/Eyes/glasses.yml"
+    },
+    "WeaponRifleM4SPR": {
+      "parents": [
+        "CMBaseWeaponRifle",
+        "RMCBaseWeaponMagazineVisuals"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Rifles/m4spr_rifle.yml"
+    },
+    "WeaponRifleXM88": {
+      "parents": [
+        "RMCBaseWeaponRifleNoMagazineProvider"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Rifles/xm88_rifle.yml"
+    },
+    "WeaponSMGM63": {
+      "parents": [
+        "CMBaseWeaponSMG"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/SMGs/m63_smg.yml"
+    },
+    "WeaponShotgunM42A2": {
+      "parents": [
+        "RMCBaseWeaponShotgun",
+        "RMCBaseAttachableHolder"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Shotguns/m42a2_shotgun.yml"
+    },
+    "WeaponShotgunMOU53": {
+      "parents": [
+        "RMCBaseBreechloader",
+        "RMCBaseAttachableHolder"
+      ],
+      "abstract": false,
+      "origin": "rmc14",
+      "sourceFile": "Resources/Prototypes/_RMC14/Entities/Objects/Weapons/Guns/Shotguns/mou53_shotgun.yml"
+    }
+  }
+}

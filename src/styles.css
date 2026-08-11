@@ -51,23 +51,35 @@ nav a.active { color: #111820; font-weight: 700; }
 .card-link { margin-top: auto; padding-top: 24px; font-weight: 700; }
 
 .page-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; margin-bottom: 28px; }
-.stats { display: flex; gap: 12px; margin: 0; }
-.stats div { min-width: 88px; padding: 12px; border: 1px solid #d8dce2; border-radius: 10px; background: white; }
-.stats dt { color: #69727e; font-size: 0.76rem; }
-.stats dd { margin: 4px 0 0; font-size: 1.35rem; font-weight: 800; }
 
-.filters { display: grid; grid-template-columns: minmax(220px, 2fr) repeat(2, minmax(180px, 1fr)); gap: 14px; margin-bottom: 18px; padding: 18px; border: 1px solid #d8dce2; border-radius: 12px; background: white; }
+.filters { display: grid; grid-template-columns: minmax(240px, 2fr) minmax(200px, 1fr); gap: 14px; margin-bottom: 18px; padding: 18px; border: 1px solid #d8dce2; border-radius: 12px; background: white; }
 .filters label { display: grid; gap: 7px; color: #59616d; font-size: 0.82rem; font-weight: 700; }
 .filters input, .filters select { width: 100%; padding: 10px 12px; border: 1px solid #c9ced5; border-radius: 8px; background: #fff; color: #20242b; }
 .results-line { margin: 20px 0 12px; color: #69727e; font-size: 0.88rem; }
 
 .equipment-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-.equipment-card { display: flex; min-height: 170px; flex-direction: column; align-items: flex-start; padding: 16px; border: 1px solid #d8dce2; border-radius: 10px; background: #fff; color: #20242b; text-align: left; cursor: pointer; }
-.equipment-card:hover { border-color: #6f7883; }
-.equipment-card strong { margin: 20px 0 7px; line-height: 1.3; }
+.equipment-card { display: flex; min-height: 220px; flex-direction: column; align-items: flex-start; padding: 16px; border: 1px solid #d8dce2; border-radius: 10px; background: #fff; color: #20242b; text-align: left; cursor: pointer; }
+.equipment-card:hover { border-color: #6f7883; transform: translateY(-1px); }
+.equipment-card strong { margin-top: 14px; line-height: 1.3; }
 .equipment-section { color: #69727e; font-size: 0.76rem; }
-.equipment-id { overflow: hidden; max-width: 100%; color: #7a838e; font-family: monospace; font-size: 0.72rem; text-overflow: ellipsis; white-space: nowrap; }
-.equipment-meta { margin-top: auto; padding-top: 16px; color: #59616d; font-size: 0.82rem; }
+
+.sprite-frame {
+  display: grid;
+  width: 100%;
+  height: 116px;
+  margin-top: 12px;
+  place-items: center;
+  border-radius: 8px;
+  background: #f4f5f7;
+}
+.sprite-frame img {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.sprite-placeholder { display: grid; width: 100%; height: 116px; margin-top: 12px; place-items: center; border-radius: 8px; background: #f4f5f7; color: #a3a9b1; font-size: 2rem; }
+.empty-state { padding: 38px; border: 1px dashed #c4c9d0; border-radius: 12px; color: #69727e; text-align: center; }
 
 .notice { padding: 14px 16px; border: 1px solid #ccd4dd; border-radius: 9px; background: #edf3f8; }
 .notice.warning { border-color: #dfc88e; background: #fff8df; }
@@ -78,6 +90,9 @@ nav a.active { color: #111820; font-weight: 700; }
 .drawer h3 { margin-top: 32px; }
 .drawer > p { color: #59616d; line-height: 1.6; }
 .close-button { float: right; width: 38px; height: 38px; border: 1px solid #d8dce2; border-radius: 50%; background: #fff; font-size: 1.5rem; cursor: pointer; }
+.drawer-sprite { display: grid; min-height: 190px; margin: 28px 0 24px; place-items: center; border-radius: 12px; background: #f4f5f7; }
+.drawer-sprite .sprite-frame { width: 100%; height: 190px; margin: 0; }
+.drawer-sprite .sprite-frame img { width: 160px; height: 160px; }
 .relations { display: grid; gap: 8px; padding: 0; list-style: none; }
 .relations li { display: grid; gap: 3px; padding: 12px; border: 1px solid #e0e3e7; border-radius: 8px; }
 .relations span, .relations small { color: #69727e; }
@@ -97,7 +112,5 @@ nav a.active { color: #111820; font-weight: 700; }
   .site-header { align-items: flex-start; flex-direction: column; padding: 16px 20px; }
   .page { width: min(100% - 28px, 1180px); padding-top: 40px; }
   .module-grid, .equipment-grid, .filters { grid-template-columns: 1fr; }
-  .stats { width: 100%; overflow-x: auto; }
-  .stats div { flex: 1; }
   .drawer { padding: 24px; }
 }

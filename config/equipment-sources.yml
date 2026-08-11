@@ -1,0 +1,9 @@
+schemaVersion: 1
+
+# Only these in-round sources seed the catalog. The builder may follow their
+# contents and technical dependencies, but it never publishes unrelated entity
+# prototypes merely because they exist in the game repository.
+vendors:
+  - id: ColMarTechCargoGuns
+  - id: ColMarTechCargoAmmo
+  - id: ColMarTechCargoAttachments

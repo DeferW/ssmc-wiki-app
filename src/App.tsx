@@ -1,30 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, Route, Routes, useParams } from "react-router-dom";
 
-const DATA_URL =
-  "https://raw.githubusercontent.com/DeferW/ssmc-wiki-data/main/data/equipment-catalog.json";
-
-type TradeEntry = {
-  key: string;
-  vendorId: string;
-  sectionKey: string;
-  sectionName: string;
-  position: number;
-  itemId: string;
-  name: string;
-  amount?: number;
-  spawn?: number;
-};
+const DATA_ROOT =
+  "https://raw.githubusercontent.com/DeferW/ssmc-wiki-data/main/data/";
+const DATA_URL = `${DATA_ROOT}equipment-catalog.json`;
 
 type CatalogItem = {
   id: string;
   name: string;
   description?: string;
+  category?: string;
+  image?: string;
   types?: string[];
   tags?: string[];
   properties?: Record<string, unknown>;
-  directlyVended?: boolean;
-  reachableFromVendors?: string[];
 };
 
 type Relation = {
@@ -34,26 +23,25 @@ type Relation = {
   quantity?: number;
 };
 
+type PublicCatalog = {
+  itemIds: string[];
+  categories: Record<string, string[]>;
+  unwrappedCaseIds: string[];
+};
+
 type Catalog = {
   gameCommit: string;
-  source: string;
-  tradeEntries: TradeEntry[];
   items: Record<string, CatalogItem>;
   relations: Relation[];
-  counts: {
-    vendors: number;
-    sections: number;
-    tradeEntries: number;
-    catalogItems: number;
-    relations: number;
-  };
+  publicCatalog?: PublicCatalog;
+  tradeEntries?: Array<{ itemId: string }>;
 };
 
 const modules = [
   {
     slug: "equipment",
     title: "Снаряжение",
-    text: "Каталог товаров из автоматов: оружие, боеприпасы, обвесы и содержимое кейсов.",
+    text: "Оружие, боеприпасы, обвесы и другое доступное снаряжение морпехов.",
     status: "Работает",
   },
   {
@@ -87,25 +75,6 @@ const modules = [
     status: "Идея",
   },
 ];
-
-const demoCatalog: Catalog = {
-  gameCommit: "demo",
-  source: "Локальный демонстрационный набор",
-  counts: { vendors: 3, sections: 3, tradeEntries: 4, catalogItems: 4, relations: 1 },
-  tradeEntries: [
-    { key: "demo:0", vendorId: "ColMarTechCargoGuns", sectionKey: "guns", sectionName: "Основное оружие", position: 0, itemId: "DemoRifle", name: "штурмовая винтовка M54C", amount: 12 },
-    { key: "demo:1", vendorId: "ColMarTechCargoGuns", sectionKey: "guns", sectionName: "Вторичное оружие", position: 1, itemId: "DemoPistol", name: "боевой пистолет M1984", amount: 20 },
-    { key: "demo:2", vendorId: "ColMarTechCargoAmmo", sectionKey: "ammo", sectionName: "Обычные боеприпасы", position: 0, itemId: "DemoMagazine", name: "магазин M54C", amount: 40 },
-    { key: "demo:3", vendorId: "ColMarTechCargoAttachments", sectionKey: "attachments", sectionName: "Обвесы", position: 0, itemId: "DemoScope", name: "оптический прицел", amount: 8 },
-  ],
-  items: {
-    DemoRifle: { id: "DemoRifle", name: "штурмовая винтовка M54C", description: "Демонстрационная карточка оружия.", types: ["weapon"], tags: ["rifle"], directlyVended: true },
-    DemoPistol: { id: "DemoPistol", name: "боевой пистолет M1984", description: "Демонстрационная карточка пистолета.", types: ["weapon"], tags: ["pistol"], directlyVended: true },
-    DemoMagazine: { id: "DemoMagazine", name: "магазин M54C", description: "Демонстрационная карточка магазина.", types: ["magazine"], directlyVended: true },
-    DemoScope: { id: "DemoScope", name: "оптический прицел", description: "Демонстрационная карточка обвеса.", types: ["attachment"], directlyVended: true },
-  },
-  relations: [{ from: "DemoRifle", to: "DemoMagazine", type: "loadedWith", quantity: 1 }],
-};
 
 function App() {
   return (
@@ -158,10 +127,9 @@ function Home() {
 
 function Equipment() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
-  const [loadState, setLoadState] = useState<"loading" | "live" | "demo">("loading");
+  const [loadState, setLoadState] = useState<"loading" | "live" | "error">("loading");
   const [query, setQuery] = useState("");
-  const [vendor, setVendor] = useState("all");
-  const [section, setSection] = useState("all");
+  const [category, setCategory] = useState("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -177,36 +145,46 @@ function Equipment() {
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setCatalog(demoCatalog);
-        setLoadState("demo");
+        setLoadState("error");
       });
     return () => controller.abort();
   }, []);
 
-  const vendors = useMemo(
-    () => [...new Set(catalog?.tradeEntries.map((entry) => entry.vendorId) ?? [])],
-    [catalog],
+  const publicIds = useMemo(() => {
+    if (!catalog) return [];
+    if (catalog.publicCatalog?.itemIds?.length) return catalog.publicCatalog.itemIds;
+    const directIds = [...new Set((catalog.tradeEntries || []).map((entry) => entry.itemId))];
+    const result = new Set<string>();
+    for (const id of directIds) {
+      const item = catalog.items[id];
+      const isCase = item && /кейс/iu.test(item.name);
+      if (!isCase) {
+        result.add(id);
+        continue;
+      }
+      for (const relation of catalog.relations) {
+        if (relation.from === id && relation.type === "contains") result.add(relation.to);
+      }
+    }
+    return [...result];
+  }, [catalog]);
+
+  const categories = useMemo(
+    () => [...new Set(publicIds.map((id) => catalog?.items[id]?.category).filter(Boolean) as string[])].sort(),
+    [catalog, publicIds],
   );
 
-  const sections = useMemo(
-    () => [...new Set((catalog?.tradeEntries ?? [])
-      .filter((entry) => vendor === "all" || entry.vendorId === vendor)
-      .map((entry) => entry.sectionName))],
-    [catalog, vendor],
-  );
-
-  const visibleEntries = useMemo(() => {
+  const visibleIds = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("ru");
-    return (catalog?.tradeEntries ?? []).filter((entry) => {
-      const item = catalog?.items[entry.itemId];
-      const matchesQuery = !normalized || [entry.name, entry.itemId, item?.description]
+    return publicIds.filter((id) => {
+      const item = catalog?.items[id];
+      if (!item) return false;
+      const matchesQuery = !normalized || [item.name, item.description, id]
         .filter(Boolean)
         .some((value) => String(value).toLocaleLowerCase("ru").includes(normalized));
-      return matchesQuery
-        && (vendor === "all" || entry.vendorId === vendor)
-        && (section === "all" || entry.sectionName === section);
+      return matchesQuery && (category === "all" || item.category === category);
     });
-  }, [catalog, query, vendor, section]);
+  }, [catalog, publicIds, query, category]);
 
   const selectedItem = selectedId && catalog ? catalog.items[selectedId] : null;
   const selectedRelations = selectedId && catalog
@@ -217,24 +195,15 @@ function Equipment() {
     <main className="page catalog-page">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">Рабочий раздел</p>
+          <p className="eyebrow">Арсенал морпехов</p>
           <h1>Каталог снаряжения</h1>
-          <p>Данные загружаются напрямую из последней успешной сборки `ssmc-wiki-data`.</p>
+          <p>Оружие, боеприпасы, обвесы и другое снаряжение в одном месте.</p>
         </div>
-        {catalog && (
-          <dl className="stats">
-            <div><dt>Позиции</dt><dd>{catalog.counts.tradeEntries}</dd></div>
-            <div><dt>Предметы</dt><dd>{catalog.counts.catalogItems}</dd></div>
-            <div><dt>Связи</dt><dd>{catalog.counts.relations}</dd></div>
-          </dl>
-        )}
       </div>
 
       {loadState === "loading" && <p className="notice">Загружаю актуальный каталог…</p>}
-      {loadState === "demo" && (
-        <p className="notice warning">
-          Не удалось получить живые данные. Показан маленький демонстрационный набор.
-        </p>
+      {loadState === "error" && (
+        <p className="notice warning">Не удалось загрузить каталог. Попробуйте обновить страницу чуть позже.</p>
       )}
 
       {catalog && (
@@ -244,72 +213,80 @@ function Equipment() {
               Поиск
               <input
                 type="search"
-                placeholder="Название, описание или ID"
+                placeholder="Название или описание"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
               />
             </label>
             <label>
-              Автомат
-              <select value={vendor} onChange={(event) => { setVendor(event.target.value); setSection("all"); }}>
-                <option value="all">Все автоматы</option>
-                {vendors.map((id) => <option value={id} key={id}>{vendorLabel(id)}</option>)}
-              </select>
-            </label>
-            <label>
-              Раздел
-              <select value={section} onChange={(event) => setSection(event.target.value)}>
-                <option value="all">Все разделы</option>
-                {sections.map((name) => <option value={name} key={name}>{name}</option>)}
+              Категория
+              <select value={category} onChange={(event) => setCategory(event.target.value)}>
+                <option value="all">Все категории</option>
+                {categories.map((name) => <option value={name} key={name}>{name}</option>)}
               </select>
             </label>
           </section>
 
-          <div className="results-line">Найдено: {visibleEntries.length}</div>
+          <div className="results-line">Найдено: {visibleIds.length}</div>
           <section className="equipment-grid" aria-live="polite">
-            {visibleEntries.slice(0, 120).map((entry) => {
-              const item = catalog.items[entry.itemId];
+            {visibleIds.map((id) => {
+              const item = catalog.items[id];
               return (
-                <button className="equipment-card" key={entry.key} onClick={() => setSelectedId(entry.itemId)}>
-                  <span className="equipment-section">{entry.sectionName}</span>
-                  <strong>{entry.name || item?.name || entry.itemId}</strong>
-                  <span className="equipment-id">{entry.itemId}</span>
-                  <span className="equipment-meta">В автомате: {entry.amount ?? "—"}</span>
+                <button className="equipment-card" key={id} onClick={() => setSelectedId(id)}>
+                  <span className="equipment-section">{item.category || "Снаряжение"}</span>
+                  <Sprite item={item} />
+                  <strong>{capitalizeName(item.name)}</strong>
                 </button>
               );
             })}
           </section>
-          {visibleEntries.length > 120 && (
-            <p className="notice">В макете показаны первые 120 результатов. Позже добавим нормальную пагинацию.</p>
-          )}
+          {!visibleIds.length && <p className="empty-state">Ничего не найдено. Даже подозрительного ящика.</p>}
         </>
       )}
 
-      {selectedItem && (
+      {selectedItem && catalog && (
         <div className="drawer-backdrop" role="presentation" onClick={() => setSelectedId(null)}>
           <aside className="drawer" role="dialog" aria-modal="true" aria-label="Карточка предмета" onClick={(event) => event.stopPropagation()}>
             <button className="close-button" onClick={() => setSelectedId(null)} aria-label="Закрыть">×</button>
-            <p className="eyebrow">{selectedItem.types?.join(" · ") || "предмет"}</p>
-            <h2>{selectedItem.name}</h2>
-            <code>{selectedItem.id}</code>
+            <div className="drawer-sprite"><Sprite item={selectedItem} /></div>
+            <p className="eyebrow">{selectedItem.category || "Снаряжение"}</p>
+            <h2>{capitalizeName(selectedItem.name)}</h2>
             <p>{selectedItem.description || "Описание пока отсутствует в локализации."}</p>
             <h3>Связи</h3>
             {selectedRelations.length ? (
               <ul className="relations">
-                {selectedRelations.map((relation, index) => (
-                  <li key={`${relation.from}:${relation.type}:${relation.to}:${index}`}>
-                    <span>{relation.from === selectedItem.id ? "Содержит / использует" : "Входит в / используется"}</span>
-                    <strong>{relation.from === selectedItem.id ? relation.to : relation.from}</strong>
-                    <small>{relation.type}{relation.quantity ? ` × ${relation.quantity}` : ""}</small>
-                  </li>
-                ))}
+                {selectedRelations.map((relation, index) => {
+                  const outgoing = relation.from === selectedItem.id;
+                  const relatedId = outgoing ? relation.to : relation.from;
+                  const related = catalog.items[relatedId];
+                  return (
+                    <li key={`${relation.from}:${relation.type}:${relation.to}:${index}`}>
+                      <span>{relationLabel(relation.type, outgoing)}</span>
+                      <strong>{capitalizeName(related?.name || relatedId)}</strong>
+                      {relation.quantity && relation.quantity > 1 ? <small>Количество: {relation.quantity}</small> : null}
+                    </li>
+                  );
+                })}
               </ul>
             ) : <p>Для этого предмета прямых связей не найдено.</p>}
-            <p className="drawer-note">Подробные характеристики и спрайт добавим после утверждения структуры карточки.</p>
           </aside>
         </div>
       )}
     </main>
+  );
+}
+
+function Sprite({ item }: { item: CatalogItem }) {
+  if (!item.image) return <span className="sprite-placeholder" aria-hidden="true">?</span>;
+  return (
+    <span className="sprite-frame">
+      <img
+        src={`${DATA_ROOT}${item.image}`}
+        alt=""
+        loading="lazy"
+        decoding="async"
+      />
+    </span>
   );
 }
 
@@ -340,11 +317,31 @@ function NotFound() {
   );
 }
 
-function vendorLabel(id: string) {
-  if (id.includes("Guns")) return "Вооружение";
-  if (id.includes("Ammo")) return "Боеприпасы";
-  if (id.includes("Attachments")) return "Обвесы";
-  return id;
+function capitalizeName(value: string) {
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (/\d/u.test(character)) return value;
+    if (/\p{L}/u.test(character)) {
+      return value.slice(0, index) + character.toLocaleUpperCase("ru") + value.slice(index + 1);
+    }
+  }
+  return value;
+}
+
+function relationLabel(type: string, outgoing: boolean) {
+  const labels: Record<string, [string, string]> = {
+    contains: ["Содержит", "Находится внутри"],
+    slotItem: ["Содержит", "Находится внутри"],
+    bundleItem: ["В комплекте", "Входит в комплект"],
+    loadedWith: ["Заряжено", "Используется как боеприпас"],
+    installedAttachment: ["Установлен обвес", "Установлен на"],
+    compatibleAttachment: ["Совместимый обвес", "Совместимо с оружием"],
+    compatibleMagazine: ["Совместимый магазин", "Подходит к оружию"],
+    fires: ["Стреляет", "Используется в боеприпасе"],
+    variant: ["Вариант", "Является вариантом"],
+    refillableBy: ["Заполняется", "Используется для заполнения"],
+  };
+  return (labels[type] || ["Использует", "Используется в"])[outgoing ? 0 : 1];
 }
 
 export default App;
