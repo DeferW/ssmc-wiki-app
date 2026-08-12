@@ -539,7 +539,6 @@ nav a.active {
 }
 
 .home-page {
-  --home-gutter: clamp(24px, 6.25vw, 100px);
   position: relative;
   isolation: isolate;
   min-height: calc(100vh - 58px);
@@ -586,8 +585,8 @@ nav a.active {
 .home-content {
   position: relative;
   z-index: 2;
-  width: min(1240px, calc(100% - var(--home-gutter) - 28px));
-  margin: 0 0 0 var(--home-gutter);
+  width: min(1240px, calc(100% - 48px));
+  margin-inline: auto;
   padding-top: 38px;
   padding-bottom: 58px;
 }
@@ -1163,3 +1162,269 @@ body,
   nav a::after { display: none; }
   .home-content .intro::before { font-size: .58rem; }
 }
+
+/* ========================================================================== */
+/* UI SETTINGS / RESPONSIVE ITEM VIEWER                                      */
+/* ========================================================================== */
+
+/* The home database grid stays centered on every desktop width.  The video
+   remains independently anchored to the left, so ultrawide monitors do not
+   drag the actual UI into the corner. */
+@media (min-width: 1600px) {
+  .home-content {
+    width: min(1240px, calc(100% - 96px));
+  }
+}
+
+/* Settings trigger lives outside React, so it survives route changes and does
+   not require App.tsx changes. */
+.ui-settings-toggle {
+  position: fixed;
+  top: 72px;
+  right: 18px;
+  z-index: 80;
+  min-width: 58px;
+  height: 30px;
+  padding: 0 9px;
+  border: 1px solid #29442e;
+  border-radius: 0;
+  background: rgba(6, 12, 7, .92);
+  color: #7dbb72;
+  font: 700 .65rem/1 "IBM Plex Mono", "Cascadia Mono", Consolas, monospace;
+  letter-spacing: .08em;
+  cursor: pointer;
+  box-shadow: 0 8px 28px rgba(0,0,0,.22);
+  backdrop-filter: blur(8px);
+}
+
+.ui-settings-toggle:hover,
+.ui-settings-toggle[aria-expanded="true"] {
+  border-color: #6ea86c;
+  color: var(--uscm-green-bright, #c1ffa6);
+  background: #0d170f;
+}
+
+.ui-settings-panel {
+  position: fixed;
+  top: 108px;
+  right: 18px;
+  z-index: 81;
+  width: min(320px, calc(100vw - 36px));
+  padding: 16px;
+  border: 1px solid #355438;
+  background:
+    linear-gradient(180deg, rgba(141,255,101,.025), transparent 44%),
+    rgba(6, 12, 7, .98);
+  color: #cbd8c8;
+  box-shadow: 0 20px 55px rgba(0,0,0,.52);
+  backdrop-filter: blur(12px);
+}
+
+.ui-settings-panel[hidden] {
+  display: none !important;
+}
+
+.ui-settings-panel::before {
+  content: "LOCAL TERMINAL CONFIG";
+  display: block;
+  margin-bottom: 12px;
+  color: #557253;
+  font-size: .56rem;
+  letter-spacing: .12em;
+}
+
+.ui-settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 11px;
+  border-bottom: 1px solid #233a27;
+}
+
+.ui-settings-head strong {
+  color: #dce8d8;
+  font-size: .78rem;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.ui-settings-close {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #314d34;
+  border-radius: 0;
+  background: #0b130c;
+  color: #8cab87;
+  cursor: pointer;
+}
+
+.ui-settings-close:hover {
+  border-color: #6ea86c;
+  color: #c1ffa6;
+}
+
+.ui-settings-group {
+  margin: 14px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.ui-settings-group legend {
+  margin-bottom: 8px;
+  color: #7f947b;
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.ui-settings-option {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  padding: 9px 8px;
+  border: 1px solid transparent;
+  color: #b8c7b5;
+  cursor: pointer;
+}
+
+.ui-settings-option + .ui-settings-option {
+  margin-top: 4px;
+}
+
+.ui-settings-option:hover {
+  border-color: #263f2a;
+  background: #0b140c;
+}
+
+.ui-settings-option input {
+  margin: 2px 0 0;
+  accent-color: #8dff65;
+}
+
+.ui-settings-option span {
+  display: grid;
+  gap: 3px;
+  font-size: .72rem;
+  font-weight: 700;
+}
+
+.ui-settings-option small {
+  color: #70816d;
+  font-size: .61rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.ui-settings-note {
+  margin: 13px 0 0;
+  padding-top: 11px;
+  border-top: 1px solid #233a27;
+  color: #5f735d;
+  font-size: .58rem;
+  line-height: 1.45;
+}
+
+/* Both modes share a real flex layout. This eliminates fragile margin-based
+   positioning on ultrawide screens. */
+.drawer-backdrop {
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+}
+
+body[data-item-panel="right"] .drawer-backdrop {
+  padding: 0;
+  align-items: stretch;
+  justify-content: flex-end;
+}
+
+body[data-item-panel="right"] .item-drawer {
+  width: min(760px, 58vw);
+  height: 100%;
+  margin: 0;
+  border: 0;
+  border-left: 1px solid #365039;
+  box-shadow: -25px 0 70px rgba(0,0,0,.58);
+}
+
+body[data-item-panel="center"] .drawer-backdrop {
+  align-items: center;
+  justify-content: center;
+  padding: clamp(18px, 3vw, 48px);
+}
+
+body[data-item-panel="center"] .item-drawer {
+  width: min(880px, calc(100vw - 56px));
+  height: min(900px, calc(100vh - 56px));
+  margin: 0;
+  border: 1px solid #365039;
+  background: #080d09;
+  box-shadow: 0 28px 95px rgba(0,0,0,.68);
+  animation: item-modal-in 150ms ease-out;
+}
+
+@keyframes item-modal-in {
+  from { opacity: 0; transform: translateY(10px) scale(.992); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* On ordinary laptops the centered viewer gets slightly more room; on phones
+   the existing full-screen drawer remains the most usable layout. */
+@media (max-width: 900px) {
+  body[data-item-panel="center"] .drawer-backdrop {
+    padding: 16px;
+  }
+
+  body[data-item-panel="center"] .item-drawer {
+    width: min(760px, calc(100vw - 32px));
+    height: calc(100vh - 32px);
+  }
+}
+
+@media (max-width: 760px) {
+  .ui-settings-toggle {
+    top: auto;
+    right: 12px;
+    bottom: 12px;
+  }
+
+  .ui-settings-panel {
+    top: auto;
+    right: 12px;
+    bottom: 50px;
+    width: min(330px, calc(100vw - 24px));
+  }
+
+  body[data-item-panel="center"] .drawer-backdrop,
+  body[data-item-panel="right"] .drawer-backdrop {
+    padding: 0;
+    align-items: stretch;
+    justify-content: stretch;
+  }
+
+  body[data-item-panel="center"] .item-drawer,
+  body[data-item-panel="right"] .item-drawer {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    border: 0;
+    box-shadow: none;
+    animation: none;
+  }
+
+  .home-content {
+    width: min(100% - 28px, 1240px);
+    margin-inline: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-item-panel="center"] .item-drawer {
+    animation: none;
+  }
+}
+
