@@ -153,7 +153,7 @@ function Home() {
   return (
     <main className="home-page">
       <video className="home-video" autoPlay muted loop playsInline aria-hidden="true">
-        <source src="/background-animation.webm" type="video/webm" />
+        <source src={`${import.meta.env.BASE_URL}background-animation.webm`} type="video/webm" />
       </video>
       <div className="home-shade" aria-hidden="true" />
       <div className="page home-content">
