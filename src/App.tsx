@@ -85,13 +85,12 @@ const modules = [
     slug: "equipment",
     title: "Снаряжение",
     text: "Оружие, боеприпасы, обвесы и остальное оснащение морпехов.",
-    status: "Работает",
   },
   {
     slug: "weapon-builder",
     title: "Конструктор оружия",
     text: "Выбор оружия, совместимых обвесов и итоговых характеристик сборки.",
-    status: "Следующий этап",
+    status: "Запланировано",
   },
   {
     slug: "damage",
@@ -109,13 +108,13 @@ const modules = [
     slug: "loadout",
     title: "Комплект бойца",
     text: "Оружие, броня, пояс, подсумки и расходники в одной сборке.",
-    status: "Идея",
+    status: "Запланировано",
   },
   {
     slug: "chemistry",
     title: "Химический планировщик",
     text: "Расчёт реагентов и пошаговый маршрут приготовления.",
-    status: "Идея",
+    status: "Запланировано",
   },
 ];
 
@@ -153,7 +152,7 @@ function Home() {
           const href = module.slug === "equipment" ? "/equipment" : `/tool/${module.slug}`;
           return (
             <Link className="module-card" to={href} key={module.slug}>
-              <span className="status">{module.status}</span>
+              {module.status && <span className="status">{module.status}</span>}
               <h2>{module.title}</h2>
               <p>{module.text}</p>
               <span className="card-link">Открыть →</span>
@@ -193,10 +192,11 @@ function useCatalog() {
   return { catalog, loadState };
 }
 
-function Equipment() {
+function Equipment({ adminMode = false }: { adminMode?: boolean }) {
   const { catalog, loadState } = useCatalog();
   const [searchParams, setSearchParams] = useSearchParams();
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [draft, setDraft] = useState<AdminDraft>({});
   const resultsTop = useRef<HTMLDivElement>(null);
 
   const query = searchParams.get("q") || "";
@@ -205,6 +205,19 @@ function Equipment() {
   const compatibleWeapon = searchParams.get("weapon") || "";
   const sort = searchParams.get("sort") || "name";
   const selectedId = searchParams.get("item");
+  const changes = Object.entries(draft).filter(([, value]) => value.category || value.hidden !== undefined);
+
+  function changeOverride(id: string, patch: AdminOverride) {
+    setDraft((current) => ({ ...current, [id]: { ...current[id], ...patch } }));
+  }
+
+  function resetOverride(id: string) {
+    setDraft((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
+  }
 
   const publicIds = useMemo(() => catalog?.publicCatalog.itemIds || [], [catalog]);
 
@@ -338,7 +351,7 @@ function Equipment() {
   useEffect(() => {
     if (!filtersOpen && !selectedId) return;
     const previousOverflow = document.body.style.overflow;
-    if (filtersOpen) document.body.style.overflow = "hidden";
+    if (filtersOpen || selectedId) document.body.style.overflow = "hidden";
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (filtersOpen) setFiltersOpen(false);
@@ -359,11 +372,21 @@ function Equipment() {
     <main className="page catalog-page">
       <div className="page-heading catalog-heading">
         <div>
-          <p className="eyebrow">Арсенал морпехов</p>
-          <h1>Каталог снаряжения</h1>
-          <p>Один поиск, понятные разделы и характеристики без похода в исходный YAML.</p>
+          <p className="eyebrow">{adminMode ? "Режим администратора" : "Арсенал морпехов"}</p>
+          <h1>{adminMode ? "Управление снаряжением" : "Каталог снаряжения"}</h1>
+          <p>{adminMode
+            ? "Тот же каталог, но с быстрым изменением категории и видимости прямо на карточках."
+            : "Один поиск, понятные разделы и характеристики без похода в исходный YAML."}</p>
         </div>
       </div>
+
+      {adminMode && (
+        <div className="admin-toolbar">
+          <span><strong>{changes.length}</strong> несохранённых изменений</span>
+          <button type="button" disabled>Сохранить изменения</button>
+          <small>Сохранение заработает после подключения защищённого API.</small>
+        </div>
+      )}
 
       <label className="catalog-search">
         <span className="search-icon" aria-hidden="true">⌕</span>
@@ -476,83 +499,89 @@ function Equipment() {
               </div>
             )}
 
-            <div className={`results-workspace${selectedItem ? " has-selection" : ""}`}>
-              <section className="equipment-grid" aria-live="polite">
+            <section className={`equipment-grid${adminMode ? " admin-grid" : ""}`} aria-live="polite">
                 {visibleIds.map((id) => {
                   const item = catalog.items[id];
                   const isSelected = selectedItem?.id === id;
+                  const override = draft[id];
                   return (
-                    <div className={`equipment-entry${isSelected ? " is-selected" : ""}`} key={id}>
-                      <button className="equipment-card" onClick={() => setParam("item", isSelected ? null : id)} aria-expanded={isSelected}>
+                    <article className={`equipment-card${isSelected ? " is-selected" : ""}${override ? " is-edited" : ""}`} key={id}>
+                      <button className="equipment-card-main" onClick={() => setParam("item", id)} aria-haspopup="dialog">
                         <span className="equipment-section">{item.category || "Снаряжение"}</span>
                         <Sprite item={item} />
                         <strong>{capitalizeName(item.name)}</strong>
                         <small className="equipment-id">{item.id}</small>
-                        <span className="card-detail-hint">{isSelected ? "Свернуть" : "Подробнее"} <span aria-hidden="true">→</span></span>
                       </button>
-                      {isSelected && (
-                        <div className="inline-inspector">
-                          <ItemInspector item={item} catalog={catalog} visibleIds={visibleIds} onClose={() => setParam("item", null)} onSelect={(nextId) => setParam("item", nextId)} />
+                      {adminMode && (
+                        <div className="card-admin-controls">
+                          <label>
+                            <span>Категория</span>
+                            <select
+                              value={override?.category || item.category || "Другое"}
+                              onChange={(event) => changeOverride(id, { category: event.target.value })}
+                            >
+                              {CATEGORY_ORDER.map((category) => <option key={category}>{category}</option>)}
+                            </select>
+                          </label>
+                          <button
+                            type="button"
+                            className={override?.hidden ? "is-hidden" : ""}
+                            onClick={() => changeOverride(id, { hidden: !override?.hidden })}
+                          >
+                            {override?.hidden ? "Вернуть" : "Скрыть"}
+                          </button>
+                          <button type="button" onClick={() => resetOverride(id)} disabled={!override}>Сбросить</button>
                         </div>
                       )}
-                    </div>
+                    </article>
                   );
                 })}
-              </section>
-              {selectedItem && (
-                <aside className="desktop-inspector" aria-label={`Подробности: ${selectedItem.name}`}>
-                  <ItemInspector item={selectedItem} catalog={catalog} visibleIds={visibleIds} onClose={() => setParam("item", null)} onSelect={(id) => setParam("item", id)} />
-                </aside>
-              )}
-            </div>
+            </section>
             {!visibleIds.length && <p className="empty-state">Ничего не найдено. Даже подозрительного ящика.</p>}
           </div>
         </div>
+      )}
+
+      {selectedItem && catalog && (
+        <ItemDialog
+          item={selectedItem}
+          catalog={catalog}
+          onClose={() => setParam("item", null)}
+          onSelect={(id) => setParam("item", id)}
+        />
       )}
     </main>
   );
 }
 
-function ItemInspector({
+function ItemDialog({
   item,
   catalog,
-  visibleIds,
   onClose,
   onSelect,
 }: {
   item: CatalogItem;
   catalog: Catalog;
-  visibleIds: string[];
   onClose: () => void;
   onSelect: (id: string) => void;
 }) {
-  const index = visibleIds.indexOf(item.id);
-  const previousId = index > 0 ? visibleIds[index - 1] : null;
-  const nextId = index >= 0 && index < visibleIds.length - 1 ? visibleIds[index + 1] : null;
   const contained = (item.containsItemIds || []).filter((id) => catalog.items[id]);
 
   return (
-    <section className="item-inspector" aria-labelledby={`item-title-${item.id}`}>
-        <header className="inspector-toolbar">
-          <div className="dialog-stepper" aria-label="Навигация между предметами">
-            <button disabled={!previousId} onClick={() => previousId && onSelect(previousId)}>← <span>Предыдущий</span></button>
-            <small>{index >= 0 ? `${index + 1} / ${visibleIds.length}` : ""}</small>
-            <button disabled={!nextId} onClick={() => nextId && onSelect(nextId)}><span>Следующий</span> →</button>
-          </div>
-          <button className="close-button" onClick={onClose} aria-label="Закрыть подробности">×</button>
-        </header>
-
-        <div className="inspector-scroll">
-          <div className="inspector-summary">
-            <div className="inspector-sprite"><Sprite item={item} eager /></div>
+    <div className="dialog-backdrop" role="presentation" onMouseDown={onClose}>
+      <section className="item-dialog" role="dialog" aria-modal="true" aria-labelledby={`item-title-${item.id}`} onMouseDown={(event) => event.stopPropagation()}>
+        <button className="close-button" onClick={onClose} aria-label="Закрыть подробности">×</button>
+        <div className="dialog-layout">
+          <aside className="dialog-summary">
+            <div className="dialog-sprite"><Sprite item={item} eager /></div>
             <div>
               <p className="eyebrow">{item.category || "Снаряжение"}</p>
               <h2 id={`item-title-${item.id}`}>{capitalizeName(item.name)}</h2>
               <code className="prototype-id">{item.id}</code>
             </div>
-          </div>
-          <p className="item-description">{item.description || "Описание пока отсутствует в локализации."}</p>
-          <div className="inspector-details">
+            <p className="item-description">{item.description || "Описание пока отсутствует в локализации."}</p>
+          </aside>
+          <div className="dialog-details">
             <StatsDetails item={item} />
             <CompatibilityDetails item={item} catalog={catalog} onSelect={onSelect} />
             {contained.length > 0 && (
@@ -564,6 +593,7 @@ function ItemInspector({
           </div>
         </div>
       </section>
+    </div>
   );
 }
 
@@ -583,10 +613,11 @@ function WeaponStats({ stats }: { stats: JsonMap }) {
   const scatter = isMap(stats.scatter) ? stats.scatter : {};
   const accuracy = isMap(stats.accuracy) ? stats.accuracy : {};
   const wieldDelay = isMap(stats.wieldDelay) ? stats.wieldDelay : {};
+  const fireModes = Array.isArray(stats.fireModes) ? stats.fireModes.map((mode) => fireModeLabel(String(mode))) : [];
   const rows: Array<[string, unknown]> = [
     ["Темп стрельбы", stats.roundsPerMinute != null ? `${formatNumber(stats.roundsPerMinute)} выстр./мин` : null],
-    ["Режимы огня", Array.isArray(stats.fireModes) ? stats.fireModes.map((mode) => fireModeLabel(String(mode))).join(", ") : null],
-    ["Основной режим", stats.defaultFireMode ? fireModeLabel(String(stats.defaultFireMode)) : null],
+    ["Режимы огня", fireModes.length ? fireModes.join(", ") : null],
+    ["Основной режим", fireModes.length > 1 && stats.defaultFireMode ? fireModeLabel(String(stats.defaultFireMode)) : null],
     ["Очередь", stats.burstSize != null ? `${formatNumber(stats.burstSize)} выстр.` : null],
     ["Бронепробитие", stats.weaponArmorPiercing],
     ["Множитель урона", stats.damageMultiplier != null ? `×${formatNumber(stats.damageMultiplier)}` : null],
@@ -650,6 +681,7 @@ function WeaponStats({ stats }: { stats: JsonMap }) {
 
 function ArmorStats({ stats }: { stats: JsonMap }) {
   const protection = isMap(stats.protection) ? stats.protection : {};
+  const movement = isMap(stats.movement) ? stats.movement : {};
   const protectionRows = Object.entries(protection)
     .filter(([, value]) => typeof value === "number" && value !== 0)
     .map(([key, value]) => [armorLabel(key), value] as [string, unknown]);
@@ -657,11 +689,8 @@ function ArmorStats({ stats }: { stats: JsonMap }) {
     <section className="detail-section stats-section">
       <h3>Защита брони</h3>
       <StatGrid rows={[
-        ["Слоты", stats.slots],
-        ["Класс скорости", stats.speedTier],
-        ["Твёрдая броня", stats.hardArmor],
-        ["Громоздкая", stats.bulkyArmor],
-        ["Игнорирует бронепробитие", stats.immuneToArmorPiercing],
+        ["Скорость движения", formatMovement(movement)],
+        ["Класс", stats.speedTier ? armorSpeedLabel(String(stats.speedTier)) : null],
       ]} />
       <h4 className="subsection-title">Сопротивления</h4>
       <ProtectionBars rows={protectionRows} />
@@ -670,10 +699,6 @@ function ArmorStats({ stats }: { stats: JsonMap }) {
         {stats.bulkyArmor === true && <span>Громоздкая</span>}
         {stats.immuneToArmorPiercing === true && <span>Игнорирует бронепробитие</span>}
       </div>
-      <ReadableStatGroups groups={[
-        ["Скорость движения", stats.movement],
-        ["Сопротивление взрывам", stats.explosionResistance],
-      ]} />
     </section>
   );
 }
@@ -710,18 +735,13 @@ function CommonItemStats({ item }: { item: CatalogItem }) {
   const melee = isMap(properties.MeleeWeapon) ? properties.MeleeWeapon : null;
   const armor = isMap(properties.CMArmor) ? properties.CMArmor : null;
   const armorPiercing = isMap(properties.CMArmorPiercing) ? properties.CMArmorPiercing : null;
-  const explosion = isMap(properties.ExplosionResistance) ? properties.ExplosionResistance : null;
-  const speed = isMap(properties.ClothingSpeedModifier) ? properties.ClothingSpeedModifier : null;
   const ammoProvider = ["BallisticAmmoProvider", "RevolverAmmoProvider", "CartridgeAmmo", "RMCFlamerTank"]
     .map((key) => [key, properties[key]] as [string, unknown])
     .find(([, value]) => isMap(value));
 
   const overviewRows: Array<[string, unknown]> = [
-    ["Слоты экипировки", item.equipmentSlots?.length ? item.equipmentSlots.map(slotLabel).join(", ") : null],
+    ["Надевается", item.equipmentSlots?.length ? item.equipmentSlots.map(slotLabel).join(", ") : null],
     ["Бронепробитие в ближнем бою", armorPiercing?.amount],
-    ["Скорость ходьбы", speed?.walkModifier != null ? asPercent(speed.walkModifier) : null],
-    ["Скорость бега", speed?.sprintModifier != null ? asPercent(speed.sprintModifier) : null],
-    ["Получаемый урон от взрыва", explosion?.damageCoefficient != null ? asPercent(explosion.damageCoefficient) : null],
   ];
   const hasOverview = overviewRows.some(([, value]) => value !== null && value !== undefined && value !== "");
 
@@ -748,12 +768,7 @@ function CommonItemStats({ item }: { item: CatalogItem }) {
       {storage && (
         <section className="detail-section">
           <h3>Хранилище</h3>
-          <StatGrid rows={[
-            ["Максимальный размер предмета", itemSizeLabel(storage.maxItemSize)],
-            ["Ячеек хранения", storageCells(storage.grid)],
-            ["Быстрая загрузка", storage.quickInsert],
-            ["Загрузка по области", storage.areaInsert],
-          ]} />
+          <StorageSummary item={item} storage={storage} />
           {(Boolean(storage.whitelist) || Boolean(storage.blacklist)) && <ReadableStatGroups groups={[["Ограничения содержимого", { разрешено: storage.whitelist, запрещено: storage.blacklist }]]} />}
         </section>
       )}
@@ -780,6 +795,53 @@ function CommonItemStats({ item }: { item: CatalogItem }) {
         </section>
       )}
       <TechnicalDetails item={item} />
+    </>
+  );
+}
+
+function StorageSummary({ item, storage }: { item: CatalogItem; storage: JsonMap }) {
+  const properties = item.properties || {};
+  const componentTypes = new Set(item.componentTypes || []);
+  const area = storageCells(storage.grid);
+  const maxSize = String(storage.maxItemSize || "Normal");
+  const fixed = componentTypes.has("FixedItemSizeStorage") || isMap(properties.FixedItemSizeStorage);
+  const ignoresSomeSizes = componentTypes.has("IgnoreContentsSize") || isMap(properties.IgnoreContentsSize);
+  const limitedStorage = isMap(properties.LimitedStorage) ? properties.LimitedStorage : null;
+  const limits = limitedStorage && Array.isArray(limitedStorage.limits) ? limitedStorage.limits.filter(isMap) : [];
+  const specialLimit = limits
+    .map((entry) => typeof entry.count === "number" ? entry.count : null)
+    .filter((value): value is number => value !== null)
+    .sort((a, b) => a - b)[0];
+
+  if (!area) {
+    return <StatGrid rows={[["Допустимый размер", itemSizeLabel(maxSize)]]} />;
+  }
+
+  if (fixed) {
+    const fixedArea = fixedStorageItemArea(properties.FixedItemSizeStorage);
+    const places = Math.max(1, Math.floor(area / fixedArea));
+    return (
+      <>
+        <StatGrid rows={[
+          ["Вместимость", `${places} ${pluralize(places, "место", "места", "мест")}`],
+          ["Допустимый размер", `До ${itemSizeGenitive(maxSize)}`],
+          ["Особый лимит", specialLimit != null ? `Не более ${specialLimit} специальных предметов` : null],
+        ]} />
+        {ignoresSomeSizes && (
+          <p className="detail-note">Некоторые разрешённые предметы могут быть крупнее обычного лимита, но всё равно занимают одно из этих мест.</p>
+        )}
+      </>
+    );
+  }
+
+  const capacity = storageCapacity(area, maxSize);
+  return (
+    <>
+      <StatGrid rows={[
+        ["Вместимость", capacity],
+        ["Допустимый размер", `До ${itemSizeGenitive(maxSize)}`],
+      ]} />
+      <p className="detail-note">Количество зависит от сочетания размеров предметов, поэтому внутренние клетки интерфейса здесь не выдаются за отдельные слоты.</p>
     </>
   );
 }
@@ -927,120 +989,7 @@ function Sprite({ item, compact = false, eager = false }: { item: CatalogItem; c
 }
 
 function AdminEquipment() {
-  const { catalog, loadState } = useCatalog();
-  const [query, setQuery] = useState("");
-  const [draft, setDraft] = useState<AdminDraft>({});
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-
-  const ids = useMemo(() => {
-    if (!catalog) return [];
-    const normalized = normalize(query);
-    return catalog.publicCatalog.itemIds.filter((id) => {
-      const item = catalog.items[id];
-      return !normalized || normalize(`${item.name} ${id}`).includes(normalized);
-    });
-  }, [catalog, query]);
-
-  const selected = selectedId && catalog ? catalog.items[selectedId] : null;
-  const changes = Object.entries(draft).filter(([, value]) => value.category || value.hidden !== undefined);
-
-  function change(id: string, patch: AdminOverride) {
-    setDraft((current) => ({ ...current, [id]: { ...current[id], ...patch } }));
-  }
-
-  function reset(id: string) {
-    setDraft((current) => {
-      const next = { ...current };
-      delete next[id];
-      return next;
-    });
-  }
-
-  return (
-    <main className="page admin-page">
-      <div className="admin-heading">
-        <div>
-          <p className="eyebrow">Заготовка интерфейса</p>
-          <h1>Управление каталогом</h1>
-          <p>Только категория и видимость. Описания и характеристики здесь намеренно не редактируются.</p>
-        </div>
-        <Link className="button-link" to="/equipment">← В каталог</Link>
-      </div>
-
-      <div className="admin-warning">
-        <strong>Сохранение ещё не подключено.</strong>
-        <span>Изменения живут только в браузере и уже имеют формат будущего <code>catalog-overrides.json</code>.</span>
-      </div>
-
-      {loadState === "loading" && <p className="notice">Загружаю каталог…</p>}
-      {loadState === "error" && <p className="notice warning">Каталог не загрузился.</p>}
-
-      {catalog && (
-        <div className="admin-layout">
-          <section className="admin-list-panel">
-            <label className="admin-search">
-              <span>Найти предмет</span>
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Название или ID" />
-            </label>
-            <div className="admin-item-list">
-              {ids.slice(0, 250).map((id) => {
-                const item = catalog.items[id];
-                const override = draft[id];
-                return (
-                  <button className={selectedId === id ? "is-current" : ""} key={id} onClick={() => setSelectedId(id)}>
-                    <Sprite item={item} compact />
-                    <span><strong>{capitalizeName(item.name)}</strong><small>{override?.category || item.category}</small></span>
-                    {override && <i aria-label="Изменён">•</i>}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="admin-editor-panel">
-            {selected ? (
-              <>
-                <div className="admin-item-heading">
-                  <Sprite item={selected} />
-                  <div><h2>{capitalizeName(selected.name)}</h2><code>{selected.id}</code></div>
-                </div>
-                <label className="admin-field">
-                  <span>Категория</span>
-                  <select
-                    value={draft[selected.id]?.category || selected.category || "Другое"}
-                    onChange={(event) => change(selected.id, { category: event.target.value })}
-                  >
-                    {CATEGORY_ORDER.map((category) => <option key={category}>{category}</option>)}
-                  </select>
-                  <small>Автоматически: {selected.category}</small>
-                </label>
-                <label className="admin-switch">
-                  <input
-                    type="checkbox"
-                    checked={draft[selected.id]?.hidden === true}
-                    onChange={(event) => change(selected.id, { hidden: event.target.checked })}
-                  />
-                  <span><strong>Скрыть из каталога</strong><small>Предмет останется в технических данных и его можно будет вернуть.</small></span>
-                </label>
-                <button className="reset-override" onClick={() => reset(selected.id)} disabled={!draft[selected.id]}>
-                  Вернуть автоматические настройки
-                </button>
-              </>
-            ) : <p className="admin-empty">Выберите предмет слева.</p>}
-          </section>
-
-          <aside className="admin-changes-panel">
-            <div><span>Несохранённые изменения</span><strong>{changes.length}</strong></div>
-            {changes.length > 0 ? (
-              <ul>{changes.map(([id, value]) => <li key={id}><strong>{catalog.items[id]?.name || id}</strong><small>{value.hidden ? "Скрыт" : value.category || "Изменён"}</small></li>)}</ul>
-            ) : <p>Пока чисто. Даже подозрительно.</p>}
-            <button disabled>Сохранить изменения</button>
-            <small>Кнопка заработает после подключения защищённого API.</small>
-          </aside>
-        </div>
-      )}
-    </main>
-  );
+  return <Equipment adminMode />;
 }
 
 function ToolPlaceholder() {
@@ -1219,6 +1168,21 @@ function asPercent(value: unknown) {
   return typeof value === "number" ? `${formatNumber(value * 100)}%` : null;
 }
 
+function formatMovement(movement: JsonMap) {
+  const walk = typeof movement.walkModifier === "number" ? movement.walkModifier : null;
+  const sprint = typeof movement.sprintModifier === "number" ? movement.sprintModifier : null;
+  if (walk == null && sprint == null) return null;
+  if (walk != null && sprint != null && walk === sprint) return `${asPercent(walk)} от обычной скорости`;
+  return [
+    walk != null ? `ходьба ${asPercent(walk)}` : null,
+    sprint != null ? `бег ${asPercent(sprint)}` : null,
+  ].filter(Boolean).join(" · ");
+}
+
+function armorSpeedLabel(value: string) {
+  return ({ light: "Лёгкая", medium: "Средняя", heavy: "Тяжёлая" } as Record<string, string>)[value.toLocaleLowerCase()] || value;
+}
+
 function storageCells(value: unknown) {
   if (!Array.isArray(value)) return null;
   let total = 0;
@@ -1228,6 +1192,51 @@ function storageCells(value: unknown) {
     total += Math.max(0, parts[2] - parts[0] + 1) * Math.max(0, parts[3] - parts[1] + 1);
   }
   return total || null;
+}
+
+function fixedStorageItemArea(value: unknown) {
+  if (!isMap(value)) return 4;
+  const size = value.size;
+  if (Array.isArray(size) && size.length >= 2 && size.every((entry) => typeof entry === "number")) {
+    return Math.max(1, Number(size[0]) * Number(size[1]));
+  }
+  const match = String(size || "").match(/(\d+)\D+(\d+)/);
+  return match ? Math.max(1, Number(match[1]) * Number(match[2])) : 4;
+}
+
+function storageCapacity(area: number, maxSize: string) {
+  const sizes = [
+    { id: "Tiny", area: 2, label: "крошечных" },
+    { id: "Small", area: 4, label: "маленьких" },
+    { id: "Normal", area: 6, label: "обычных" },
+    { id: "Large", area: 8, label: "больших" },
+    { id: "Huge", area: 10, label: "огромных" },
+    { id: "Ginormous", area: 12, label: "гигантских" },
+  ];
+  const maxIndex = Math.max(0, sizes.findIndex((size) => size.id.toLocaleLowerCase() === maxSize.toLocaleLowerCase()));
+  return sizes.slice(0, maxIndex + 1)
+    .map((size) => `${Math.max(1, Math.floor(area / size.area))} ${size.label}`)
+    .join(" или ");
+}
+
+function itemSizeGenitive(value: string) {
+  return ({
+    tiny: "крошечного",
+    small: "маленького",
+    normal: "обычного",
+    large: "большого",
+    huge: "огромного",
+    ginormous: "гигантского",
+  } as Record<string, string>)[value.toLocaleLowerCase()] || itemSizeLabel(value) || value;
+}
+
+function pluralize(value: number, one: string, few: string, many: string) {
+  const lastTwo = value % 100;
+  const last = value % 10;
+  if (lastTwo >= 11 && lastTwo <= 14) return many;
+  if (last === 1) return one;
+  if (last >= 2 && last <= 4) return few;
+  return many;
 }
 
 function formatDamage(value: unknown) {
