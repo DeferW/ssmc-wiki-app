@@ -319,8 +319,8 @@ nav a:hover, nav a.active { color: #c7ee7a; font-weight: 700; }
 .app-shell > :not(.home-page) { position: relative; z-index: 1; }
 
 .home-page { position: relative; z-index: 1; min-height: calc(100vh - 64px); overflow: hidden; }
-.home-video { position: absolute; inset: -3%; width: 106%; height: 106%; object-fit: cover; filter: blur(3px) saturate(.6) brightness(.45); }
-.home-shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(6, 10, 7, .89), rgba(9, 13, 10, .66)), repeating-linear-gradient(0deg, transparent 0, transparent 4px, rgba(173, 223, 109, .045) 5px); }
+.home-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center; }
+.home-shade { position: absolute; inset: 0; }
 .home-content { position: relative; z-index: 1; }
 .home-content .intro { padding: 24px 28px; border-left: 3px solid #bde879; background: rgba(10, 15, 11, .74); box-shadow: 0 8px 35px rgba(0,0,0,.25); }
 .home-content .intro h1 { color: #e4eddc; letter-spacing: .04em; }
@@ -543,140 +543,160 @@ nav a.active {
   background: #050806;
 }
 
+/*
+ * HOME BACKGROUND
+ * Видео показывается целиком: без cover, без zoom и без blur.
+ * object-fit: contain сохраняет весь исходный кадр, включая боковые части.
+ */
 .home-video {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  inset: auto;
-  width: 92%;
-  height: 92%;
-  transform: translate(-50%, -50%);
+  inset: 0;
+  z-index: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
-  object-position: center;
-  filter:
-    brightness(.72)
-    contrast(1.08)
-    saturate(.95);
-  opacity: .96;
+  object-position: center center;
+  background: #030604;
+  filter: brightness(1.16) contrast(1.08) saturate(1.04);
+  opacity: 1;
 }
 
+/* Очень лёгкий терминальный tint. Больше не прячем само видео. */
 .home-shade {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
   background:
-    linear-gradient(90deg, rgba(3,7,4,.66) 0%, rgba(3,7,4,.42) 46%, rgba(3,7,4,.24) 100%),
-    repeating-linear-gradient(0deg, transparent 0, transparent 3px, rgba(125,255,95,.016) 4px),
-    linear-gradient(rgba(77,128,78,.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(77,128,78,.025) 1px, transparent 1px);
-  background-size: auto, auto, 48px 48px, 48px 48px;
+    linear-gradient(90deg, rgba(2,6,3,.22) 0%, rgba(2,6,3,.10) 42%, rgba(2,6,3,.035) 100%),
+    repeating-linear-gradient(0deg, transparent 0, transparent 3px, rgba(125,255,95,.010) 4px);
+}
+
+.home-content {
+  position: relative;
+  z-index: 2;
+  padding-top: 38px;
+  padding-bottom: 58px;
 }
 
 .home-content .intro {
   position: relative;
-  max-width: 700px;
-  padding: 22px 26px 24px;
-  border: 1px solid rgba(72,111,72,.48);
-  border-left: 3px solid var(--uscm-green);
+  max-width: 620px;
+  margin-bottom: 24px;
+  padding: 16px 20px 18px;
+  border: 1px solid rgba(72,111,72,.42);
+  border-left: 2px solid var(--uscm-green);
   border-radius: 0;
-  background: rgba(5,10,6,.67);
-  box-shadow: 0 14px 38px rgba(0,0,0,.22), inset 0 0 30px rgba(92,255,82,.014);
+  background: rgba(4,9,5,.46);
+  box-shadow: 0 10px 28px rgba(0,0,0,.16);
+  backdrop-filter: blur(1px);
 }
 
 .home-content .intro h1 {
-  font-size: clamp(1.75rem, 4vw, 3rem);
+  margin: 6px 0 9px;
+  font-size: clamp(1.55rem, 3.35vw, 2.45rem);
+  line-height: 1.04;
 }
 
 .home-content .intro p {
-  font-size: .92rem;
-  line-height: 1.58;
+  font-size: .82rem;
+  line-height: 1.48;
+}
+
+.home-content .intro .eyebrow {
+  font-size: .64rem;
 }
 
 .home-content .intro::before {
   content: "AUTHORIZATION: PUBLIC // LINK: SECURE // STATUS: ONLINE";
   display: block;
-  margin-bottom: 16px;
-  color: #5f785b;
-  font-size: .61rem;
-  letter-spacing: .09em;
+  margin-bottom: 10px;
+  color: #668062;
+  font-size: .55rem;
+  letter-spacing: .085em;
 }
 
 .home-content .intro::after {
   content: "> SELECT DATABASE MODULE";
   display: block;
-  margin-top: 14px;
+  margin-top: 10px;
   color: var(--uscm-green-dim);
-  font-size: .66rem;
-  letter-spacing: .06em;
+  font-size: .59rem;
+  letter-spacing: .055em;
 }
 
 .module-grid {
-  gap: 14px;
+  gap: 10px;
 }
 
-.module-card {
+.home-content .module-card {
   position: relative;
-  min-height: 192px;
-  padding: 20px;
+  min-height: 158px;
+  padding: 15px 17px;
   overflow: hidden;
-  border: 1px solid var(--uscm-line);
+  border: 1px solid rgba(49,74,51,.86);
   border-radius: 0;
   background:
-    linear-gradient(135deg, rgba(141,255,101,.022), transparent 46%),
-    rgba(7,13,8,.92);
-  box-shadow: inset 0 0 0 1px rgba(141,255,101,.015);
+    linear-gradient(135deg, rgba(141,255,101,.016), transparent 46%),
+    rgba(5,11,6,.64);
+  box-shadow: inset 0 0 0 1px rgba(141,255,101,.012);
+  backdrop-filter: blur(1px);
 }
 
-.module-card::before {
+.home-content .module-card::before {
   content: "";
   position: absolute;
   top: -1px;
   left: -1px;
-  width: 26px;
+  width: 24px;
   height: 2px;
   background: var(--uscm-green);
   transition: width 150ms ease;
 }
 
-.module-card::after {
+.home-content .module-card::after {
   content: "DATABASE MODULE";
   position: absolute;
-  top: 12px;
-  right: 14px;
-  color: #3f553e;
-  font-size: .58rem;
-  letter-spacing: .09em;
+  top: 9px;
+  right: 11px;
+  color: #496047;
+  font-size: .50rem;
+  letter-spacing: .08em;
 }
 
-.module-card:hover {
+.home-content .module-card:hover {
   border-color: var(--uscm-line-hot);
-  background: var(--uscm-panel-2);
-  box-shadow: inset 3px 0 0 rgba(141,255,101,.55), 0 12px 35px rgba(0,0,0,.23);
+  background: rgba(9,17,10,.78);
+  box-shadow: inset 2px 0 0 rgba(141,255,101,.48), 0 9px 26px rgba(0,0,0,.18);
 }
 
-.module-card:hover::before {
-  width: 70px;
+.home-content .module-card:hover::before {
+  width: 62px;
 }
 
-.module-card h2 {
-  margin: 20px 0 7px;
+.home-content .module-card h2 {
+  margin: 17px 0 6px;
   color: var(--uscm-green-bright);
-  font-size: 1.05rem;
+  font-size: .94rem;
   text-transform: uppercase;
-  letter-spacing: .025em;
+  letter-spacing: .02em;
 }
 
-.module-card p {
-  color: var(--uscm-text-soft);
-  font-size: .84rem;
-  line-height: 1.48;
+.home-content .module-card p {
+  color: #b2beb0;
+  font-size: .76rem;
+  line-height: 1.40;
 }
 
 .home-content .status {
-  padding: 3px 7px;
-  font-size: .65rem;
+  padding: 2px 6px;
+  font-size: .57rem;
 }
 
 .home-content .card-link {
-  padding-top: 18px;
-  font-size: .71rem;
+  padding-top: 11px;
+  font-size: .63rem;
 }
 
 .status {
@@ -1032,9 +1052,11 @@ nav a.active {
 }
 
 /* Terminal-style scrollbars for the page and all scrollable panels. */
+html,
+body,
 * {
   scrollbar-width: thin;
-  scrollbar-color: #355a39 #050806;
+  scrollbar-color: #426c46 #050806;
 }
 
 *::-webkit-scrollbar {
@@ -1090,9 +1112,12 @@ nav a.active {
   nav a { padding-inline: 5px; font-size: .69rem; }
   .page { width: min(100% - 28px, 1240px); padding-top: 36px; }
   .home-page { min-height: calc(100vh - 58px); }
-  .home-content .intro { padding: 22px 20px 24px; }
+  .home-content { padding-top: 26px; padding-bottom: 38px; }
+  .home-content .intro { max-width: 100%; padding: 15px 16px 17px; }
+  .home-content .intro h1 { font-size: clamp(1.45rem, 8vw, 2.05rem); }
   .home-content .intro::before { line-height: 1.5; }
   .module-grid { grid-template-columns: 1fr; }
+  .home-content .module-card { min-height: 142px; padding: 14px 15px; }
   .item-drawer { width: 100%; }
   .item-drawer::before { left: 12px; }
   .dialog-summary::after { display: none; }
