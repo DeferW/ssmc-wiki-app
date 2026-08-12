@@ -539,8 +539,12 @@ nav a.active {
 }
 
 .home-page {
+  --home-gutter: clamp(24px, 6.25vw, 100px);
+  position: relative;
+  isolation: isolate;
   min-height: calc(100vh - 58px);
-  background: #050806;
+  overflow: hidden;
+  background: #030604;
 }
 
 /*
@@ -556,7 +560,7 @@ nav a.active {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  object-position: center center;
+  object-position: left center;
   background: #030604;
   filter: brightness(1.16) contrast(1.08) saturate(1.04);
   opacity: 1;
@@ -569,13 +573,21 @@ nav a.active {
   z-index: 1;
   pointer-events: none;
   background:
-    linear-gradient(90deg, rgba(2,6,3,.22) 0%, rgba(2,6,3,.10) 42%, rgba(2,6,3,.035) 100%),
+    /* The right edge deliberately fades into the terminal surface on wide displays. */
+    linear-gradient(90deg,
+      rgba(2,6,3,.14) 0%,
+      rgba(2,6,3,.07) 44%,
+      rgba(2,6,3,.11) 68%,
+      rgba(3,6,4,.48) 86%,
+      rgba(3,6,4,.92) 100%),
     repeating-linear-gradient(0deg, transparent 0, transparent 3px, rgba(125,255,95,.010) 4px);
 }
 
 .home-content {
   position: relative;
   z-index: 2;
+  width: min(1240px, calc(100% - var(--home-gutter) - 28px));
+  margin: 0 0 0 var(--home-gutter);
   padding-top: 38px;
   padding-bottom: 58px;
 }
@@ -1099,6 +1111,21 @@ body,
   background: var(--uscm-green);
 }
 
+@media (min-width: 1800px) {
+  .home-page { --home-gutter: 100px; }
+  .home-content { width: 1240px; }
+  .home-shade {
+    background:
+      linear-gradient(90deg,
+        rgba(2,6,3,.13) 0%,
+        rgba(2,6,3,.06) 42%,
+        rgba(2,6,3,.09) 64%,
+        rgba(3,6,4,.38) 82%,
+        rgba(3,6,4,.94) 100%),
+      repeating-linear-gradient(0deg, transparent 0, transparent 3px, rgba(125,255,95,.010) 4px);
+  }
+}
+
 @media (max-width: 980px) {
   .brand::after { display: none; }
   .catalog-heading::after { display: none; }
@@ -1111,8 +1138,14 @@ body,
   .brand::before { content: "USCM // "; }
   nav a { padding-inline: 5px; font-size: .69rem; }
   .page { width: min(100% - 28px, 1240px); padding-top: 36px; }
-  .home-page { min-height: calc(100vh - 58px); }
-  .home-content { padding-top: 26px; padding-bottom: 38px; }
+  .home-page { --home-gutter: 14px; min-height: calc(100vh - 58px); }
+  .home-content {
+    width: calc(100% - 28px);
+    margin-left: var(--home-gutter);
+    margin-right: 0;
+    padding-top: 26px;
+    padding-bottom: 38px;
+  }
   .home-content .intro { max-width: 100%; padding: 15px 16px 17px; }
   .home-content .intro h1 { font-size: clamp(1.45rem, 8vw, 2.05rem); }
   .home-content .intro::before { line-height: 1.5; }
