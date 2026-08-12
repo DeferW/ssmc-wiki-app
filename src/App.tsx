@@ -7,17 +7,17 @@ const DATA_URL = `${DATA_ROOT}equipment-catalog.json`;
 
 const CATEGORY_ORDER = [
   "Оружие",
-  "Боеприпасы",
+  "Боеприпасы и взрывчатка",
   "Обвесы",
-  "Взрывчатка",
   "Ближний бой",
   "Броня",
   "Экипировка",
-  "Инструменты и оборудование",
   "Медицина",
   "Снаряжение",
   "Другое",
 ] as const;
+
+const ADMIN_DRAFT_KEY = "ssmc-equipment-admin-overrides-v1";
 
 type JsonMap = Record<string, unknown>;
 
@@ -146,6 +146,7 @@ function Home() {
         <p className="eyebrow">Инструменты Space Stories: Marine Corps</p>
         <h1>Выберите раздел</h1>
         <p>Каталоги, расчёты, сравнения и конструкторы — всё, чему тесно внутри MediaWiki.</p>
+        <Link className="button-link admin-entry" to="/equipment/admin">Перейти в админ-режим</Link>
       </section>
       <section className="module-grid" aria-label="Разделы приложения">
         {modules.map((module) => {
@@ -196,7 +197,9 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
   const { catalog, loadState } = useCatalog();
   const [searchParams, setSearchParams] = useSearchParams();
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [draft, setDraft] = useState<AdminDraft>({});
+  const [draft, setDraft] = useState<AdminDraft>(() => readAdminDraft());
+  const [selectedAdminIds, setSelectedAdminIds] = useState<Set<string>>(() => new Set());
+  const [bulkCategory, setBulkCategory] = useState<string>(CATEGORY_ORDER[0]);
   const resultsTop = useRef<HTMLDivElement>(null);
 
   const query = searchParams.get("q") || "";
@@ -204,8 +207,14 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
   const selectedSlots = searchParams.getAll("slot");
   const compatibleWeapon = searchParams.get("weapon") || "";
   const sort = searchParams.get("sort") || "name";
+  const adminVisibility = searchParams.get("visibility") || "all";
   const selectedId = searchParams.get("item");
   const changes = Object.entries(draft).filter(([, value]) => value.category || value.hidden !== undefined);
+
+  useEffect(() => {
+    if (!adminMode || typeof window === "undefined") return;
+    window.localStorage.setItem(ADMIN_DRAFT_KEY, JSON.stringify(draft));
+  }, [adminMode, draft]);
 
   function changeOverride(id: string, patch: AdminOverride) {
     setDraft((current) => ({ ...current, [id]: { ...current[id], ...patch } }));
@@ -217,6 +226,47 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
       delete next[id];
       return next;
     });
+  }
+
+  function toggleAdminSelection(id: string) {
+    setSelectedAdminIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function applyBulkOverride(patch: AdminOverride) {
+    if (!selectedAdminIds.size) return;
+    setDraft((current) => {
+      const next = { ...current };
+      for (const id of selectedAdminIds) next[id] = { ...next[id], ...patch };
+      return next;
+    });
+  }
+
+  function resetSelectedOverrides() {
+    if (!selectedAdminIds.size) return;
+    setDraft((current) => {
+      const next = { ...current };
+      for (const id of selectedAdminIds) delete next[id];
+      return next;
+    });
+  }
+
+  function exportOverrides() {
+    const items = Object.fromEntries(changes);
+    const blob = new Blob(
+      [`${JSON.stringify({ schemaVersion: 1, items }, null, 2)}\n`],
+      { type: "application/json;charset=utf-8" },
+    );
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = "equipment-overrides.json";
+    link.click();
+    URL.revokeObjectURL(href);
   }
 
   const publicIds = useMemo(() => catalog?.publicCatalog.itemIds || [], [catalog]);
@@ -288,6 +338,10 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
     setSearchParams(sort === "name" ? {} : { sort }, { replace: true });
   }
 
+  function effectiveCategory(id: string, item: CatalogItem) {
+    return adminMode && draft[id]?.category ? draft[id].category : item.category || "Другое";
+  }
+
   const matchesItem = (id: string, ignoredFacet?: "category" | "slot") => {
     const item = catalog?.items[id];
     if (!item) return false;
@@ -297,11 +351,17 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
       .some((value) => normalize(String(value)).includes(normalized));
     const slots = new Set((item.attachableTo || []).map((slot) => slot.slotName || slot.name || ""));
     const matchesCategory = ignoredFacet === "category" || !selectedCategories.length
-      || selectedCategories.includes(item.category || "");
+      || selectedCategories.includes(effectiveCategory(id, item));
     const matchesSlot = ignoredFacet === "slot" || !selectedSlots.length
       || selectedSlots.some((slot) => slots.has(slot));
     const matchesWeapon = !compatibleWeapon || itemCompatibleWith(item, compatibleWeapon);
-    return matchesQuery && matchesCategory && matchesSlot && matchesWeapon;
+    const override = draft[id];
+    const matchesVisibility = !adminMode
+      || adminVisibility === "all"
+      || (adminVisibility === "hidden" && override?.hidden === true)
+      || (adminVisibility === "visible" && override?.hidden !== true)
+      || (adminVisibility === "changed" && Boolean(override));
+    return matchesQuery && matchesCategory && matchesSlot && matchesWeapon && matchesVisibility;
   };
 
   const visibleIds = catalog
@@ -309,18 +369,34 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
       const first = catalog.items[a];
       const second = catalog.items[b];
       if (sort === "category") {
-        const order = categoryIndex(first.category) - categoryIndex(second.category);
+        const order = categoryIndex(effectiveCategory(a, first)) - categoryIndex(effectiveCategory(b, second));
         if (order) return order;
       }
       return first.name.localeCompare(second.name, "ru") || a.localeCompare(b);
     })
     : [];
 
+  const selectedVisibleCount = visibleIds.filter((id) => selectedAdminIds.has(id)).length;
+  const allVisibleSelected = visibleIds.length > 0 && selectedVisibleCount === visibleIds.length;
+
+  function toggleAllVisible() {
+    setSelectedAdminIds((current) => {
+      const next = new Set(current);
+      if (allVisibleSelected) {
+        for (const id of visibleIds) next.delete(id);
+      } else {
+        for (const id of visibleIds) next.add(id);
+      }
+      return next;
+    });
+  }
+
   const categoryCounts = (() => {
     const counts = new Map<string, number>();
     for (const id of publicIds) {
       if (!matchesItem(id, "category")) continue;
-      const category = catalog?.items[id]?.category;
+      const item = catalog?.items[id];
+      const category = item ? effectiveCategory(id, item) : null;
       if (category) counts.set(category, (counts.get(category) || 0) + 1);
     }
     return counts;
@@ -343,6 +419,13 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
     ...selectedSlots.map((value) => ({ key: `slot:${value}`, label: `Обвес: ${value}`, clear: () => toggleParam("slot", value) })),
     ...(compatibleWeapon && catalog?.items[compatibleWeapon]
       ? [{ key: "weapon", label: `Для: ${catalog.items[compatibleWeapon].name}`, clear: () => setParam("weapon", null) }]
+      : []),
+    ...(adminMode && adminVisibility !== "all"
+      ? [{
+        key: "visibility",
+        label: adminVisibility === "hidden" ? "Не показывать" : adminVisibility === "visible" ? "Показывать" : "Изменённые",
+        clear: () => setParam("visibility", null),
+      }]
       : []),
   ];
 
@@ -382,9 +465,24 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
 
       {adminMode && (
         <div className="admin-toolbar">
-          <span><strong>{changes.length}</strong> несохранённых изменений</span>
-          <button type="button" disabled>Сохранить изменения</button>
-          <small>Сохранение заработает после подключения защищённого API.</small>
+          <div className="admin-summary">
+            <strong>{changes.length}</strong> изменений · <strong>{selectedAdminIds.size}</strong> выбрано
+          </div>
+          <button type="button" onClick={toggleAllVisible} disabled={!visibleIds.length}>
+            {allVisibleSelected ? "Снять выбор с найденных" : "Выбрать все найденные"}
+          </button>
+          <button type="button" onClick={() => applyBulkOverride({ hidden: true })} disabled={!selectedAdminIds.size}>Не показывать</button>
+          <button type="button" onClick={() => applyBulkOverride({ hidden: false })} disabled={!selectedAdminIds.size}>Показывать</button>
+          <label className="bulk-category">
+            <span>Перенести в</span>
+            <select value={bulkCategory} onChange={(event) => setBulkCategory(event.target.value)}>
+              {CATEGORY_ORDER.map((category) => <option key={category}>{category}</option>)}
+            </select>
+          </label>
+          <button type="button" onClick={() => applyBulkOverride({ category: bulkCategory })} disabled={!selectedAdminIds.size}>Применить</button>
+          <button type="button" onClick={resetSelectedOverrides} disabled={!selectedAdminIds.size}>Сбросить выбранные</button>
+          <button type="button" className="admin-export" onClick={exportOverrides} disabled={!changes.length}>Скачать JSON</button>
+          <small>Черновик хранится в этом браузере. JSON — заготовка для будущего защищённого сохранения.</small>
         </div>
       )}
 
@@ -439,6 +537,18 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
                 );
               })}
             </div>
+
+            {adminMode && (
+              <label className="filter-select admin-visibility-filter">
+                <span>Статус в каталоге</span>
+                <select value={adminVisibility} onChange={(event) => setParam("visibility", event.target.value === "all" ? null : event.target.value)}>
+                  <option value="all">Все предметы</option>
+                  <option value="visible">Показывать</option>
+                  <option value="hidden">Не показывать</option>
+                  <option value="changed">Только изменённые</option>
+                </select>
+              </label>
+            )}
 
             {attachmentSlots.length > 0 && (
               <details className="filter-disclosure">
@@ -504,10 +614,18 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
                   const item = catalog.items[id];
                   const isSelected = selectedItem?.id === id;
                   const override = draft[id];
+                  const adminSelected = selectedAdminIds.has(id);
+                  const hidden = override?.hidden === true;
                   return (
-                    <article className={`equipment-card${isSelected ? " is-selected" : ""}${override ? " is-edited" : ""}`} key={id}>
+                    <article className={`equipment-card${isSelected ? " is-selected" : ""}${override ? " is-edited" : ""}${hidden ? " is-hidden" : ""}${adminSelected ? " is-admin-selected" : ""}`} key={id}>
+                      {adminMode && (
+                        <label className="admin-card-select" title="Добавить предмет в массовый выбор">
+                          <input type="checkbox" checked={adminSelected} onChange={() => toggleAdminSelection(id)} />
+                          <span aria-hidden="true" />
+                        </label>
+                      )}
                       <button className="equipment-card-main" onClick={() => setParam("item", id)} aria-haspopup="dialog">
-                        <span className="equipment-section">{item.category || "Снаряжение"}</span>
+                        <span className="equipment-section">{effectiveCategory(id, item)}</span>
                         <Sprite item={item} />
                         <strong>{capitalizeName(item.name)}</strong>
                         <small className="equipment-id">{item.id}</small>
@@ -517,7 +635,7 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
                           <label>
                             <span>Категория</span>
                             <select
-                              value={override?.category || item.category || "Другое"}
+                              value={effectiveCategory(id, item)}
                               onChange={(event) => changeOverride(id, { category: event.target.value })}
                             >
                               {CATEGORY_ORDER.map((category) => <option key={category}>{category}</option>)}
@@ -525,10 +643,10 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
                           </label>
                           <button
                             type="button"
-                            className={override?.hidden ? "is-hidden" : ""}
-                            onClick={() => changeOverride(id, { hidden: !override?.hidden })}
+                            className={hidden ? "is-hidden" : ""}
+                            onClick={() => changeOverride(id, { hidden: !hidden })}
                           >
-                            {override?.hidden ? "Вернуть" : "Скрыть"}
+                            {hidden ? "Показывать" : "Не показывать"}
                           </button>
                           <button type="button" onClick={() => resetOverride(id)} disabled={!override}>Сбросить</button>
                         </div>
@@ -1009,6 +1127,25 @@ function ToolPlaceholder() {
 
 function NotFound() {
   return <main className="page placeholder-page"><h1>Такого раздела пока нет</h1><Link className="button-link" to="/">Вернуться на главную</Link></main>;
+}
+
+function readAdminDraft(): AdminDraft {
+  if (typeof window === "undefined") return {};
+  try {
+    const value: unknown = JSON.parse(window.localStorage.getItem(ADMIN_DRAFT_KEY) || "{}");
+    if (!isMap(value)) return {};
+    const draft: AdminDraft = {};
+    for (const [id, entry] of Object.entries(value)) {
+      if (!isMap(entry)) continue;
+      draft[id] = {
+        ...(typeof entry.category === "string" ? { category: entry.category } : {}),
+        ...(typeof entry.hidden === "boolean" ? { hidden: entry.hidden } : {}),
+      };
+    }
+    return draft;
+  } catch {
+    return {};
+  }
 }
 
 function normalize(value: string) {
