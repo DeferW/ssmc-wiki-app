@@ -27,7 +27,7 @@ export function Equipment({ adminMode = false }: { adminMode?: boolean }) {
   const selectedSlots = searchParams.getAll("slot");
   const compatibleWeapon = searchParams.get("weapon") || "";
   const sort = searchParams.get("sort") || "name";
-  const showHidden = searchParams.get("hidden") === "1";
+  const hiddenSectionActive = searchParams.get("section") === "hidden";
   const selectedId = searchParams.get("item");
   const changes = Object.entries(draft).filter(([, value]) => value.category || value.hidden !== undefined);
 
@@ -230,6 +230,7 @@ export function Equipment({ adminMode = false }: { adminMode?: boolean }) {
       next.delete(name);
       for (const entry of values) next.append(name, entry);
       next.delete("item");
+      if (name === "category") next.delete("section");
     });
   }
 
@@ -238,6 +239,17 @@ export function Equipment({ adminMode = false }: { adminMode?: boolean }) {
       next.delete("category");
       next.append("category", category);
       next.delete("item");
+      next.delete("section");
+    });
+    setFiltersOpen(false);
+    window.requestAnimationFrame(() => resultsTop.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
+
+  function openHiddenSection() {
+    patchParams((next) => {
+      next.delete("category");
+      next.delete("item");
+      next.set("section", "hidden");
     });
     setFiltersOpen(false);
     window.requestAnimationFrame(() => resultsTop.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
@@ -259,13 +271,13 @@ export function Equipment({ adminMode = false }: { adminMode?: boolean }) {
       .filter(Boolean)
       .some((value) => normalize(String(value)).includes(normalized));
     const slots = new Set((item.attachableTo || []).map((slot) => slot.slotName || slot.name || ""));
-    const matchesCategory = ignoredFacet === "category" || !selectedCategories.length
+    const matchesCategory = hiddenSectionActive || ignoredFacet === "category" || !selectedCategories.length
       || selectedCategories.includes(effectiveCategory(id, item));
     const matchesSlot = ignoredFacet === "slot" || !selectedSlots.length
       || selectedSlots.some((slot) => slots.has(slot));
     const matchesWeapon = !compatibleWeapon || itemCompatibleWith(item, compatibleWeapon);
     const override = draft[id];
-    const matchesVisibility = !adminMode || showHidden || override?.hidden !== true;
+    const matchesVisibility = !adminMode || hiddenSectionActive === (override?.hidden === true);
     return matchesQuery && matchesCategory && matchesSlot && matchesWeapon && matchesVisibility;
   };
 
@@ -319,14 +331,30 @@ export function Equipment({ adminMode = false }: { adminMode?: boolean }) {
     return counts;
   })();
 
+  const hiddenCount = (() => {
+    if (!catalog) return 0;
+    const normalized = normalize(query);
+    let count = 0;
+    for (const id of publicIds) {
+      if (draft[id]?.hidden !== true) continue;
+      const item = catalog.items[id];
+      if (!item) continue;
+      const matchesQuery = !normalized || [item.name, descriptionText(item.description), id]
+        .filter(Boolean)
+        .some((value) => normalize(String(value)).includes(normalized));
+      if (matchesQuery) count += 1;
+    }
+    return count;
+  })();
+
   const activeFilters = [
     ...selectedCategories.map((value) => ({ key: `category:${value}`, label: value, clear: () => toggleParam("category", value) })),
     ...selectedSlots.map((value) => ({ key: `slot:${value}`, label: `Обвес: ${value}`, clear: () => toggleParam("slot", value) })),
     ...(compatibleWeapon && catalog?.items[compatibleWeapon]
       ? [{ key: "weapon", label: `Для: ${catalog.items[compatibleWeapon].name}`, clear: () => setParam("weapon", null) }]
       : []),
-    ...(adminMode && showHidden
-      ? [{ key: "hidden", label: "Показаны скрытые", clear: () => setParam("hidden", null) }]
+    ...(hiddenSectionActive
+      ? [{ key: "hidden", label: "Раздел «Скрытые»", clear: () => setParam("section", null) }]
       : []),
   ];
 
@@ -459,14 +487,15 @@ export function Equipment({ adminMode = false }: { adminMode?: boolean }) {
                   </div>
                 );
               })}
+              {adminMode && (
+                <div className={`category-row hidden-section-row${hiddenSectionActive ? " is-selected" : ""}`}>
+                  <button type="button" onClick={openHiddenSection} disabled={!hiddenCount && !hiddenSectionActive}>
+                    <span>Скрытые</span>
+                    <small>{hiddenCount}</small>
+                  </button>
+                </div>
+              )}
             </div>
-
-            {adminMode && (
-              <label className="check-option admin-visibility-filter">
-                <input type="checkbox" checked={showHidden} onChange={(event) => setParam("hidden", event.target.checked ? "1" : null)} />
-                <span>Показать скрытые</span>
-              </label>
-            )}
 
             {attachmentSlots.length > 0 && (
               <details className="filter-disclosure">
@@ -543,7 +572,10 @@ export function Equipment({ adminMode = false }: { adminMode?: boolean }) {
                         </label>
                       )}
                       <button className="equipment-card-main" onClick={() => setParam("item", id)} aria-haspopup="dialog">
-                        <span className="equipment-section">{effectiveCategory(id, item)}</span>
+                        <span className="equipment-card-heading">
+                          <span className="equipment-section">{effectiveCategory(id, item)}</span>
+                          {adminMode && override && <span className="edited-badge">Изменено</span>}
+                        </span>
                         <Sprite item={item} />
                         <strong>{capitalizeName(item.name)}</strong>
                         <small className="equipment-id">{item.id}</small>
