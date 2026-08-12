@@ -35,7 +35,7 @@ type CatalogItem = {
   id: string;
   name: string;
   baseName?: string;
-  description?: string;
+  description?: unknown;
   category?: string;
   image?: string;
   types?: string[];
@@ -57,6 +57,7 @@ type CatalogItem = {
   weaponStats?: JsonMap;
   armorStats?: JsonMap;
   attachmentStats?: JsonMap;
+  storageStats?: JsonMap;
 };
 
 type PublicCatalog = {
@@ -146,7 +147,6 @@ function Home() {
         <p className="eyebrow">Инструменты Space Stories: Marine Corps</p>
         <h1>Выберите раздел</h1>
         <p>Каталоги, расчёты, сравнения и конструкторы — всё, чему тесно внутри MediaWiki.</p>
-        <Link className="button-link admin-entry" to="/equipment/admin">Перейти в админ-режим</Link>
       </section>
       <section className="module-grid" aria-label="Разделы приложения">
         {modules.map((module) => {
@@ -200,6 +200,7 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
   const [draft, setDraft] = useState<AdminDraft>(() => readAdminDraft());
   const [selectedAdminIds, setSelectedAdminIds] = useState<Set<string>>(() => new Set());
   const [bulkCategory, setBulkCategory] = useState<string>(CATEGORY_ORDER[0]);
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const resultsTop = useRef<HTMLDivElement>(null);
 
   const query = searchParams.get("q") || "";
@@ -207,7 +208,7 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
   const selectedSlots = searchParams.getAll("slot");
   const compatibleWeapon = searchParams.get("weapon") || "";
   const sort = searchParams.get("sort") || "name";
-  const adminVisibility = searchParams.get("visibility") || "all";
+  const showHidden = searchParams.get("hidden") === "1";
   const selectedId = searchParams.get("item");
   const changes = Object.entries(draft).filter(([, value]) => value.category || value.hidden !== undefined);
 
@@ -215,6 +216,13 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
     if (!adminMode || typeof window === "undefined") return;
     window.localStorage.setItem(ADMIN_DRAFT_KEY, JSON.stringify(draft));
   }, [adminMode, draft]);
+
+  useEffect(() => {
+    const onScroll = () => setShowBackToTop(window.scrollY > 620);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   function changeOverride(id: string, patch: AdminOverride) {
     setDraft((current) => ({ ...current, [id]: { ...current[id], ...patch } }));
@@ -346,7 +354,7 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
     const item = catalog?.items[id];
     if (!item) return false;
     const normalized = normalize(query);
-    const matchesQuery = !normalized || [item.name, item.description, id]
+    const matchesQuery = !normalized || [item.name, descriptionText(item.description), id]
       .filter(Boolean)
       .some((value) => normalize(String(value)).includes(normalized));
     const slots = new Set((item.attachableTo || []).map((slot) => slot.slotName || slot.name || ""));
@@ -356,11 +364,7 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
       || selectedSlots.some((slot) => slots.has(slot));
     const matchesWeapon = !compatibleWeapon || itemCompatibleWith(item, compatibleWeapon);
     const override = draft[id];
-    const matchesVisibility = !adminMode
-      || adminVisibility === "all"
-      || (adminVisibility === "hidden" && override?.hidden === true)
-      || (adminVisibility === "visible" && override?.hidden !== true)
-      || (adminVisibility === "changed" && Boolean(override));
+    const matchesVisibility = !adminMode || showHidden || override?.hidden !== true;
     return matchesQuery && matchesCategory && matchesSlot && matchesWeapon && matchesVisibility;
   };
 
@@ -420,12 +424,8 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
     ...(compatibleWeapon && catalog?.items[compatibleWeapon]
       ? [{ key: "weapon", label: `Для: ${catalog.items[compatibleWeapon].name}`, clear: () => setParam("weapon", null) }]
       : []),
-    ...(adminMode && adminVisibility !== "all"
-      ? [{
-        key: "visibility",
-        label: adminVisibility === "hidden" ? "Не показывать" : adminVisibility === "visible" ? "Показывать" : "Изменённые",
-        clear: () => setParam("visibility", null),
-      }]
+    ...(adminMode && showHidden
+      ? [{ key: "hidden", label: "Показаны скрытые", clear: () => setParam("hidden", null) }]
       : []),
   ];
 
@@ -434,11 +434,11 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
   useEffect(() => {
     if (!filtersOpen && !selectedId) return;
     const previousOverflow = document.body.style.overflow;
-    if (filtersOpen || selectedId) document.body.style.overflow = "hidden";
+    if (filtersOpen) document.body.style.overflow = "hidden";
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (filtersOpen) setFiltersOpen(false);
-      else {
+      else if (selectedId) {
         const next = new URLSearchParams(searchParams);
         next.delete("item");
         setSearchParams(next, { replace: true });
@@ -461,6 +461,9 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
             ? "Тот же каталог, но с быстрым изменением категории и видимости прямо на карточках."
             : "Один поиск, понятные разделы и характеристики без похода в исходный YAML."}</p>
         </div>
+        <Link className="button-link admin-entry" to={adminMode ? "/equipment" : "/equipment/admin"}>
+          {adminMode ? "Выйти из админ-режима" : "Админ-режим"}
+        </Link>
       </div>
 
       {adminMode && (
@@ -539,14 +542,9 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
             </div>
 
             {adminMode && (
-              <label className="filter-select admin-visibility-filter">
-                <span>Статус в каталоге</span>
-                <select value={adminVisibility} onChange={(event) => setParam("visibility", event.target.value === "all" ? null : event.target.value)}>
-                  <option value="all">Все предметы</option>
-                  <option value="visible">Показывать</option>
-                  <option value="hidden">Не показывать</option>
-                  <option value="changed">Только изменённые</option>
-                </select>
+              <label className="check-option admin-visibility-filter">
+                <input type="checkbox" checked={showHidden} onChange={(event) => setParam("hidden", event.target.checked ? "1" : null)} />
+                <span>Показать скрытые</span>
               </label>
             )}
 
@@ -661,18 +659,23 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
       )}
 
       {selectedItem && catalog && (
-        <ItemDialog
+        <ItemDrawer
           item={selectedItem}
           catalog={catalog}
           onClose={() => setParam("item", null)}
           onSelect={(id) => setParam("item", id)}
         />
       )}
+      {showBackToTop && (
+        <button className="back-to-top" type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
+          ↑ К поиску
+        </button>
+      )}
     </main>
   );
 }
 
-function ItemDialog({
+function ItemDrawer({
   item,
   catalog,
   onClose,
@@ -683,22 +686,23 @@ function ItemDialog({
   onClose: () => void;
   onSelect: (id: string) => void;
 }) {
-  const contained = (item.containsItemIds || []).filter((id) => catalog.items[id]);
+  const contained = ["Броня", "Экипировка"].includes(item.category || "")
+    ? []
+    : (item.containsItemIds || []).filter((id) => catalog.items[id]);
 
   return (
-    <div className="dialog-backdrop" role="presentation" onMouseDown={onClose}>
-      <section className="item-dialog" role="dialog" aria-modal="true" aria-labelledby={`item-title-${item.id}`} onMouseDown={(event) => event.stopPropagation()}>
+    <aside className="item-drawer" role="dialog" aria-modal="false" aria-labelledby={`item-title-${item.id}`}>
         <button className="close-button" onClick={onClose} aria-label="Закрыть подробности">×</button>
-        <div className="dialog-layout">
-          <aside className="dialog-summary">
+        <div className="drawer-content">
+          <section className="dialog-summary">
             <div className="dialog-sprite"><Sprite item={item} eager /></div>
             <div>
               <p className="eyebrow">{item.category || "Снаряжение"}</p>
               <h2 id={`item-title-${item.id}`}>{capitalizeName(item.name)}</h2>
               <code className="prototype-id">{item.id}</code>
             </div>
-            <p className="item-description">{item.description || "Описание пока отсутствует в локализации."}</p>
-          </aside>
+            <p className="item-description">{descriptionText(item.description)}</p>
+          </section>
           <div className="dialog-details">
             <StatsDetails item={item} />
             <CompatibilityDetails item={item} catalog={catalog} onSelect={onSelect} />
@@ -710,8 +714,7 @@ function ItemDialog({
             )}
           </div>
         </div>
-      </section>
-    </div>
+    </aside>
   );
 }
 
@@ -753,6 +756,13 @@ function WeaponStats({ stats }: { stats: JsonMap }) {
     rows.push(["Ёмкость", provider.capacity]);
     rows.push(["Штатный боеприпас", provider.startingAmmoId]);
   }
+  const movement = isMap(stats.wieldedMovement) ? stats.wieldedMovement : null;
+  if (movement) {
+    for (const [key, label] of [["base", "без брони"], ["light", "лёгкая броня"], ["medium", "средняя броня"], ["heavy", "тяжёлая броня"]] as const) {
+      const value = movement[key];
+      if (typeof value === "number" && value !== 1) rows.push([`Снижение скорости · ${label}`, `−${Math.round((1 - value) * 100)}%`]);
+    }
+  }
   const ammunition = Array.isArray(stats.ammunition) ? stats.ammunition.filter(isMap) : [];
   return (
     <section className="detail-section stats-section">
@@ -766,7 +776,7 @@ function WeaponStats({ stats }: { stats: JsonMap }) {
             return (
               <article key={`${String(entry.ammoId)}:${index}`}>
                 <div className="ammo-heading">
-                  <strong>{String(entry.magazineName || entry.ammoName || entry.magazineId || entry.ammoId || "Боеприпас")}</strong>
+                  <strong title={String(entry.magazineName || entry.ammoName || entry.magazineId || entry.ammoId || "Боеприпас")}>{String(entry.magazineName || entry.ammoName || entry.magazineId || entry.ammoId || "Боеприпас")}</strong>
                   {entry.capacity != null && <span>{formatNumber(entry.capacity)} шт.</span>}
                 </div>
                 {projectiles.map((projectile, projectileIndex) => (
@@ -788,7 +798,6 @@ function WeaponStats({ stats }: { stats: JsonMap }) {
           ["Модификаторы режимов огня", stats.fireModeModifiers],
           ["Падение урона с расстоянием", stats.weaponDamageFalloff],
           ["Ближний бой", stats.melee],
-          ["Скорость с оружием", stats.wieldedMovement],
           ["Требования к навыкам", stats.skillRequirements],
           ["Дополнительные параметры", stats.gunParameters],
         ]}
@@ -807,40 +816,21 @@ function ArmorStats({ stats }: { stats: JsonMap }) {
     <section className="detail-section stats-section">
       <h3>Защита брони</h3>
       <StatGrid rows={[
-        ["Скорость движения", formatMovement(movement)],
-        ["Класс", stats.speedTier ? armorSpeedLabel(String(stats.speedTier)) : null],
+        ["Снижение скорости", formatMovementPenalty(movement)],
       ]} />
       <h4 className="subsection-title">Сопротивления</h4>
       <ProtectionBars rows={protectionRows} />
-      <div className="flag-list">
-        {stats.hardArmor === true && <span>Твёрдая броня</span>}
-        {stats.bulkyArmor === true && <span>Громоздкая</span>}
-        {stats.immuneToArmorPiercing === true && <span>Игнорирует бронепробитие</span>}
-      </div>
     </section>
   );
 }
 
 function AttachmentStats({ stats }: { stats: JsonMap }) {
   const modifiers = isMap(stats.modifiers) ? stats.modifiers : {};
-  const effects = Array.isArray(stats.effects) ? stats.effects.map(String) : [];
+  const rows = attachmentModifierRows(modifiers);
   return (
     <section className="detail-section stats-section">
       <h3>Характеристики обвеса</h3>
-      {effects.length > 0 && (
-        <div className="flag-list">{effects.map((effect) => <span key={effect}>{effect}</span>)}</div>
-      )}
-      {Object.keys(modifiers).length > 0 && (
-        <div className="modifier-list readable-modifiers">
-          {Object.entries(modifiers).map(([group, value]) => (
-            <details key={group}>
-              <summary>{componentLabel(group)}</summary>
-              <div className="readable-detail"><ReadableValue value={value} /></div>
-            </details>
-          ))}
-        </div>
-      )}
-      <ReadableStatGroups groups={[["Совместимость", stats.compatibleWith]]} />
+      <StatGrid rows={rows} />
     </section>
   );
 }
@@ -849,7 +839,7 @@ function CommonItemStats({ item }: { item: CatalogItem }) {
   const properties = item.properties || {};
   const solutionManager = isMap(properties.SolutionContainerManager) ? properties.SolutionContainerManager : null;
   const solutions = solutionManager && isMap(solutionManager.solutions) ? solutionManager.solutions : {};
-  const storage = isMap(properties.Storage) ? properties.Storage : null;
+  const storage = isMap(item.storageStats) ? item.storageStats : null;
   const melee = isMap(properties.MeleeWeapon) ? properties.MeleeWeapon : null;
   const armor = isMap(properties.CMArmor) ? properties.CMArmor : null;
   const armorPiercing = isMap(properties.CMArmorPiercing) ? properties.CMArmorPiercing : null;
@@ -858,7 +848,6 @@ function CommonItemStats({ item }: { item: CatalogItem }) {
     .find(([, value]) => isMap(value));
 
   const overviewRows: Array<[string, unknown]> = [
-    ["Надевается", item.equipmentSlots?.length ? item.equipmentSlots.map(slotLabel).join(", ") : null],
     ["Бронепробитие в ближнем бою", armorPiercing?.amount],
   ];
   const hasOverview = overviewRows.some(([, value]) => value !== null && value !== undefined && value !== "");
@@ -886,8 +875,7 @@ function CommonItemStats({ item }: { item: CatalogItem }) {
       {storage && (
         <section className="detail-section">
           <h3>Хранилище</h3>
-          <StorageSummary item={item} storage={storage} />
-          {(Boolean(storage.whitelist) || Boolean(storage.blacklist)) && <ReadableStatGroups groups={[["Ограничения содержимого", { разрешено: storage.whitelist, запрещено: storage.blacklist }]]} />}
+          <StorageSummary storage={storage} />
         </section>
       )}
       {melee && !item.weaponStats && (
@@ -909,59 +897,30 @@ function CommonItemStats({ item }: { item: CatalogItem }) {
       {ammoProvider && !item.weaponStats && (
         <section className="detail-section">
           <h3>Боеприпасы</h3>
-          <ReadableValue value={ammoProvider[1]} />
+          <StatGrid rows={ammoProviderRows(ammoProvider[1])} />
         </section>
       )}
-      <TechnicalDetails item={item} />
     </>
   );
 }
 
-function StorageSummary({ item, storage }: { item: CatalogItem; storage: JsonMap }) {
-  const properties = item.properties || {};
-  const componentTypes = new Set(item.componentTypes || []);
-  const area = storageCells(storage.grid);
-  const maxSize = String(storage.maxItemSize || "Normal");
-  const fixed = componentTypes.has("FixedItemSizeStorage") || isMap(properties.FixedItemSizeStorage);
-  const ignoresSomeSizes = componentTypes.has("IgnoreContentsSize") || isMap(properties.IgnoreContentsSize);
-  const limitedStorage = isMap(properties.LimitedStorage) ? properties.LimitedStorage : null;
-  const limits = limitedStorage && Array.isArray(limitedStorage.limits) ? limitedStorage.limits.filter(isMap) : [];
-  const specialLimit = limits
-    .map((entry) => typeof entry.count === "number" ? entry.count : null)
-    .filter((value): value is number => value !== null)
-    .sort((a, b) => a - b)[0];
-
-  if (!area) {
-    return <StatGrid rows={[["Допустимый размер", itemSizeLabel(maxSize)]]} />;
-  }
-
-  if (fixed) {
-    const fixedArea = fixedStorageItemArea(properties.FixedItemSizeStorage);
-    const places = Math.max(1, Math.floor(area / fixedArea));
-    return (
-      <>
-        <StatGrid rows={[
-          ["Вместимость", `${places} ${pluralize(places, "место", "места", "мест")}`],
-          ["Допустимый размер", `До ${itemSizeGenitive(maxSize)}`],
-          ["Особый лимит", specialLimit != null ? `Не более ${specialLimit} специальных предметов` : null],
-        ]} />
-        {ignoresSomeSizes && (
-          <p className="detail-note">Некоторые разрешённые предметы могут быть крупнее обычного лимита, но всё равно занимают одно из этих мест.</p>
-        )}
-      </>
-    );
-  }
-
-  const capacity = storageCapacity(area, maxSize);
-  return (
-    <>
-      <StatGrid rows={[
-        ["Вместимость", capacity],
-        ["Допустимый размер", `До ${itemSizeGenitive(maxSize)}`],
-      ]} />
-      <p className="detail-note">Количество зависит от сочетания размеров предметов, поэтому внутренние клетки интерфейса здесь не выдаются за отдельные слоты.</p>
-    </>
-  );
+function StorageSummary({ storage }: { storage: JsonMap }) {
+  const capacities = Array.isArray(storage.capacities) ? storage.capacities.filter(isMap) : [];
+  const limits = Array.isArray(storage.limits) ? storage.limits.filter(isMap) : [];
+  const exactPlaces = typeof storage.exactPlaces === "number" ? storage.exactPlaces : null;
+  const capacityText = capacities
+    .map((entry) => `${formatNumber(entry.count)} ${itemSizeGenitive(String(entry.size || "Small"))}`)
+    .join(" · ");
+  const limitText = limits
+    .map((entry) => typeof entry.count === "number" ? `до ${formatNumber(entry.count)} специальных` : null)
+    .filter(Boolean)
+    .join(" · ");
+  return <StatGrid rows={[
+    ["Вместимость", exactPlaces != null ? `${exactPlaces} ${pluralize(exactPlaces, "место", "места", "мест")}` : capacityText || null],
+    ["По размерам", exactPlaces == null && capacityText ? capacityText : null],
+    ["Максимальный размер", storage.maxItemSize ? itemSizeLabel(storage.maxItemSize) : null],
+    ["Особые ограничения", limitText || null],
+  ]} />;
 }
 
 function ProjectileRange({ projectile }: { projectile: JsonMap }) {
@@ -1026,26 +985,9 @@ function StatGrid({ rows }: { rows: Array<[string, unknown]> }) {
   return (
     <dl className="stat-grid">
       {visible.map(([label, value]) => (
-        <div key={label}><dt>{label}</dt><dd>{formatValue(value)}</dd></div>
+        <div key={label}><dt title={label}>{label}</dt><dd title={formatValue(value)}>{formatValue(value)}</dd></div>
       ))}
     </dl>
-  );
-}
-
-function TechnicalDetails({ item }: { item: CatalogItem }) {
-  const payload = {
-    properties: item.properties || {},
-    tags: item.tags || [],
-    componentTypes: item.componentTypes || [],
-    classification: item.classification || {},
-  };
-  if (!Object.keys(item.properties || {}).length && !item.tags?.length && !item.componentTypes?.length) return null;
-  return (
-    <details className="technical-details detail-section">
-      <summary>Технические данные</summary>
-      <p>Сложные поля из прототипа. Полезно для проверки сборщика и редких механик.</p>
-      <pre>{prettyJson(payload)}</pre>
-    </details>
   );
 }
 
@@ -1190,6 +1132,81 @@ function formatValue(value: unknown): string {
   return String(value ?? "—");
 }
 
+function descriptionText(value: unknown): string {
+  if (typeof value === "string") return value.trim() || "Нет описания";
+  if (isMap(value)) {
+    const text = Object.values(value).find((entry) => typeof entry === "string" && entry.trim());
+    return typeof text === "string" ? text.trim() : "Нет описания";
+  }
+  return "Нет описания";
+}
+
+function signedNumber(value: unknown, suffix = "") {
+  if (typeof value !== "number") return null;
+  const sign = value > 0 ? "+" : value < 0 ? "−" : "";
+  return `${sign}${formatNumber(Math.abs(value))}${suffix}`;
+}
+
+function signedPercent(value: unknown) {
+  return typeof value === "number" ? signedNumber(Math.round(value * 100), "%") : null;
+}
+
+function attachmentCondition(value: unknown) {
+  if (!isMap(value)) return "Всегда";
+  return [
+    value.activeOnly === true ? "включён" : null,
+    value.inactiveOnly === true ? "выключен" : null,
+    value.wieldedOnly === true ? "в упоре" : null,
+    value.unwieldedOnly === true ? "с рук" : null,
+  ].filter(Boolean).join(", ") || "Всегда";
+}
+
+function attachmentModifierRows(modifiers: JsonMap): Array<[string, unknown]> {
+  const rows: Array<[string, unknown]> = [];
+  const append = (label: string, value: unknown, condition: string) => {
+    if (value !== null && value !== undefined && value !== "") {
+      rows.push([condition === "Всегда" ? label : `${label} · ${condition}`, value]);
+    }
+  };
+  for (const raw of Object.values(modifiers)) {
+    if (!isMap(raw)) continue;
+    const lists = [raw.modifiers, raw.fireModeMods].filter(Array.isArray) as unknown[][];
+    if (!lists.length) lists.push([raw]);
+    for (const list of lists) {
+      for (const entry of list.filter(isMap)) {
+        const condition = attachmentCondition(entry.conditions);
+        append("Точность", signedPercent(entry.accuracyAddMult), condition);
+        append("Урон", signedPercent(entry.damageAddMult), condition);
+        append("Падение урона", signedPercent(entry.damageFalloffAddMult), condition);
+        append("Разброс", signedNumber(entry.scatterFlat), condition);
+        append("Разброс очереди", signedNumber(entry.burstScatterAddMult), condition);
+        append("Отдача", signedNumber(entry.recoilFlat), condition);
+        append("Задержка выстрела", signedNumber(entry.fireDelayFlat, " с"), condition);
+        append("Патронов в очереди", signedNumber(entry.shotsPerBurstFlat), condition);
+        append("Скорость ходьбы", signedPercent(entry.walk), condition);
+        append("Скорость бега", signedPercent(entry.sprint), condition);
+        append("Время вскидывания", signedNumber(entry.delay, " с"), condition);
+        append("Размер оружия", signedNumber(entry.size), condition);
+        if (isMap(entry.bonusDamage)) {
+          const damage = isMap(entry.bonusDamage.types) ? entry.bonusDamage.types : entry.bonusDamage;
+          append("Урон в ближнем бою", formatDamage(damage), condition);
+        }
+        if (entry.extraFireModes != null) append("Добавляет режим", formatValue(entry.extraFireModes), condition);
+      }
+    }
+  }
+  return rows;
+}
+
+function ammoProviderRows(value: unknown): Array<[string, unknown]> {
+  const provider = isMap(value) ? value : {};
+  return [
+    ["Вместимость", provider.capacity != null ? `${formatNumber(provider.capacity)} шт.` : null],
+    ["Боеприпас", provider.proto ? readableId(String(provider.proto)) : null],
+    ["Расход за выстрел", provider.fireCost],
+  ];
+}
+
 function flattenReadable(value: unknown, path: string[] = []): { rows: Array<[string, unknown]>; complex: unknown[] } {
   const rows: Array<[string, unknown]> = [];
   const complex: unknown[] = [];
@@ -1270,7 +1287,7 @@ function fireModeLabel(value: string) {
 
 function slotLabel(value: string) {
   const labels: Record<string, string> = {
-    Back: "Спина", back: "Спина", suitStorage: "Крепление на броне", suitstorage: "Крепление на броне",
+    Back: "Спина", back: "Спина", suitStorage: "Броня", suitstorage: "Броня",
     outerClothing: "Верхняя одежда", head: "Голова", eyes: "Глаза", ears: "Уши", mask: "Маска",
     belt: "Пояс", pocket: "Карман", gloves: "Перчатки", neck: "Шея", shoes: "Обувь", jumpsuit: "Униформа",
   };
@@ -1305,55 +1322,16 @@ function asPercent(value: unknown) {
   return typeof value === "number" ? `${formatNumber(value * 100)}%` : null;
 }
 
-function formatMovement(movement: JsonMap) {
+function formatMovementPenalty(movement: JsonMap) {
   const walk = typeof movement.walkModifier === "number" ? movement.walkModifier : null;
   const sprint = typeof movement.sprintModifier === "number" ? movement.sprintModifier : null;
   if (walk == null && sprint == null) return null;
-  if (walk != null && sprint != null && walk === sprint) return `${asPercent(walk)} от обычной скорости`;
+  const penalty = (value: number) => `${Math.round((1 - value) * 100)}%`;
+  if (walk != null && sprint != null && walk === sprint) return `−${penalty(walk)}`;
   return [
-    walk != null ? `ходьба ${asPercent(walk)}` : null,
-    sprint != null ? `бег ${asPercent(sprint)}` : null,
+    walk != null ? `ходьба −${penalty(walk)}` : null,
+    sprint != null ? `бег −${penalty(sprint)}` : null,
   ].filter(Boolean).join(" · ");
-}
-
-function armorSpeedLabel(value: string) {
-  return ({ light: "Лёгкая", medium: "Средняя", heavy: "Тяжёлая" } as Record<string, string>)[value.toLocaleLowerCase()] || value;
-}
-
-function storageCells(value: unknown) {
-  if (!Array.isArray(value)) return null;
-  let total = 0;
-  for (const entry of value) {
-    const parts = String(entry).split(",").map(Number);
-    if (parts.length !== 4 || parts.some(Number.isNaN)) continue;
-    total += Math.max(0, parts[2] - parts[0] + 1) * Math.max(0, parts[3] - parts[1] + 1);
-  }
-  return total || null;
-}
-
-function fixedStorageItemArea(value: unknown) {
-  if (!isMap(value)) return 4;
-  const size = value.size;
-  if (Array.isArray(size) && size.length >= 2 && size.every((entry) => typeof entry === "number")) {
-    return Math.max(1, Number(size[0]) * Number(size[1]));
-  }
-  const match = String(size || "").match(/(\d+)\D+(\d+)/);
-  return match ? Math.max(1, Number(match[1]) * Number(match[2])) : 4;
-}
-
-function storageCapacity(area: number, maxSize: string) {
-  const sizes = [
-    { id: "Tiny", area: 2, label: "крошечных" },
-    { id: "Small", area: 4, label: "маленьких" },
-    { id: "Normal", area: 6, label: "обычных" },
-    { id: "Large", area: 8, label: "больших" },
-    { id: "Huge", area: 10, label: "огромных" },
-    { id: "Ginormous", area: 12, label: "гигантских" },
-  ];
-  const maxIndex = Math.max(0, sizes.findIndex((size) => size.id.toLocaleLowerCase() === maxSize.toLocaleLowerCase()));
-  return sizes.slice(0, maxIndex + 1)
-    .map((size) => `${Math.max(1, Math.floor(area / size.area))} ${size.label}`)
-    .join(" или ");
 }
 
 function itemSizeGenitive(value: string) {

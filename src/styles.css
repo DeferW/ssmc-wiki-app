@@ -50,7 +50,7 @@ nav a.active { color: #111820; font-weight: 700; }
 .module-card p { margin: 0; color: #5c6571; line-height: 1.55; }
 .status { align-self: flex-start; padding: 4px 8px; border-radius: 999px; background: #eef0f3; color: #59616d; font-size: 0.78rem; }
 .card-link { margin-top: auto; padding-top: 24px; font-weight: 700; }
-.admin-entry { margin-top: 14px; }
+.admin-entry { flex: 0 0 auto; margin-top: 14px; white-space: nowrap; }
 
 .page-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; margin-bottom: 28px; }
 .catalog-heading { margin-bottom: 22px; }
@@ -123,14 +123,14 @@ nav a.active { color: #111820; font-weight: 700; }
 .filter-backdrop { display: none; }
 
 .equipment-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); grid-auto-rows: 1fr; gap: 12px; }
-.equipment-card { position: relative; display: flex; min-width: 0; height: 238px; flex-direction: column; overflow: hidden; border: 1px solid #d8dce2; border-radius: 10px; background: #fff; color: #20242b; }
+.equipment-card { position: relative; display: flex; min-width: 0; height: 254px; flex-direction: column; overflow: hidden; border: 1px solid #d8dce2; border-radius: 10px; background: #fff; color: #20242b; }
 .equipment-card:hover, .equipment-card.is-selected { border-color: #6f7883; }
 .equipment-card-main { display: flex; width: 100%; min-height: 0; flex: 1; flex-direction: column; align-items: flex-start; padding: 14px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
-.equipment-card-main strong { display: -webkit-box; min-height: 2.6em; margin-top: 12px; overflow: hidden; line-height: 1.3; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.equipment-card-main strong { display: -webkit-box; min-height: 2.7em; margin: 14px 0 7px; overflow: hidden; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .equipment-section { color: #69727e; font-size: 0.76rem; }
 .equipment-id { display: block; max-width: 100%; margin-top: auto; overflow: hidden; color: #8a929c; font: 0.68rem ui-monospace, SFMono-Regular, Menlo, monospace; text-overflow: ellipsis; white-space: nowrap; }
 .admin-grid { grid-auto-rows: auto; }
-.admin-grid .equipment-card { height: 340px; }
+.admin-grid .equipment-card { height: 378px; }
 .equipment-card.is-edited { border-color: #9d7a34; }
 .equipment-card.is-admin-selected { box-shadow: 0 0 0 2px rgba(68, 86, 106, 0.2); }
 .equipment-card.is-hidden .equipment-card-main { opacity: 0.48; }
@@ -138,9 +138,10 @@ nav a.active { color: #111820; font-weight: 700; }
 .admin-card-select input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .admin-card-select span { width: 14px; height: 14px; border: 1px solid #8f969f; border-radius: 3px; }
 .admin-card-select input:checked + span { background: #343b45; box-shadow: inset 0 0 0 3px #fff; }
-.card-admin-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; padding: 9px; border-top: 1px solid #e2e5e9; background: #f8f9fa; }
+.card-admin-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; padding: 10px; border-top: 1px solid #e2e5e9; background: #f8f9fa; }
 .card-admin-controls label { display: grid; gap: 3px; min-width: 0; color: #69727e; font-size: 0.65rem; }
-.card-admin-controls select, .card-admin-controls button { min-width: 0; padding: 7px; border: 1px solid #c9ced5; border-radius: 6px; background: #fff; color: #303741; font-size: 0.7rem; }
+.card-admin-controls label { grid-column: 1 / -1; }
+.card-admin-controls select, .card-admin-controls button { width: 100%; min-width: 0; padding: 7px; border: 1px solid #c9ced5; border-radius: 6px; background: #fff; color: #303741; font-size: 0.7rem; white-space: nowrap; }
 .card-admin-controls button { align-self: end; cursor: pointer; }
 .card-admin-controls button.is-hidden { border-color: #a96565; color: #8a3434; }
 .card-admin-controls button:disabled { color: #a2a8b0; cursor: default; }
@@ -168,26 +169,26 @@ nav a.active { color: #111820; font-weight: 700; }
 .notice { padding: 14px 16px; border: 1px solid #ccd4dd; border-radius: 9px; background: #edf3f8; }
 .notice.warning { border-color: #dfc88e; background: #fff8df; }
 
-.dialog-backdrop { position: fixed; inset: 0; z-index: 60; display: grid; padding: 24px; place-items: center; background: rgba(23, 28, 35, 0.5); }
-.item-dialog { position: relative; width: min(980px, 100%); max-height: min(860px, calc(100vh - 48px)); overflow: hidden; border-radius: 12px; background: #fff; box-shadow: 0 24px 70px rgba(0, 0, 0, 0.25); }
+.item-drawer { position: fixed; inset: 64px 0 0 auto; z-index: 60; width: min(720px, calc(100vw - 40px)); overflow-y: auto; overscroll-behavior: contain; border-left: 1px solid #d8dce2; background: #fff; box-shadow: -18px 0 45px rgba(23, 28, 35, 0.16); animation: drawer-in 170ms ease-out; }
+@keyframes drawer-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
 .close-button { position: absolute; top: 14px; right: 14px; z-index: 2; width: 38px; height: 38px; border: 1px solid #d8dce2; border-radius: 50%; background: #fff; color: #303741; font-size: 1.5rem; cursor: pointer; }
-.dialog-layout { display: grid; max-height: inherit; grid-template-columns: minmax(260px, 0.76fr) minmax(440px, 1.24fr); }
-.dialog-summary { min-width: 0; overflow-y: auto; padding: 32px; border-right: 1px solid #e1e4e8; background: #fafbfc; }
+.drawer-content { min-height: 100%; }
+.dialog-summary { display: grid; min-width: 0; grid-template-columns: 190px minmax(0, 1fr); gap: 8px 24px; padding: 30px 64px 26px 30px; border-bottom: 1px solid #e1e4e8; background: #fafbfc; }
 .dialog-sprite .sprite-frame, .dialog-sprite .sprite-placeholder { width: 100%; height: 220px; margin: 0 0 24px; }
 .dialog-sprite .sprite-frame img { width: 180px; height: 180px; }
 .dialog-summary h2 { margin: 8px 0 9px; font-size: clamp(1.45rem, 3vw, 2rem); line-height: 1.12; }
 .prototype-id { display: block; max-width: 100%; overflow: hidden; color: #7a838e; font-size: 0.72rem; text-overflow: ellipsis; white-space: nowrap; }
-.item-description { margin: 20px 0 0; color: #59616d; font-size: 0.9rem; line-height: 1.65; }
-.dialog-details { min-width: 0; overflow-y: auto; padding: 32px 54px 36px 32px; }
+.item-description { grid-column: 1 / -1; margin: 4px 0 0; color: #59616d; font-size: 0.9rem; line-height: 1.65; }
+.dialog-details { min-width: 0; padding: 30px 34px 54px; }
 .detail-section + .detail-section { margin-top: 28px; padding-top: 25px; border-top: 1px solid #e1e4e8; }
 .detail-section h3 { margin: 0 0 14px; font-size: 1.05rem; }
 .detail-section h4 { margin: 18px 0 10px; color: #59616d; font-size: 0.76rem; letter-spacing: 0.05em; text-transform: uppercase; }
 .muted, .detail-note { color: #757e89; font-size: 0.78rem; line-height: 1.5; }
 .detail-note { margin: 11px 0 0; }
-.stat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; margin: 0; }
+.stat-grid { display: grid; grid-template-columns: 1fr; margin: 0; }
 .stat-grid > div { display: flex; min-width: 0; align-items: baseline; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid #e6e8eb; }
-.stat-grid dt { color: #69727e; font-size: 0.76rem; }
-.stat-grid dd { margin: 0; overflow-wrap: anywhere; color: #20242b; font-size: 0.82rem; font-weight: 700; text-align: right; }
+.stat-grid dt { min-width: 0; overflow: hidden; color: #69727e; font-size: 0.76rem; text-overflow: ellipsis; white-space: nowrap; }
+.stat-grid dd { min-width: 0; margin: 0; overflow: hidden; color: #20242b; font-size: 0.82rem; font-weight: 700; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
 .flag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 .flag-list span { padding: 5px 7px; border-radius: 6px; background: #eef0f3; color: #4e5762; font-size: 0.72rem; }
 .protection-bars { display: grid; gap: 9px; }
@@ -199,13 +200,13 @@ nav a.active { color: #111820; font-weight: 700; }
 .ammo-list { margin-top: 24px; }
 .ammo-list article, .solution-list article { margin-top: 8px; padding: 11px 12px; border: 1px solid #dfe2e6; border-radius: 8px; background: #fafbfc; }
 .ammo-heading, .solution-list article > div, .damage-line { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.ammo-heading strong { font-size: 0.82rem; line-height: 1.35; }
+.ammo-heading strong { min-width: 0; overflow: hidden; font-size: 0.82rem; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
 .ammo-heading span, .damage-line small, .solution-list article > div span { flex: 0 0 auto; color: #69727e; font-size: 0.72rem; }
 .projectile-card + .projectile-card { margin-top: 9px; padding-top: 9px; border-top: 1px dashed #d8dce2; }
-.damage-line { margin-top: 8px; color: #303741; font-size: 0.78rem; }
+.damage-line { margin-top: 8px; color: #303741; font-size: 0.78rem; white-space: nowrap; }
 .range-summary, .flag-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .range-summary { margin-top: 7px; }
-.range-summary span { padding: 3px 5px; border-radius: 4px; background: #eef0f3; color: #69727e; font-size: 0.66rem; }
+.range-summary span { padding: 3px 5px; border-radius: 4px; background: #eef0f3; color: #69727e; font-size: 0.66rem; white-space: nowrap; }
 .solution-list { display: grid; gap: 8px; }
 .solution-list ul { display: grid; gap: 5px; margin: 9px 0 0; padding: 0; list-style: none; }
 .solution-list li { display: flex; justify-content: space-between; gap: 10px; color: #69727e; font-size: 0.75rem; }
@@ -235,7 +236,8 @@ nav a.active { color: #111820; font-weight: 700; }
 .admin-toolbar small { width: 100%; color: #858d97; font-size: 0.72rem; }
 .bulk-category { display: grid; gap: 3px; color: #69727e; font-size: 0.68rem; }
 .bulk-category select { min-height: 36px; padding: 7px 9px; border: 1px solid #c9ced5; border-radius: 7px; background: #fff; color: #303741; }
-.admin-visibility-filter { margin-top: 14px; padding-top: 14px; }
+.admin-visibility-filter { margin-top: 16px; padding-top: 16px; border-top: 1px solid #e3e6ea; }
+.back-to-top { position: fixed; right: 22px; bottom: 22px; z-index: 35; padding: 10px 13px; border: 1px solid #c9ced5; border-radius: 999px; background: #fff; color: #303741; font-weight: 700; box-shadow: 0 8px 24px rgba(23, 28, 35, 0.14); cursor: pointer; }
 
 .placeholder-page { max-width: 820px; }
 .placeholder-box { margin: 36px 0; padding: 52px 28px; border: 2px dashed #c4c9d0; border-radius: 12px; color: #69727e; text-align: center; line-height: 1.6; }
@@ -245,7 +247,6 @@ nav a.active { color: #111820; font-weight: 700; }
   .module-grid { grid-template-columns: repeat(2, 1fr); }
   .page-heading { align-items: flex-start; flex-direction: column; }
   .catalog-layout { grid-template-columns: 230px minmax(0, 1fr); gap: 16px; }
-  .dialog-layout { grid-template-columns: 250px minmax(0, 1fr); }
   .dialog-summary, .dialog-details { padding: 26px; }
 }
 
@@ -275,19 +276,16 @@ nav a.active { color: #111820; font-weight: 700; }
   .sort-control { align-items: flex-start; flex-direction: column; }
   .sort-control span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .equipment-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .dialog-backdrop { align-items: end; padding: 0; }
-  .item-dialog { width: 100%; max-height: calc(100vh - 20px); border-radius: 12px 12px 0 0; }
-  .dialog-layout { display: block; overflow-y: auto; }
+  .item-drawer { inset: 0; width: 100%; }
   .dialog-summary, .dialog-details { overflow: visible; padding: 24px; border: 0; }
+  .dialog-summary { display: block; }
   .dialog-summary { border-bottom: 1px solid #e1e4e8; }
   .dialog-sprite .sprite-frame, .dialog-sprite .sprite-placeholder { height: 170px; }
   .dialog-sprite .sprite-frame img { width: 145px; height: 145px; }
-  .stat-grid { grid-template-columns: 1fr; }
+  .back-to-top { right: 14px; bottom: 14px; }
 }
 
 @media (max-width: 430px) {
   .equipment-grid { grid-template-columns: 1fr; }
-  .card-admin-controls { grid-template-columns: 1fr 1fr; }
-  .card-admin-controls label { grid-column: 1 / -1; }
-  .admin-grid .equipment-card { height: 388px; }
+  .admin-grid .equipment-card { height: 394px; }
 }
