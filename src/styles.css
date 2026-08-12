@@ -131,7 +131,18 @@ nav a.active { color: #111820; font-weight: 700; }
 .equipment-id { display: block; max-width: 100%; margin-top: auto; overflow: hidden; color: #8a929c; font: 0.68rem ui-monospace, SFMono-Regular, Menlo, monospace; text-overflow: ellipsis; white-space: nowrap; }
 .admin-grid { grid-auto-rows: auto; }
 .admin-grid .equipment-card { height: 378px; }
-.equipment-card.is-edited { border-color: #9d7a34; }
+.equipment-card.is-edited { position: relative; }
+.equipment-card.is-edited::after {
+  content: "";
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(157, 122, 52, 0.55);
+  pointer-events: none;
+}
 .equipment-card.is-admin-selected { box-shadow: 0 0 0 2px rgba(68, 86, 106, 0.2); }
 .equipment-card.is-hidden .equipment-card-main { opacity: 0.48; }
 .admin-card-select { position: absolute; top: 9px; right: 9px; z-index: 2; display: grid; width: 25px; height: 25px; place-items: center; border: 1px solid #c9ced5; border-radius: 6px; background: #fff; cursor: pointer; }
