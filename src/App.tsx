@@ -18,6 +18,8 @@ const CATEGORY_ORDER = [
 ] as const;
 
 const ADMIN_DRAFT_KEY = "ssmc-equipment-admin-overrides-v1";
+const ADMIN_API_URL =
+  "https://ssmc-wiki-admin-api.24dfffer.workers.dev/api/overrides";
 
 type JsonMap = Record<string, unknown>;
 
@@ -80,6 +82,13 @@ type AdminOverride = {
 };
 
 type AdminDraft = Record<string, AdminOverride>;
+
+type AdminApiDocument = {
+  schemaVersion: 1;
+  items: AdminDraft;
+};
+
+type AdminSyncState = "loading" | "ready" | "saving" | "saved" | "error";
 
 const modules = [
   {
@@ -200,6 +209,10 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
   const [draft, setDraft] = useState<AdminDraft>(() => readAdminDraft());
   const [selectedAdminIds, setSelectedAdminIds] = useState<Set<string>>(() => new Set());
   const [bulkCategory, setBulkCategory] = useState<string>(CATEGORY_ORDER[0]);
+  const [adminPassword, setAdminPassword] = useState("");
+  const [remoteSha, setRemoteSha] = useState<string | null>(null);
+  const [adminSyncState, setAdminSyncState] = useState<AdminSyncState>(adminMode ? "loading" : "ready");
+  const [adminSyncMessage, setAdminSyncMessage] = useState(adminMode ? "Загружаю сохранённые изменения…" : "");
   const [showBackToTop, setShowBackToTop] = useState(false);
   const resultsTop = useRef<HTMLDivElement>(null);
 
@@ -211,6 +224,38 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
   const showHidden = searchParams.get("hidden") === "1";
   const selectedId = searchParams.get("item");
   const changes = Object.entries(draft).filter(([, value]) => value.category || value.hidden !== undefined);
+
+  useEffect(() => {
+    if (!adminMode) return;
+    const controller = new AbortController();
+    const localDraft = readAdminDraft();
+    const hasLocalDraft = Object.keys(localDraft).length > 0;
+
+    fetch(ADMIN_API_URL, { signal: controller.signal, cache: "no-store" })
+      .then(async (response) => {
+        const result: unknown = await response.json();
+        if (!response.ok || !isMap(result) || result.ok !== true) {
+          throw new Error(readApiError(result, `HTTP ${response.status}`));
+        }
+        const remoteDraft = normalizeApiDocument(result.overrides);
+        setRemoteSha(typeof result.sha === "string" ? result.sha : null);
+        if (hasLocalDraft) {
+          setDraft(localDraft);
+          setAdminSyncMessage("Восстановлен локальный черновик. Сохранённая версия с GitHub загружена для проверки конфликта.");
+        } else {
+          setDraft(remoteDraft);
+          setAdminSyncMessage(result.exists === true ? "Сохранённые изменения загружены из GitHub." : "Файл изменений ещё не создан. Первое сохранение создаст его.");
+        }
+        setAdminSyncState("ready");
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setAdminSyncState("error");
+        setAdminSyncMessage(error instanceof Error ? `Не удалось загрузить изменения: ${error.message}` : "Не удалось загрузить изменения.");
+      });
+
+    return () => controller.abort();
+  }, [adminMode]);
 
   useEffect(() => {
     if (!adminMode || typeof window === "undefined") return;
@@ -275,6 +320,48 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
     link.download = "equipment-overrides.json";
     link.click();
     URL.revokeObjectURL(href);
+  }
+
+  async function saveOverrides() {
+    if (!adminPassword) {
+      setAdminSyncState("error");
+      setAdminSyncMessage("Введите пароль администратора.");
+      return;
+    }
+
+    setAdminSyncState("saving");
+    setAdminSyncMessage("Сохраняю изменения в GitHub…");
+
+    try {
+      const response = await fetch(ADMIN_API_URL, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Admin-Password": adminPassword,
+        },
+        body: JSON.stringify({
+          sha: remoteSha,
+          overrides: makeAdminDocument(Object.fromEntries(changes)),
+        }),
+      });
+      const result: unknown = await response.json();
+
+      if (!response.ok || !isMap(result) || result.ok !== true) {
+        if (response.status === 401) throw new Error("Неверный пароль администратора.");
+        if (response.status === 409 || (isMap(result) && result.code === "SHA_CONFLICT")) {
+          throw new Error("Файл уже изменился после загрузки страницы. Обновите страницу, проверьте изменения и повторите сохранение.");
+        }
+        throw new Error(readApiError(result, `HTTP ${response.status}`));
+      }
+
+      setRemoteSha(typeof result.sha === "string" ? result.sha : null);
+      window.localStorage.removeItem(ADMIN_DRAFT_KEY);
+      setAdminSyncState("saved");
+      setAdminSyncMessage(result.created === true ? "Файл изменений создан в GitHub." : "Изменения сохранены в GitHub.");
+    } catch (error: unknown) {
+      setAdminSyncState("error");
+      setAdminSyncMessage(error instanceof Error ? error.message : "Не удалось сохранить изменения.");
+    }
   }
 
   const publicIds = useMemo(() => catalog?.publicCatalog.itemIds || [], [catalog]);
@@ -484,8 +571,27 @@ function Equipment({ adminMode = false }: { adminMode?: boolean }) {
           </label>
           <button type="button" onClick={() => applyBulkOverride({ category: bulkCategory })} disabled={!selectedAdminIds.size}>Применить</button>
           <button type="button" onClick={resetSelectedOverrides} disabled={!selectedAdminIds.size}>Сбросить выбранные</button>
-          <button type="button" className="admin-export" onClick={exportOverrides} disabled={!changes.length}>Скачать JSON</button>
-          <small>Черновик хранится в этом браузере. JSON — заготовка для будущего защищённого сохранения.</small>
+          <label className="admin-password">
+            <span>Пароль администратора</span>
+            <input
+              type="password"
+              value={adminPassword}
+              onChange={(event) => setAdminPassword(event.target.value)}
+              placeholder="Введите перед сохранением"
+              autoComplete="current-password"
+            />
+          </label>
+          <button
+            type="button"
+            className="admin-save"
+            onClick={saveOverrides}
+            disabled={adminSyncState === "loading" || adminSyncState === "saving"}
+          >
+            {adminSyncState === "saving" ? "Сохраняю…" : "Сохранить в GitHub"}
+          </button>
+          <button type="button" className="admin-export" onClick={exportOverrides}>Скачать JSON</button>
+          <p className={`admin-sync-status is-${adminSyncState}`} role="status">{adminSyncMessage}</p>
+          <small>Пароль хранится только в памяти этой вкладки. Локальный черновик остаётся страховкой до успешного сохранения.</small>
         </div>
       )}
 
@@ -1088,6 +1194,31 @@ function readAdminDraft(): AdminDraft {
   } catch {
     return {};
   }
+}
+
+function makeAdminDocument(items: AdminDraft): AdminApiDocument {
+  return { schemaVersion: 1, items };
+}
+
+function normalizeApiDocument(value: unknown): AdminDraft {
+  if (!isMap(value)) return {};
+  const items = value.schemaVersion === 1 && isMap(value.items) ? value.items : value;
+  const draft: AdminDraft = {};
+  for (const [id, entry] of Object.entries(items)) {
+    if (!isMap(entry)) continue;
+    const normalized: AdminOverride = {
+      ...(typeof entry.category === "string" && CATEGORY_ORDER.includes(entry.category as typeof CATEGORY_ORDER[number])
+        ? { category: entry.category }
+        : {}),
+      ...(typeof entry.hidden === "boolean" ? { hidden: entry.hidden } : {}),
+    };
+    if (normalized.category || normalized.hidden !== undefined) draft[id] = normalized;
+  }
+  return draft;
+}
+
+function readApiError(value: unknown, fallback: string) {
+  return isMap(value) && typeof value.error === "string" ? value.error : fallback;
 }
 
 function normalize(value: string) {

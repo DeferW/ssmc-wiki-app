@@ -234,6 +234,13 @@ nav a.active { color: #111820; font-weight: 700; }
 .admin-toolbar button:disabled { color: #a2a8b0; cursor: default; }
 .admin-toolbar .admin-export { margin-left: auto; background: #343b45; color: #fff; }
 .admin-toolbar small { width: 100%; color: #858d97; font-size: 0.72rem; }
+.admin-password { display: grid; min-width: min(260px, 100%); gap: 3px; color: #69727e; font-size: 0.68rem; }
+.admin-password input { min-height: 36px; padding: 7px 9px; border: 1px solid #c9ced5; border-radius: 7px; background: #fff; color: #303741; }
+.admin-toolbar .admin-save { border-color: #2f6f4e; background: #2f6f4e; color: #fff; font-weight: 700; }
+.admin-toolbar .admin-save:hover:not(:disabled) { border-color: #24583e; background: #24583e; }
+.admin-sync-status { width: 100%; margin: 2px 0 0; padding: 9px 11px; border-radius: 7px; background: #f1f3f5; color: #4e5762; font-size: 0.78rem; }
+.admin-sync-status.is-saved { background: #edf7f1; color: #286142; }
+.admin-sync-status.is-error { background: #fbefef; color: #8a3434; }
 .bulk-category { display: grid; gap: 3px; color: #69727e; font-size: 0.68rem; }
 .bulk-category select { min-height: 36px; padding: 7px 9px; border: 1px solid #c9ced5; border-radius: 7px; background: #fff; color: #303741; }
 .admin-visibility-filter { margin-top: 16px; padding-top: 16px; border-top: 1px solid #e3e6ea; }
