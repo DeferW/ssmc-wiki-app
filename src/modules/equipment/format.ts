@@ -37,6 +37,10 @@ export function categoryIndex(category?: string) {
   return index < 0 ? CATEGORY_ORDER.length : index;
 }
 
+export function isCatalogItemVisible(category: string, includeHidden = false) {
+  return includeHidden || category !== "Скрытые";
+}
+
 export function itemMatches(item: CatalogItem, query: string) {
   const needle = normalize(query);
   if (!needle) return true;

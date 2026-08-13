@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { capitalizeName, categoryIndex, descriptionText, explicitStorageItemIds, formatCost, itemMatches, normalize } from "./format";
+import { capitalizeName, categoryIndex, descriptionText, explicitStorageItemIds, formatCost, isCatalogItemVisible, itemMatches, normalize } from "./format";
 import type { Catalog, CatalogItem } from "./types";
 
 describe("equipment formatting", () => {
@@ -13,6 +13,12 @@ describe("equipment formatting", () => {
 
   it("orders new catalog categories", () => {
     expect(categoryIndex("Боезапас")).toBeLessThan(categoryIndex("Другое"));
+  });
+
+  it("hides hidden items only from the ordinary catalog listing", () => {
+    expect(isCatalogItemVisible("Скрытые")).toBe(false);
+    expect(isCatalogItemVisible("Скрытые", true)).toBe(true);
+    expect(isCatalogItemVisible("Медицина")).toBe(true);
   });
 
   it("searches name, id, description and tags", () => {

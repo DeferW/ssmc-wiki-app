@@ -1,16 +1,17 @@
 import { CATEGORY_ORDER, HIDDEN_CATEGORY } from "../config";
 
-export function FilterPanel({ categories, counts, selected, open, onSelect, onOpen, onClose, onReset }: {
+export function FilterPanel({ categories, counts, selected, open, includeHidden = false, onSelect, onOpen, onClose, onReset }: {
   categories: string[];
   counts: Map<string, number>;
   selected: string[];
   open: boolean;
+  includeHidden?: boolean;
   onSelect: (category: string) => void;
   onOpen: (category: string) => void;
   onClose: () => void;
   onReset: () => void;
 }) {
-  const ordered = CATEGORY_ORDER.filter((category) => category !== HIDDEN_CATEGORY && categories.includes(category));
+  const ordered = CATEGORY_ORDER.filter((category) => (includeHidden || category !== HIDDEN_CATEGORY) && categories.includes(category));
   return (
     <>
       {open && <button className="filter-backdrop" type="button" aria-label="Закрыть разделы" onClick={onClose} />}

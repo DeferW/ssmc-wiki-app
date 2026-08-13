@@ -3,6 +3,7 @@ import { HomePage } from "./pages/HomePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { activeModules, modules } from "./modules/registry";
+import { AdminEquipmentPage } from "./admin/equipment/AdminEquipmentPage";
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
         {activeModules.map((module) => (
           <Route path={module.path} element={<module.Component />} key={module.id} />
         ))}
+        <Route path="/equipment/admin" element={<AdminEquipmentPage />} />
         <Route path="/module/:moduleId" element={<PlaceholderPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

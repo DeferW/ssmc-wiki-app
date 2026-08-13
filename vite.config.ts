@@ -12,6 +12,12 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/catalog-data/, ""),
       },
+      "/admin-api": {
+        target: "https://ssmc-wiki-admin-api.24dfffer.workers.dev",
+        changeOrigin: true,
+        headers: { Origin: "https://deferw.github.io" },
+        rewrite: (path) => path.replace(/^\/admin-api/, ""),
+      },
     },
   },
   test: {

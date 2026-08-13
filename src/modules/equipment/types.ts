@@ -95,6 +95,11 @@ export type Catalog = {
     editedItems?: number;
     hiddenItems?: number;
   };
+  overrides?: {
+    schemaVersion?: number;
+    appliedItemIds?: string[];
+    editedItemIds?: string[];
+  };
 };
 
 export type PanelPosition = "right" | "center";

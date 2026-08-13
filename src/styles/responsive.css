@@ -61,12 +61,18 @@
   .catalog-hero h1 { font-size: clamp(2rem, 11vw, 3.2rem); }
   .catalog-meta { display: inline-grid; margin-top: 18px; }
   .catalog-controls { position: sticky; top: 66px; z-index: 20; padding: 6px 0; background: rgba(4, 7, 9, .96); backdrop-filter: blur(10px); }
+  .admin-toolbar > header { align-items: flex-start; flex-direction: column; }
+  .admin-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .admin-actions label, .admin-actions .admin-password { min-width: 0; margin: 0; }
+  .admin-actions .admin-password { grid-column: 1 / -1; }
+  .admin-actions .admin-save { grid-column: 1 / -1; }
   .catalog-search input { font-size: .8rem; }
   .results-toolbar { align-items: flex-start; }
   .results-toolbar > div { align-items: flex-start; flex-direction: column; }
   .results-toolbar > label { align-items: flex-start; flex-direction: column; gap: 4px; }
   .equipment-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
   .equipment-card { height: 225px; }
+  .equipment-card.is-admin { height: 360px; }
   .equipment-card > button { padding: 9px; }
   .equipment-card strong { margin-top: 9px; font-size: .75rem; }
   .sprite-frame, .sprite-placeholder { height: 100px; margin-top: 8px; }
@@ -92,6 +98,7 @@
   .catalog-search > span:first-child { flex-basis: 38px; }
   .cfg-button { min-width: 64px; padding-inline: 8px; }
   .equipment-card { height: 216px; }
+  .equipment-card.is-admin { height: 352px; }
   .equipment-card-top { font-size: .55rem; }
   .equipment-card small { font-size: .52rem; }
   .sprite-frame, .sprite-placeholder { height: 94px; }
