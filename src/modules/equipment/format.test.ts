@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { capitalizeName, categoryIndex, formatCost, itemMatches, normalize } from "./format";
+import { capitalizeName, categoryIndex, descriptionText, formatCost, itemMatches, normalize } from "./format";
 import type { CatalogItem } from "./types";
 
 describe("equipment formatting", () => {
@@ -29,5 +29,10 @@ describe("equipment formatting", () => {
 
   it("formats cargo cost", () => {
     expect(formatCost(3500)).toContain("3 500");
+  });
+
+  it("replaces empty and malformed descriptions", () => {
+    expect(descriptionText("{ \"\" }")).toBe("Нет описания предмета");
+    expect(descriptionText({ value: "" })).toBe("Нет описания предмета");
   });
 });

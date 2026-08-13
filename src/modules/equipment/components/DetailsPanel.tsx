@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { capitalizeName, descriptionText } from "../format";
+import { capitalizeName, descriptionText, isMap } from "../format";
 import type { Catalog, CatalogItem, PanelPosition } from "../types";
 import { ItemLinks } from "./ItemLinks";
 import { ItemSprite } from "./ItemSprite";
@@ -42,6 +42,10 @@ export function DetailsPanel({ item, catalog, position, onClose, onSelect }: {
     ...(item.attachableTo ?? []).flatMap((slot) => slot.weaponIds ?? []),
     ...(item.compatibleWeaponIds ?? []),
   ];
+  const storage = isMap(item.storageStats) ? item.storageStats : {};
+  const accepted = Array.isArray(storage.acceptedItemIds)
+    ? storage.acceptedItemIds.map(String).filter((id) => catalog.items[id])
+    : [];
 
   return (
     <div className={`details-backdrop is-${position}`} onMouseDown={(event) => {
@@ -66,11 +70,28 @@ export function DetailsPanel({ item, catalog, position, onClose, onSelect }: {
             <LinkedSection title="Содержит" ids={packed} catalog={catalog} onSelect={onSelect} />
             <LinkedSection title="Установлено" ids={installed} catalog={catalog} onSelect={onSelect} />
             <LinkedSection title="Заряжено" ids={loaded} catalog={catalog} onSelect={onSelect} />
+            <CollapsibleLinkedSection title="Разрешено помещать внутрь" ids={accepted} catalog={catalog} onSelect={onSelect} />
             <LinkedSection title="Совместимость" ids={compatibility} catalog={catalog} onSelect={onSelect} />
           </div>
         </div>
       </aside>
     </div>
+  );
+}
+
+function CollapsibleLinkedSection({ title, ids, catalog, onSelect }: {
+  title: string;
+  ids: string[];
+  catalog: Catalog;
+  onSelect: (id: string) => void;
+}) {
+  const uniqueIds = [...new Set(ids)];
+  if (!uniqueIds.length) return null;
+  return (
+    <details className="detail-section collapsible-section">
+      <summary><span>{title}</span><small>{uniqueIds.length}</small></summary>
+      <ItemLinks ids={uniqueIds} catalog={catalog} onSelect={onSelect} />
+    </details>
   );
 }
 

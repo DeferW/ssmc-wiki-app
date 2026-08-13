@@ -1,11 +1,12 @@
 import { CATEGORY_ORDER, HIDDEN_CATEGORY } from "../config";
 
-export function FilterPanel({ categories, counts, selected, open, onSelect, onClose, onReset }: {
+export function FilterPanel({ categories, counts, selected, open, onSelect, onOpen, onClose, onReset }: {
   categories: string[];
   counts: Map<string, number>;
   selected: string[];
   open: boolean;
   onSelect: (category: string) => void;
+  onOpen: (category: string) => void;
   onClose: () => void;
   onReset: () => void;
 }) {
@@ -22,11 +23,18 @@ export function FilterPanel({ categories, counts, selected, open, onSelect, onCl
           {ordered.map((category) => {
             const isSelected = selected.includes(category);
             return (
-              <label className={isSelected ? "is-selected" : ""} key={category}>
-                <input type="checkbox" checked={isSelected} onChange={() => onSelect(category)} />
-                <span>{category}</span>
-                <small>{counts.get(category) ?? 0}</small>
-              </label>
+              <div className={`category-row${isSelected ? " is-selected" : ""}`} key={category}>
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => onSelect(category)}
+                  aria-label={`Добавить раздел «${category}» к фильтру`}
+                />
+                <button type="button" onClick={() => onOpen(category)}>
+                  <span>{category}</span>
+                  <small>{counts.get(category) ?? 0}</small>
+                </button>
+              </div>
             );
           })}
         </div>

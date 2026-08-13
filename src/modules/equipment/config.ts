@@ -17,5 +17,3 @@ export const CATEGORY_ORDER = [
 ] as const;
 
 export const HIDDEN_CATEGORY = "Скрытые";
-export const FIRST_PAGE_SIZE = 96;
-export const PAGE_SIZE = 96;

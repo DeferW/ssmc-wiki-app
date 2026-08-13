@@ -24,7 +24,7 @@ export function HomePage() {
               <h2>{module.title}</h2>
               <p>{module.summary}</p>
               <span className="module-action">
-                {module.status === "active" ? "[ ОТКРЫТЬ МОДУЛЬ ]" : "[ ПРОСМОТРЕТЬ СТАТУС ]"}
+                [ ОТКРЫТЬ МОДУЛЬ ]
               </span>
             </Link>
           ))}

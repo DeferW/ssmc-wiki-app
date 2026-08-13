@@ -1,6 +1,6 @@
-import { useCallback, useDeferredValue, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { CATEGORY_ORDER, FIRST_PAGE_SIZE, HIDDEN_CATEGORY, PAGE_SIZE } from "./config";
+import { CATEGORY_ORDER, HIDDEN_CATEGORY } from "./config";
 import { useCatalog } from "./catalogStore";
 import { capitalizeName, categoryIndex, itemMatches } from "./format";
 import { usePanelSettings } from "./usePanelSettings";
@@ -14,8 +14,6 @@ export function EquipmentPage() {
   const { panelPosition, setPanelPosition } = usePanelSettings();
   const [searchParams, setSearchParams] = useSearchParams();
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [displayLimit, setDisplayLimit] = useState(FIRST_PAGE_SIZE);
-  const resultsTop = useRef<HTMLDivElement>(null);
 
   const query = searchParams.get("q") ?? "";
   const deferredQuery = useDeferredValue(query);
@@ -30,7 +28,6 @@ export function EquipmentPage() {
   }, [searchParams, setSearchParams]);
 
   const setQuery = (value: string) => {
-    setDisplayLimit(FIRST_PAGE_SIZE);
     setParams((next) => {
       if (value) next.set("q", value); else next.delete("q");
       next.delete("item");
@@ -38,7 +35,6 @@ export function EquipmentPage() {
   };
 
   const toggleCategory = (category: string) => {
-    setDisplayLimit(FIRST_PAGE_SIZE);
     setParams((next) => {
       const values = new Set(next.getAll("category"));
       if (values.has(category)) values.delete(category); else values.add(category);
@@ -48,8 +44,16 @@ export function EquipmentPage() {
     });
   };
 
+  const openCategory = (category: string) => {
+    setParams((next) => {
+      next.delete("category");
+      next.append("category", category);
+      next.delete("item");
+    });
+    setFiltersOpen(false);
+  };
+
   const clearCategories = () => {
-    setDisplayLimit(FIRST_PAGE_SIZE);
     setParams((next) => {
       next.delete("category");
       next.delete("item");
@@ -100,7 +104,6 @@ export function EquipmentPage() {
   const selectedItem = selectedId && catalog && publicIds.includes(selectedId)
     ? catalog.items[selectedId]
     : null;
-  const visibleIds = filteredIds.slice(0, displayLimit);
 
   return (
     <main className="catalog-page">
@@ -121,7 +124,8 @@ export function EquipmentPage() {
           <span aria-hidden="true">⌕</span>
           <span className="sr-only">Поиск по каталогу</span>
           <input
-            type="search"
+            type="text"
+            role="searchbox"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Поиск по названию, описанию или ID…"
@@ -136,13 +140,14 @@ export function EquipmentPage() {
       {error && !catalog && <StatusPanel title="Ошибка загрузки" text={error} action={retry} />}
 
       {catalog && (
-        <div className="catalog-layout" ref={resultsTop}>
+        <div className="catalog-layout">
           <FilterPanel
             categories={categories}
             counts={categoryCounts}
             selected={selectedCategories}
             open={filtersOpen}
             onSelect={toggleCategory}
+            onOpen={openCategory}
             onClose={() => setFiltersOpen(false)}
             onReset={clearCategories}
           />
@@ -158,7 +163,6 @@ export function EquipmentPage() {
               <label>
                 <span>Сортировка</span>
                 <select value={sort} onChange={(event) => {
-                  setDisplayLimit(FIRST_PAGE_SIZE);
                   setParams((next) => {
                     if (event.target.value === "category") next.set("sort", "category"); else next.delete("sort");
                     next.delete("item");
@@ -180,7 +184,7 @@ export function EquipmentPage() {
             )}
 
             <div className="equipment-grid" aria-live="polite">
-              {visibleIds.map((id) => {
+              {filteredIds.map((id) => {
                 const item = catalog.items[id];
                 return (
                   <article className={`equipment-card${selectedId === id ? " is-selected" : ""}`} key={id}>
@@ -199,11 +203,6 @@ export function EquipmentPage() {
             </div>
 
             {!filteredIds.length && <div className="empty-state">Совпадений не найдено.</div>}
-            {displayLimit < filteredIds.length && (
-              <button className="load-more" type="button" onClick={() => setDisplayLimit((value) => value + PAGE_SIZE)}>
-                Показать ещё {Math.min(PAGE_SIZE, filteredIds.length - displayLimit)}
-              </button>
-            )}
           </section>
         </div>
       )}

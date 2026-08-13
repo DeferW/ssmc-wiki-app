@@ -50,6 +50,7 @@ export type CatalogItem = {
   types?: string[];
   tags?: string[];
   componentTypes?: string[];
+  properties?: Record<string, JsonMap>;
   equipmentSlots?: string[];
   classification?: {
     category?: string;
@@ -73,6 +74,7 @@ export type CatalogItem = {
   storageStats?: JsonMap;
   solutionStats?: JsonMap;
   communicationStats?: JsonMap;
+  skillStats?: JsonMap;
 };
 
 export type Catalog = {

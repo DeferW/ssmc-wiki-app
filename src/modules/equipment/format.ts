@@ -20,12 +20,16 @@ export function capitalizeName(value: string) {
 }
 
 export function descriptionText(value: unknown) {
-  if (typeof value === "string") return value.trim() || "Описание отсутствует.";
+  if (typeof value === "string") {
+    const text = value.trim();
+    if (!text || /^\{\s*["']?\s*["']?\s*\}$/u.test(text)) return "Нет описания предмета";
+    return text;
+  }
   if (isMap(value)) {
     const text = Object.values(value).find((candidate) => typeof candidate === "string" && candidate.trim());
     if (typeof text === "string") return text.trim();
   }
-  return "Описание отсутствует.";
+  return "Нет описания предмета";
 }
 
 export function categoryIndex(category?: string) {
@@ -67,6 +71,34 @@ export function readableId(value: string) {
     SemiAuto: "Одиночный",
     Burst: "Очередь",
     FullAuto: "Автоматический",
+    RMCSkillMedical: "Медицина",
+    RMCSkillResearch: "Исследования",
+    RMCSkillEngineer: "Инженерия",
+    RMCSkillConstruction: "Строительство",
+    RMCSkillJtac: "Наведение и связь",
+    RMCSkillPowerLoader: "Погрузчик",
+    RMCSkillPolice: "Военная полиция",
+    RMCSkillSurgery: "Хирургия",
+    RMCSkillIntel: "Разведка",
+    RMCSkillVehicles: "Транспорт",
+    RMCSkillOverwatch: "Командная консоль",
+    RMCSkillVulture: "Орудие Vulture",
+    Russian: "Русский язык",
+    Japanese: "Японский язык",
+    Chinese: "Китайский язык",
+    German: "Немецкий язык",
+    Spanish: "Испанский язык",
+    French: "Французский язык",
+    SignLanguage: "Язык жестов",
+    Scandinavian: "Скандинавский язык",
+    Xeno: "Язык ксенонидов",
+    Primitive: "Примитивный язык",
+    Tiny: "Крошечный",
+    Small: "Маленький",
+    Normal: "Средний",
+    Large: "Большой",
+    Huge: "Огромный",
+    Ginormous: "Гигантский",
   };
   return known[value]
     ?? value.replace(/^RMC|^CM/, "").replace(/([a-zа-я])([A-ZА-Я])/g, "$1 $2").replaceAll("_", " ");
