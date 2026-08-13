@@ -6,7 +6,6 @@ import "./styles/base.css";
 import "./styles/home.css";
 import "./styles/equipment.css";
 import "./styles/responsive.css";
-import "./styles/theme.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

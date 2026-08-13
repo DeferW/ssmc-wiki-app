@@ -44,11 +44,6 @@ export function DetailsPanel({ item, catalog, position, onClose, onSelect }: {
   ];
   const accepted = explicitStorageItemIds(item, catalog);
 
-  const backToSearch = () => {
-    onClose();
-    window.requestAnimationFrame(() => document.getElementById("catalog-search-input")?.focus());
-  };
-
   return (
     <div className={`details-backdrop is-${position}`} onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose();
@@ -76,7 +71,6 @@ export function DetailsPanel({ item, catalog, position, onClose, onSelect }: {
             <LinkedSection title="Совместимость" ids={compatibility} catalog={catalog} onSelect={onSelect} />
           </div>
         </div>
-        <button className="back-to-search" type="button" onClick={backToSearch}>К поиску</button>
       </aside>
     </div>
   );

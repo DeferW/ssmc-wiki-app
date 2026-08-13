@@ -2,7 +2,7 @@ import { Link, NavLink, Route, Routes } from "react-router-dom";
 import { HomePage } from "./pages/HomePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
-import { activeModules, modules, plannedModules } from "./modules/registry";
+import { activeModules, plannedModules } from "./modules/registry";
 import { AdminEquipmentPage } from "./admin/equipment/AdminEquipmentPage";
 
 export default function App() {
@@ -10,7 +10,7 @@ export default function App() {
     <div className="app-shell">
       <header className="site-header">
         <Link className="brand" to="/" aria-label="SSMC Tactical Database">
-          <span className="brand-mark" aria-hidden="true">◫</span>
+          <span className="brand-mark" aria-hidden="true">&gt;_</span>
           <span>SSMC Tactical Database</span>
         </Link>
         <nav aria-label="Основная навигация">
@@ -35,5 +35,3 @@ export default function App() {
     </div>
   );
 }
-
-export { modules };

@@ -152,6 +152,12 @@ export function EquipmentPage({ adminMode = false }: { adminMode?: boolean }) {
     setSelectedAdminIds(new Set());
   };
 
+  const focusCatalogSearch = () => {
+    const search = document.getElementById("catalog-search-input");
+    search?.scrollIntoView({ behavior: "smooth", block: "center" });
+    search?.focus({ preventScroll: true });
+  };
+
   return (
     <main className="catalog-page">
       <section className="catalog-hero">
@@ -320,6 +326,10 @@ export function EquipmentPage({ adminMode = false }: { adminMode?: boolean }) {
             </div>
 
             {!filteredIds.length && <div className="empty-state">Совпадений не найдено.</div>}
+
+            {filteredIds.length > 0 && (
+              <button className="back-to-search" type="button" onClick={focusCatalogSearch}>К поиску</button>
+            )}
           </section>
         </div>
       )}

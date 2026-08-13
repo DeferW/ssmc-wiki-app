@@ -28,7 +28,7 @@
     max-height: none;
     padding: 20px;
     border: 0;
-    border-right: 1px solid #405448;
+    border-right: 1px solid var(--line);
     transform: translateX(-102%);
     transition: transform 160ms ease;
   }
@@ -49,7 +49,7 @@
   .page { width: calc(100% - 28px); padding-top: 46px; }
   .home-page { min-height: calc(100vh - 58px); }
   .home-video { inset-block-start: 58px; width: 100%; height: 54vh; opacity: .68; }
-  .home-shade { inset-block-start: 58px; background: linear-gradient(180deg, rgba(3, 6, 7, .18), rgba(4, 7, 9, .92) 46%, #040608 68%); }
+  .home-shade { inset-block-start: 58px; background: linear-gradient(180deg, rgba(3, 9, 5, .18), rgba(3, 8, 5, .93) 46%, var(--bg) 68%); }
   .home-content { width: calc(100% - 28px); padding: 28px 0 54px; }
   .home-intro { margin-bottom: 22px; padding: 16px; }
   .home-intro::before { font-size: .52rem; line-height: 1.45; }
@@ -60,7 +60,7 @@
   .catalog-hero { display: block; }
   .catalog-hero h1 { font-size: clamp(2rem, 11vw, 3.2rem); }
   .catalog-meta { display: inline-grid; margin-top: 18px; }
-  .catalog-controls { position: sticky; top: 66px; z-index: 20; padding: 6px 0; background: rgba(4, 7, 9, .96); backdrop-filter: blur(10px); }
+  .catalog-controls { position: sticky; top: 66px; z-index: 20; padding: 6px 0; background: rgba(3, 8, 5, .96); backdrop-filter: blur(10px); }
   .admin-toolbar > header { align-items: flex-start; flex-direction: column; }
   .admin-actions { display: grid; grid-template-columns: 1fr 1fr; }
   .admin-actions label, .admin-actions .admin-password { min-width: 0; margin: 0; }
@@ -77,7 +77,7 @@
   .equipment-card strong { margin-top: 9px; font-size: .75rem; }
   .sprite-frame, .sprite-placeholder { height: 100px; margin-top: 8px; }
   .sprite-frame img { width: 82px; height: 82px; }
-  .details-backdrop, .details-backdrop.is-center { inset: 58px 0 0; display: block; padding: 0; background: #070b0d; }
+  .details-backdrop, .details-backdrop.is-center { inset: 58px 0 0; display: block; padding: 0; background: var(--surface); }
   .details-panel, .is-center .details-panel { width: 100%; height: 100%; border: 0; box-shadow: none; animation: none; }
   .details-header { grid-template-columns: 116px minmax(0, 1fr); gap: 14px; padding: 18px 52px 18px 14px; }
   .details-sprite .sprite-frame, .details-sprite .sprite-placeholder { height: 116px; }
