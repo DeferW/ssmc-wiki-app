@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import { CHEMISTRY_CATALOG_URL, CHEMISTRY_SECTIONS } from "./config";
 import { describeEffect, describePlantEffect, type EffectDescription, type EffectTier } from "./effects";
+import { formatReagentName } from "./format";
 import {
   buildPreparationPlan,
   craftableReagentIds,
@@ -104,9 +105,9 @@ function EffectTierBlock({ tier, effects, reagent }: { tier: EffectTier; effects
 
 function ReactionSide({ items, onNavigate }: { items: ChemistryReaction["reactants"]; onNavigate: (id: string) => void }) {
   return <div className="chem-reaction-side">{items.map((item) => (
-    <button type="button" onClick={() => onNavigate(item.id)} title={`Открыть «${item.name || item.id}»`} key={item.id}>
+    <button type="button" onClick={() => onNavigate(item.id)} title={`Открыть «${formatReagentName(item.name, item.id)}»`} key={item.id}>
       <span className="chem-reaction-amount">{amount(item.amount)}</span>
-      <span>{item.name || item.id}</span>
+      <span>{formatReagentName(item.name, item.id)}</span>
     </button>
   ))}</div>;
 }
@@ -147,7 +148,7 @@ function ReagentCard({
       <summary>
         <span className="chem-reagent-color" aria-hidden="true" />
         <span className="chem-reagent-heading">
-          <strong>{entry.name || reagent?.name || entry.id}</strong>
+          <strong>{formatReagentName(entry.name || reagent?.name, entry.id)}</strong>
           <code>{entry.id}</code>
         </span>
         <span className="chem-reagent-origin">
@@ -231,7 +232,7 @@ function InputInstruction({ batch, inputIndex }: { batch: PlannedBatch; inputInd
     ));
     return (
       <li>
-        Выберите {prepared}<strong>{input.name}</strong> в химмастере. Наполните 100u-мензурку
+        Выберите {prepared}<strong>{formatReagentName(input.name, input.reagentId)}</strong> в химмастере. Наполните 100u-мензурку
         и вылейте её в бак: {transfers.join("; ")}.
       </li>
     );
@@ -242,7 +243,7 @@ function InputInstruction({ batch, inputIndex }: { batch: PlannedBatch; inputInd
   const modes = transferModes(input.amount, batch.capacity - occupiedBefore);
   return (
     <li>
-      В химмастере выберите {prepared}<strong>{input.name}</strong> и перенесите {amount(input.amount)}:
+      В химмастере выберите {prepared}<strong>{formatReagentName(input.name, input.reagentId)}</strong> и перенесите {amount(input.amount)}:
       <code className="chem-mode-sequence">{formatTransferModes(modes)}</code>
     </li>
   );
@@ -262,7 +263,7 @@ function PreparationBlock({
       <header>
         <div>
           <span>{root ? "ЦЕЛЕВОЙ СОСТАВ" : "ПРОМЕЖУТОЧНЫЙ РЕАГЕНТ"}</span>
-          <h3>{preparation.name}</h3>
+          <h3>{formatReagentName(preparation.name, preparation.reagentId)}</h3>
         </div>
         <div className="chem-preparation-amount">
           <strong>{amount(preparation.producedAmount)}</strong>
@@ -287,7 +288,7 @@ function PreparationBlock({
             {batch.vessel === "tank"
               ? "Приготовление в баке"
               : "Мензурка " + batch.batchNumber + " из " + batch.batchCount}
-            <span>{amount(batch.targetAmount)} {preparation.name}</span>
+            <span>{amount(batch.targetAmount)} {formatReagentName(preparation.name, preparation.reagentId)}</span>
           </h4>
           <ol>
             <li>
@@ -302,9 +303,9 @@ function PreparationBlock({
               <li>Нагрейте смесь минимум до <strong>{numberFormat.format(batch.minTemperature)} K</strong>.</li>
             )}
             <li>
-              Получится <strong>{amount(batch.targetAmount)} {preparation.name}</strong>
+              Получится <strong>{amount(batch.targetAmount)} {formatReagentName(preparation.name, preparation.reagentId)}</strong>
               {batch.byproducts.length > 0 && (
-                <> и {batch.byproducts.map((item) => amount(item.amount) + " " + item.name).join(", ")}</>
+                <> и {batch.byproducts.map((item) => amount(item.amount) + " " + formatReagentName(item.name, item.reagentId)).join(", ")}</>
               )}.
               {!root && " Загрузите результат в буфер химмастера для следующего этапа."}
             </li>
@@ -329,7 +330,7 @@ function ReagentCombobox({
   value: string;
   onChange: (id: string) => void;
 }) {
-  const selectedName = reagents[value]?.name ?? value;
+  const selectedName = formatReagentName(reagents[value]?.name, value);
   const [query, setQuery] = useState(selectedName);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -337,7 +338,7 @@ function ReagentCombobox({
   const matches = useMemo(() => {
     if (normalizedQuery.length < 2) return [];
     return ids.map((id) => {
-      const name = reagents[id]?.name ?? id;
+      const name = formatReagentName(reagents[id]?.name, id);
       const normalizedName = name.toLocaleLowerCase("ru-RU");
       const normalizedId = id.toLocaleLowerCase("ru-RU");
       const begins = normalizedName.startsWith(normalizedQuery) || normalizedId.startsWith(normalizedQuery);
@@ -350,7 +351,7 @@ function ReagentCombobox({
 
   const select = (id: string) => {
     onChange(id);
-    setQuery(reagents[id]?.name ?? id);
+    setQuery(formatReagentName(reagents[id]?.name, id));
     setOpen(false);
     setActiveIndex(0);
   };
@@ -509,7 +510,7 @@ function Planner({ catalog }: { catalog: ChemistryCatalog }) {
             <h3>Всего исходных реагентов</h3>
             <div>
               {plan.sourceTotals.map((source) => (
-                <span key={source.reagentId}><strong>{amount(source.amount)}</strong> {source.name}</span>
+                <span key={source.reagentId}><strong>{amount(source.amount)}</strong> {formatReagentName(source.name, source.reagentId)}</span>
               ))}
             </div>
             <p>Исходными считаются элементы, вода и вещества без производящего рецепта. Некоторые потребуется получить вне химмастера.</p>
@@ -584,7 +585,7 @@ function Catalog({ catalog }: { catalog: ChemistryCatalog }) {
       if (!reagent) return;
       setSpotlightEntry({
         id,
-        name: reagent.name || id,
+        name: formatReagentName(reagent.name, id),
         origin: reagent.origin,
         sectionPath: ["Компонент рецепта"],
       });

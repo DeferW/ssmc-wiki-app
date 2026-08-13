@@ -8,6 +8,7 @@ import type {
   PreparationPlan,
   TransferMode,
 } from "./types";
+import { formatReagentName } from "./format";
 
 export const BEAKER_CAPACITY = 100;
 export const TANK_CAPACITY = 1000;
@@ -80,7 +81,7 @@ export function createPlannerContext(catalog: ChemistryCatalog): PlannerContext 
     ...Object.values(catalog.dependencies),
     ...Object.values(catalog.reagents),
   ]) {
-    names.set(reagent.id, reagent.name || reagent.id);
+    names.set(reagent.id, formatReagentName(reagent.name, reagent.id));
   }
 
   const sourceIds = new Set([
