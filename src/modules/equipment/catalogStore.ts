@@ -5,12 +5,31 @@ import type { Catalog } from "./types";
 let catalogCache: Catalog | null = null;
 let inflight: Promise<Catalog> | null = null;
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
 function validateCatalog(value: unknown): Catalog {
-  if (!value || typeof value !== "object") throw new Error("Каталог имеет неверный формат");
+  if (!isRecord(value)) throw new Error("Каталог имеет неверный формат");
   const catalog = value as Partial<Catalog>;
   if (catalog.schemaVersion !== 4) throw new Error("Приложению требуется catalog schema 4");
-  if (!catalog.items || !catalog.sources || !catalog.publicCatalog?.itemIds) {
+  if (
+    typeof catalog.gameCommit !== "string"
+    || !isRecord(catalog.items)
+    || !isRecord(catalog.sources)
+    || !isRecord(catalog.publicCatalog)
+    || !Array.isArray(catalog.publicCatalog.itemIds)
+    || !isRecord(catalog.publicCatalog.categories)
+  ) {
     throw new Error("В каталоге отсутствуют обязательные блоки");
+  }
+  for (const [id, item] of Object.entries(catalog.items)) {
+    if (!isRecord(item) || item.id !== id || typeof item.name !== "string") {
+      throw new Error(`Предмет ${id} имеет неверный формат`);
+    }
+  }
+  if (!catalog.publicCatalog.itemIds.every((id) => typeof id === "string" && Boolean(catalog.items?.[id]))) {
+    throw new Error("Публичный каталог ссылается на отсутствующие предметы");
   }
   return catalog as Catalog;
 }

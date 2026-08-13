@@ -15,7 +15,9 @@ export function automaticCategory(item: CatalogItem) {
 }
 
 export function useAdminOverrides(enabled: boolean, catalog: Catalog | null) {
-  const [draft, setDraft] = useState<AdminOverrides>(() => readLocalDraft() ?? {});
+  const [storedDraft] = useState<AdminOverrides | null>(() => readLocalDraft());
+  const [draft, setDraft] = useState<AdminOverrides>(() => storedDraft ?? {});
+  const [dirty, setDirty] = useState(storedDraft !== null);
   const [sha, setSha] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [state, setState] = useState<AdminSyncState>(enabled ? "loading" : "ready");
@@ -25,7 +27,7 @@ export function useAdminOverrides(enabled: boolean, catalog: Catalog | null) {
   useEffect(() => {
     if (!enabled || !catalog) return;
     const controller = new AbortController();
-    const localDraft = readLocalDraft();
+    const localDraft = storedDraft;
     loadAdminOverrides(controller.signal)
       .then((result) => {
         setSha(result.sha);
@@ -48,14 +50,19 @@ export function useAdminOverrides(enabled: boolean, catalog: Catalog | null) {
         setMessage(error instanceof Error ? `Не удалось загрузить overrides: ${error.message}` : "Не удалось загрузить overrides.");
       });
     return () => controller.abort();
-  }, [enabled, catalog]);
+  }, [enabled, catalog, storedDraft]);
 
   useEffect(() => {
-    if (!enabled || !hydrated) return;
-    window.localStorage.setItem(DRAFT_KEY, JSON.stringify(makeAdminDocument(draft)));
-  }, [draft, enabled, hydrated]);
+    if (!enabled || !hydrated || !dirty) return;
+    try {
+      window.localStorage.setItem(DRAFT_KEY, JSON.stringify(makeAdminDocument(draft)));
+    } catch {
+      // The draft remains available in memory when storage is blocked.
+    }
+  }, [dirty, draft, enabled, hydrated]);
 
   const setCategory = useCallback((id: string, category: string, item: CatalogItem) => {
+    setDirty(true);
     setDraft((current) => {
       const next = { ...current };
       if (category === automaticCategory(item)) delete next[id];
@@ -67,6 +74,7 @@ export function useAdminOverrides(enabled: boolean, catalog: Catalog | null) {
   }, []);
 
   const reset = useCallback((id: string) => {
+    setDirty(true);
     setDraft((current) => {
       const next = { ...current };
       delete next[id];
@@ -78,6 +86,7 @@ export function useAdminOverrides(enabled: boolean, catalog: Catalog | null) {
 
   const setManyCategories = useCallback((ids: Iterable<string>, category: string) => {
     if (!catalog) return;
+    setDirty(true);
     setDraft((current) => {
       const next = { ...current };
       for (const id of ids) {
@@ -93,6 +102,7 @@ export function useAdminOverrides(enabled: boolean, catalog: Catalog | null) {
   }, [catalog]);
 
   const resetMany = useCallback((ids: Iterable<string>) => {
+    setDirty(true);
     setDraft((current) => {
       const next = { ...current };
       for (const id of ids) delete next[id];
@@ -113,7 +123,12 @@ export function useAdminOverrides(enabled: boolean, catalog: Catalog | null) {
     try {
       const result = await saveAdminOverrides(draft, sha, password);
       setSha(result.sha);
-      window.localStorage.removeItem(DRAFT_KEY);
+      setDirty(false);
+      try {
+        window.localStorage.removeItem(DRAFT_KEY);
+      } catch {
+        // A successful remote save must not be reported as failed because storage is blocked.
+      }
       setState("saved");
       setMessage(result.created ? "Overrides созданы в GitHub." : "Overrides полностью перезаписаны в GitHub.");
       return true;

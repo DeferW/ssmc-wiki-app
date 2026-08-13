@@ -1,9 +1,25 @@
 @media (min-width: 1800px) {
-  .catalog-page { width: min(1900px, calc(100% - 120px)); }
-  .catalog-layout { grid-template-columns: 270px minmax(0, 1fr); }
-  .equipment-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
-  .home-content { width: min(1420px, calc(100% - 120px)); }
+  :root {
+    --header-height: clamp(64px, min(2.35vw, 6.5vh), 90px);
+    font-size: clamp(16px, min(.625vw, 1.4vh), 24px);
+  }
+  .site-header { padding-inline: clamp(48px, 4vw, 160px); }
+  .site-header nav a { display: flex; height: var(--header-height); align-items: center; padding-block: 0; }
+  .brand-mark { width: clamp(28px, 1.35vw, 44px); height: clamp(28px, 1.35vw, 44px); }
+  .page { width: min(2600px, calc(100% - clamp(120px, 8vw, 320px))); }
+  .catalog-page { width: min(3200px, calc(100% - clamp(120px, 7vw, 280px))); }
+  .catalog-layout { grid-template-columns: clamp(270px, 13vw, 390px) minmax(0, 1fr); }
+  .equipment-grid { grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: clamp(10px, .55vw, 20px); }
+  .equipment-card { height: 15rem; }
+  .equipment-card.is-admin { height: 23rem; }
+  .sprite-frame, .sprite-placeholder { height: 7rem; }
+  .sprite-frame img { width: 6rem; height: 6rem; }
+  .details-panel { width: clamp(760px, 42vw, 1200px); }
+  .is-center .details-panel { width: min(1400px, calc(100vw - 8vw)); height: min(1200px, calc(100dvh - var(--header-height) - 6vw)); }
+  .home-content { width: min(2800px, calc(100% - clamp(120px, 8vw, 320px))); padding-block: clamp(72px, min(5vw, 7vh), 160px); }
+  .home-intro { max-width: min(1280px, 48%); margin-bottom: clamp(42px, min(2.5vw, 4vh), 80px); padding: clamp(24px, min(1.3vw, 2.4vh), 42px); }
   .module-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .module-card { min-height: 15rem; padding: clamp(20px, min(1.25vw, 2.2vh), 40px); }
 }
 
 @media (max-width: 1100px) {
@@ -34,22 +50,23 @@
   }
   .filter-sidebar.is-open { transform: translateX(0); box-shadow: 20px 0 70px rgba(0, 0, 0, .64); }
   .filter-sidebar header button { display: block; }
-  .filter-backdrop { position: fixed; inset: 0; z-index: 91; display: block; border: 0; background: rgba(0, 2, 3, .78); }
+  .filter-backdrop { position: fixed; inset: 0; z-index: 91; display: block; border: 0; background: rgba(0, 3, 1, .78); }
   .mobile-filter-button { display: inline-flex; }
   .module-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .home-intro { margin-right: 0; }
 }
 
 @media (max-width: 700px) {
+  :root { --header-height: 58px; }
   .site-header { min-height: 58px; gap: 12px; padding: 0 14px; }
   .brand { font-size: .7rem; }
   .brand-mark { width: 25px; height: 25px; }
   .site-header nav { gap: 12px; }
   .site-header nav a { padding: 20px 0 18px; font-size: .66rem; }
   .page { width: calc(100% - 28px); padding-top: 46px; }
-  .home-page { min-height: calc(100vh - 58px); }
-  .home-video { inset-block-start: 58px; width: 100%; height: 54vh; opacity: .68; }
-  .home-shade { inset-block-start: 58px; background: linear-gradient(180deg, rgba(3, 9, 5, .18), rgba(3, 8, 5, .93) 46%, var(--bg) 68%); }
+  .home-page { min-height: calc(100vh - var(--header-height)); }
+  .home-video { inset-block-start: var(--header-height); width: 100%; height: 54vh; opacity: .68; }
+  .home-shade { inset-block-start: var(--header-height); background: linear-gradient(180deg, rgba(3, 9, 5, .18), rgba(3, 8, 5, .93) 46%, var(--bg) 68%); }
   .home-content { width: calc(100% - 28px); padding: 28px 0 54px; }
   .home-intro { margin-bottom: 22px; padding: 16px; }
   .home-intro::before { font-size: .52rem; line-height: 1.45; }
@@ -77,7 +94,7 @@
   .equipment-card strong { margin-top: 9px; font-size: .75rem; }
   .sprite-frame, .sprite-placeholder { height: 100px; margin-top: 8px; }
   .sprite-frame img { width: 82px; height: 82px; }
-  .details-backdrop, .details-backdrop.is-center { inset: 58px 0 0; display: block; padding: 0; background: var(--surface); }
+  .details-backdrop, .details-backdrop.is-center { inset: var(--header-height) 0 0; display: block; padding: 0; background: var(--surface); }
   .details-panel, .is-center .details-panel { width: 100%; height: 100%; border: 0; box-shadow: none; animation: none; }
   .details-header { grid-template-columns: 116px minmax(0, 1fr); gap: 14px; padding: 18px 52px 18px 14px; }
   .details-sprite .sprite-frame, .details-sprite .sprite-placeholder { height: 116px; }
