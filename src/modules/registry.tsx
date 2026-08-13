@@ -74,3 +74,7 @@ export const activeModules = modules.filter(
   (module): module is ModuleDefinition & { Component: ComponentType } =>
     module.status === "active" && Boolean(module.Component),
 );
+
+export const plannedModules = modules.filter(
+  (module) => module.status === "planned",
+);

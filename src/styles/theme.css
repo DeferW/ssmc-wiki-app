@@ -1,0 +1,221 @@
+/*
+ * Единая палитра интерфейса. Цветной акцент только один — зелёный.
+ * Белые оттенки используются исключительно как нейтральный основной текст.
+ */
+:root {
+  --accent: #72d895;
+  --accent-soft: #9bdcaf;
+  --accent-dim: #557c62;
+  --text: #dce9e0;
+  --muted: #789481;
+  --muted-strong: #91aa99;
+  --line: #294333;
+  --line-strong: #426b50;
+  --panel: #070d09;
+  --panel-2: #0a120d;
+  --panel-3: #0d1811;
+  --amber: #72d895;
+  --danger: #72d895;
+  color: var(--text);
+  background: #030604;
+  color-scheme: dark;
+}
+
+html,
+body { background: #030604; }
+
+.site-header,
+.home-intro,
+.module-card,
+.catalog-meta,
+.catalog-search,
+.cfg-button,
+.settings-popover,
+.filter-sidebar,
+.category-row,
+.admin-toolbar,
+.equipment-card,
+.sprite-frame,
+.sprite-placeholder,
+.details-panel,
+.details-header,
+.offer-list article,
+.ammo-list article,
+.solution-list article,
+.projectile-list article,
+.modifier-groups article,
+.item-link-list button,
+.empty-state,
+.status-panel,
+.placeholder-box {
+  border-color: var(--line);
+}
+
+.site-header,
+.catalog-search,
+.cfg-button,
+.settings-popover,
+.filter-sidebar,
+.admin-toolbar,
+.card-admin-controls,
+.details-panel,
+.item-link-list button,
+.offer-list article,
+.ammo-list article,
+.solution-list article,
+.projectile-list article,
+.modifier-groups article,
+.placeholder-box { background-color: var(--panel); }
+
+.home-intro { border-color: var(--line-strong); background: rgba(5, 12, 7, .9); }
+.module-card { background: linear-gradient(145deg, rgba(9, 17, 11, .97), rgba(3, 7, 4, .99)); }
+.module-card:hover { border-color: var(--line-strong); background: linear-gradient(145deg, rgba(13, 25, 16, .99), rgba(5, 11, 7, .99)); }
+.equipment-card { background: linear-gradient(160deg, #0b150e, #050a07); }
+.sprite-frame,
+.sprite-placeholder { background: radial-gradient(circle, #102117, #050a07 72%); }
+.details-header { background: linear-gradient(135deg, #0d1811, #050a07); }
+
+.home-shade { background: linear-gradient(90deg, rgba(2, 6, 3, .1), rgba(3, 9, 5, .48) 37%, rgba(3, 7, 4, .95) 65%, #030604 100%); }
+.home-video { filter: grayscale(.35) sepia(.16) saturate(.72) brightness(.48) contrast(1.14) hue-rotate(75deg); }
+
+.home-intro::before,
+.module-index,
+.module-code,
+.module-card p,
+.catalog-hero > div:first-child > p:last-child,
+.catalog-meta span,
+.catalog-meta small,
+.catalog-search > span:first-child,
+.catalog-search input::placeholder,
+.settings-popover::before,
+.settings-popover legend,
+.settings-popover label small,
+.settings-popover > p,
+.filter-sidebar header span,
+.category-row,
+.category-row small,
+.admin-toolbar > header span,
+.admin-actions label,
+.admin-status,
+.admin-toolbar > small,
+.results-toolbar > div,
+.results-toolbar > label,
+.equipment-card-top,
+.equipment-card small,
+.status-panel > span,
+.status-panel p,
+.details-title code,
+.item-description,
+.detail-section h4,
+.muted,
+.stat-grid dt,
+.offer-list span,
+.offer-list small,
+.ammo-heading span,
+.solution-list span,
+.solution-list small,
+.solution-list li,
+.protection-bars span,
+.modifier-row small,
+.collapsible-section summary small,
+.placeholder-page > p:not(.eyebrow),
+.placeholder-box span { color: var(--muted); }
+
+.brand,
+.site-header nav a:hover,
+.site-header nav a.active,
+.home-intro h1,
+.module-card h2,
+.catalog-hero h1,
+.settings-popover header strong,
+.filter-sidebar header strong,
+.admin-toolbar > header strong,
+.results-toolbar strong,
+.equipment-card strong,
+.status-panel strong,
+.details-title h2,
+.detail-section h3,
+.stat-grid dd,
+.offer-list strong,
+.ammo-heading strong,
+.solution-list strong,
+.projectile-list > article > strong,
+.solution-list li b,
+.protection-bars strong,
+.modifier-row b,
+.collapsible-section summary,
+.placeholder-page h1 { color: var(--text); }
+
+.site-header nav a,
+.catalog-search input,
+.catalog-search button,
+.settings-popover header button,
+.settings-popover label b,
+.filter-sidebar header button,
+.reset-filters,
+.results-toolbar select,
+.mobile-filter-button,
+.active-filters button,
+.close-button,
+.status-panel button,
+.button-link { color: var(--muted-strong); }
+
+.module-card .status,
+.equipment-card-top i,
+.edited-badge,
+.admin-status.is-error { border-color: var(--line-strong); color: var(--accent); }
+
+.category-row,
+.reset-filters,
+.settings-popover header button,
+.results-toolbar select,
+.mobile-filter-button,
+.active-filters button,
+.close-button,
+.status-panel button,
+.button-link,
+.admin-toolbar button,
+.admin-toolbar select,
+.admin-toolbar input,
+.card-admin-controls select,
+.card-admin-controls button,
+input[type="checkbox"],
+input[type="radio"] { border-color: var(--line); }
+
+.category-row:hover,
+.category-row.is-selected,
+.reset-filters:hover,
+.results-toolbar select:hover,
+.mobile-filter-button:hover,
+.active-filters button:hover,
+.close-button:hover,
+.button-link:hover { border-color: var(--line-strong); }
+
+select {
+  border-color: var(--line-strong) !important;
+  background-color: var(--panel) !important;
+  color: var(--text) !important;
+  color-scheme: dark;
+}
+
+select option {
+  background: #071009;
+  color: var(--text);
+}
+
+select option:checked {
+  background: linear-gradient(#21472d, #21472d);
+  color: #effff3;
+}
+
+* { scrollbar-color: var(--line-strong) #050a07; }
+
+@media (max-width: 700px) {
+  .home-shade {
+    background: linear-gradient(180deg, rgba(3, 9, 5, .18), rgba(3, 8, 5, .93) 46%, #030604 68%);
+  }
+
+  .catalog-controls { background: rgba(3, 8, 5, .96); }
+  .details-backdrop,
+  .details-backdrop.is-center { background: #050a07; }
+}

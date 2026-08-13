@@ -1,12 +1,7 @@
-import { Link, useParams } from "react-router-dom";
-import { modules } from "../modules/registry";
-import { NotFoundPage } from "./NotFoundPage";
+import { Link } from "react-router-dom";
+import type { ModuleDefinition } from "../modules/registry";
 
-export function PlaceholderPage() {
-  const { moduleId } = useParams();
-  const module = modules.find((candidate) => candidate.id === moduleId);
-  if (!module) return <NotFoundPage />;
-
+export function PlaceholderPage({ module }: { module: ModuleDefinition }) {
   return (
     <main className="page placeholder-page">
       <p className="eyebrow">MODULE SLOT // {module.code}</p>
