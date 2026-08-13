@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import { CHEMISTRY_CATALOG_URL, CHEMISTRY_SECTIONS } from "./config";
 import { describeEffect, describePlantEffect, type EffectDescription, type EffectTier } from "./effects";
 import {
@@ -318,6 +318,117 @@ function PreparationBlock({
   );
 }
 
+function ReagentCombobox({
+  ids,
+  reagents,
+  value,
+  onChange,
+}: {
+  ids: string[];
+  reagents: Record<string, ChemistryReagent>;
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const selectedName = reagents[value]?.name ?? value;
+  const [query, setQuery] = useState(selectedName);
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const normalizedQuery = query.trim().toLocaleLowerCase("ru-RU");
+  const matches = useMemo(() => {
+    if (normalizedQuery.length < 2) return [];
+    return ids.map((id) => {
+      const name = reagents[id]?.name ?? id;
+      const normalizedName = name.toLocaleLowerCase("ru-RU");
+      const normalizedId = id.toLocaleLowerCase("ru-RU");
+      const begins = normalizedName.startsWith(normalizedQuery) || normalizedId.startsWith(normalizedQuery);
+      const contains = normalizedName.includes(normalizedQuery) || normalizedId.includes(normalizedQuery);
+      return { id, name, begins, contains };
+    }).filter((item) => item.contains).sort((left, right) => (
+      Number(right.begins) - Number(left.begins) || left.name.localeCompare(right.name, "ru-RU")
+    )).slice(0, 10);
+  }, [ids, normalizedQuery, reagents]);
+
+  const select = (id: string) => {
+    onChange(id);
+    setQuery(reagents[id]?.name ?? id);
+    setOpen(false);
+    setActiveIndex(0);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Escape") {
+      setOpen(false);
+      return;
+    }
+    if (!open || matches.length === 0) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveIndex((current) => (current + 1) % matches.length);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveIndex((current) => (current - 1 + matches.length) % matches.length);
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      select(matches[activeIndex]?.id ?? matches[0].id);
+    }
+  };
+
+  return (
+    <div className="chem-planner-search">
+      <input
+        type="search"
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={open && normalizedQuery.length >= 2}
+        aria-controls="chem-reagent-suggestions"
+        aria-activedescendant={open && matches[activeIndex] ? `chem-suggestion-${matches[activeIndex].id}` : undefined}
+        autoComplete="off"
+        value={query}
+        onChange={(event) => {
+          const nextQuery = event.target.value;
+          setQuery(nextQuery);
+          setOpen(nextQuery.trim().length >= 2);
+          setActiveIndex(0);
+          const exact = ids.find((id) => (
+            id.toLocaleLowerCase("ru-RU") === nextQuery.trim().toLocaleLowerCase("ru-RU")
+            || (reagents[id]?.name ?? "").toLocaleLowerCase("ru-RU") === nextQuery.trim().toLocaleLowerCase("ru-RU")
+          ));
+          onChange(exact ?? "");
+        }}
+        onFocus={(event) => {
+          event.currentTarget.select();
+          setOpen(false);
+        }}
+        onBlur={() => {
+          setOpen(false);
+          if (!value) setQuery("");
+        }}
+        onKeyDown={handleKeyDown}
+        placeholder="Введите минимум 2 символа…"
+      />
+      {open && normalizedQuery.length >= 2 && (
+        <div className="chem-planner-suggestions" id="chem-reagent-suggestions" role="listbox">
+          {matches.length > 0 ? matches.map((item, index) => (
+            <button
+              type="button"
+              role="option"
+              aria-selected={index === activeIndex}
+              className={index === activeIndex ? "is-active" : ""}
+              id={`chem-suggestion-${item.id}`}
+              onMouseDown={(event) => event.preventDefault()}
+              onMouseEnter={() => setActiveIndex(index)}
+              onClick={() => select(item.id)}
+              key={item.id}
+            >
+              <strong>{item.name}</strong><code>{item.id}</code>
+            </button>
+          )) : <p>Совпадений не найдено.</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Planner({ catalog }: { catalog: ChemistryCatalog }) {
   const craftableIds = useMemo(() => craftableReagentIds(catalog), [catalog]);
   const reagents = useMemo(() => ({ ...catalog.dependencies, ...catalog.reagents }), [catalog]);
@@ -331,6 +442,11 @@ function Planner({ catalog }: { catalog: ChemistryCatalog }) {
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (!reagentId) {
+      setPlan(null);
+      setError("Выберите вещество из списка рекомендаций.");
+      return;
+    }
     try {
       setPlan(buildPreparationPlan(catalog, reagentId, requestedAmount, mode));
       setError("");
@@ -345,9 +461,7 @@ function Planner({ catalog }: { catalog: ChemistryCatalog }) {
       <form className="chem-planner-form" onSubmit={submit}>
         <label>
           <span>Вещество</span>
-          <select value={reagentId} onChange={(event) => setReagentId(event.target.value)}>
-            {craftableIds.map((id) => <option value={id} key={id}>{reagents[id]?.name ?? id}</option>)}
-          </select>
+          <ReagentCombobox ids={craftableIds} reagents={reagents} value={reagentId} onChange={setReagentId} />
         </label>
         <label>
           <span>Требуемый объём</span>

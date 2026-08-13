@@ -87,8 +87,18 @@
 .chem-planner-form { display: grid; align-items: end; gap: 12px; padding: 18px; border: 1px solid var(--line); background: var(--surface); grid-template-columns: minmax(220px, 1.4fr) 180px minmax(300px, 1.2fr) auto; }
 .chem-planner-form > label, .chem-planner-form fieldset { display: grid; gap: 8px; min-width: 0; margin: 0; padding: 0; border: 0; }
 .chem-planner-form > label > span:first-child, .chem-planner-form legend { color: var(--muted); font-size: .62rem; letter-spacing: .06em; text-transform: uppercase; }
-.chem-planner-form select, .chem-amount-input { min-width: 0; height: 45px; border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); }
-.chem-planner-form select { padding: 0 10px; }
+.chem-planner-search, .chem-amount-input { min-width: 0; height: 45px; border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); }
+.chem-planner-search { position: relative; }
+.chem-planner-search > input { width: 100%; height: 100%; padding: 0 10px; border: 0; outline: 0; background: transparent; color: var(--text); }
+.chem-planner-search > input::-webkit-search-cancel-button { display: none; }
+.chem-planner-search:focus-within { border-color: var(--accent); }
+.chem-planner-suggestions { position: absolute; z-index: 20; top: calc(100% + 5px); right: -1px; left: -1px; display: grid; max-height: 330px; overflow-y: auto; border: 1px solid var(--line-strong); background: var(--bg); box-shadow: 0 14px 28px rgba(0, 0, 0, .46); }
+.chem-planner-suggestions button { display: grid; min-height: 0; gap: 3px; padding: 9px 10px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--muted-strong); cursor: pointer; text-align: left; }
+.chem-planner-suggestions button:last-of-type { border-bottom: 0; }
+.chem-planner-suggestions button:hover, .chem-planner-suggestions button.is-active { background: var(--surface-highlight); color: var(--text-strong); box-shadow: inset 2px 0 var(--accent); }
+.chem-planner-suggestions strong { overflow-wrap: anywhere; color: inherit; font-size: .68rem; }
+.chem-planner-suggestions code { color: var(--muted); font-size: .56rem; }
+.chem-planner-suggestions p { margin: 0; padding: 12px 10px; color: var(--muted); font-size: .64rem; }
 .chem-amount-input { display: grid; grid-template-columns: minmax(0, 1fr) 34px; }
 .chem-amount-input input { min-width: 0; padding: 0 10px; border: 0; outline: 0; background: transparent; color: var(--text); }
 .chem-amount-input input::-webkit-inner-spin-button, .chem-amount-input input::-webkit-outer-spin-button { margin: 0; appearance: none; }
@@ -100,7 +110,7 @@
 .chem-planner-form fieldset label span { display: grid; gap: 3px; }
 .chem-planner-form fieldset strong { color: var(--text); font-size: .7rem; }
 .chem-planner-form fieldset small { color: var(--muted); font-size: .56rem; }
-.chem-planner-form button { min-height: 45px; padding: 0 14px; border: 1px solid var(--accent); background: var(--surface-highlight); color: var(--accent-soft); cursor: pointer; }
+.chem-planner-form > button { min-height: 45px; padding: 0 14px; border: 1px solid var(--accent); background: var(--surface-highlight); color: var(--accent-soft); cursor: pointer; }
 .chem-planner-note { display: grid; gap: 7px; padding: 13px 16px; border-left: 2px solid var(--accent); background: var(--surface); }
 .chem-planner-note strong { color: var(--accent-soft); font-size: .65rem; }
 .chem-planner-note > span { color: var(--text); font-size: .75rem; }
