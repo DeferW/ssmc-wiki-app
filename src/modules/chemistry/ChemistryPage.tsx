@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { CHEMISTRY_CATALOG_URL, CHEMISTRY_SECTIONS } from "./config";
+import { describeEffect, describePlantEffect, type EffectDescription, type EffectTier } from "./effects";
 import {
   buildPreparationPlan,
   craftableReagentIds,
@@ -10,7 +11,6 @@ import {
 import type {
   ChemistryCatalog,
   ChemistryCatalogEntry,
-  ChemistryEffect,
   ChemistryReaction,
   ChemistryReagent,
   ChemistrySectionId,
@@ -25,23 +25,10 @@ const metabolismLabels: Record<string, string> = {
   Alcohol: "Алкоголь",
   Drink: "Напиток",
   Food: "Пища",
+  Gas: "Газ",
   Medicine: "Лекарство",
   Narcotic: "Наркотик",
   Poison: "Яд",
-};
-const effectLabels: Record<string, string> = {
-  AdjustReagent: "Изменяет количество реагента",
-  Anticorrosive: "Лечит термические повреждения",
-  Antihallucinogenic: "Подавляет галлюцинации",
-  Antitoxic: "Антитоксический эффект",
-  Biocidic: "Воздействует на механические повреждения",
-  Electrogenetic: "Усиливает дефибрилляцию",
-  Emote: "Вызывает непроизвольную реакцию",
-  HealthChange: "Изменяет здоровье",
-  Neogenetic: "Лечит механические повреждения",
-  Oxygenating: "Восстанавливает кислород",
-  SatiateHunger: "Утоляет голод",
-  SatiateThirst: "Утоляет жажду",
 };
 
 function amount(value: number) {
@@ -66,40 +53,97 @@ function safeColor(value?: string) {
   return "#426b50";
 }
 
-function effectSummary(effect: ChemistryEffect) {
-  const type = effect.yamlTag?.replace(/^!type:/, "") || "Дополнительный эффект";
-  const value = effect.value ?? {};
-  const details: string[] = [];
-  for (const key of ["potency", "amount", "probability", "factor", "reagent"]) {
-    const field = value[key];
-    if (typeof field === "number" || typeof field === "string") {
-      details.push(key + ": " + (typeof field === "number" ? numberFormat.format(field) : field));
-    }
-  }
-  return (effectLabels[type] ?? type) + (details.length ? " (" + details.join(", ") + ")" : "");
+const semanticPattern = /(полностью лечит|лечит|восстанавливает|возвращает|омолаживает|сокращает|удаляет|создаёт иммунитет|дополнительно наносит|наносит|вызывает|заражает|поджигает|уничтожает|расходует|замедляет|ожогового(?: урона)?|термического(?: урона)?|механического(?: урона)?|тупого(?: урона)?|колотого(?: урона)?|режущего(?: урона)?|токсического(?: урона)?|кислотного(?: урона)?|генетического(?: урона)?|клеточного(?: урона)?|радиационного(?: урона)?)/gi;
+
+function semanticClass(token: string) {
+  const value = token.toLocaleLowerCase("ru-RU");
+  if (/лечит|восстанавливает|возвращает|омолаживает|сокращает|удаляет|иммунитет/.test(value)) return "is-beneficial";
+  if (/наносит|вызывает|заражает|поджигает|уничтожает/.test(value)) return "is-harmful";
+  if (/ожог|термическ/.test(value)) return "is-burn";
+  if (/расходует|замедляет/.test(value)) return "is-warning";
+  return "is-damage";
 }
 
-function reactionEquation(reaction: ChemistryReaction) {
-  const side = (items: ChemistryReaction["reactants"]) => items
-    .map((item) => amount(item.amount) + " " + (item.name || item.id))
-    .join(" + ");
-  return side(reaction.reactants) + " → " + side(reaction.products);
+function HighlightedEffect({ text }: { text: string }) {
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+  for (const match of text.matchAll(new RegExp(semanticPattern.source, semanticPattern.flags))) {
+    const index = match.index ?? 0;
+    if (index > lastIndex) parts.push(text.slice(lastIndex, index));
+    parts.push(<mark className={semanticClass(match[0])} key={index + ":" + match[0]}>{match[0]}</mark>);
+    lastIndex = index + match[0].length;
+  }
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  return <>{parts}</>;
+}
+
+const tierLabels: Record<EffectTier, string> = {
+  normal: "Обычное воздействие",
+  overdose: "Передозировка",
+  critical: "Критическая передозировка",
+};
+
+function EffectTierBlock({ tier, effects, reagent }: { tier: EffectTier; effects: EffectDescription[]; reagent: ChemistryReagent }) {
+  const threshold = tier === "overdose" ? reagent.properties?.overdose : tier === "critical" ? reagent.properties?.criticalOverdose : undefined;
+  const normalLimit = tier === "normal" ? reagent.properties?.overdose : undefined;
+  return (
+    <div className={`chem-effect-tier is-${tier}`}>
+      <header>
+        <strong>{tierLabels[tier]}</strong>
+        {threshold !== undefined && <span>от {amount(threshold)}</span>}
+        {normalLimit !== undefined && <span>до {amount(normalLimit)}</span>}
+      </header>
+      {effects.length > 0 ? (
+        <ul>{effects.map((effect, index) => (
+          <li className={`is-${effect.tone}`} key={effect.text + index}><HighlightedEffect text={effect.text} /></li>
+        ))}</ul>
+      ) : <p>Дополнительного воздействия не обнаружено.</p>}
+    </div>
+  );
+}
+
+function ReactionSide({ items, onNavigate }: { items: ChemistryReaction["reactants"]; onNavigate: (id: string) => void }) {
+  return <div className="chem-reaction-side">{items.map((item) => (
+    <button type="button" onClick={() => onNavigate(item.id)} title={`Открыть «${item.name || item.id}»`} key={item.id}>
+      <span className="chem-reaction-amount">{amount(item.amount)}</span>
+      <span>{item.name || item.id}</span>
+    </button>
+  ))}</div>;
+}
+
+function reactionEffectSummary(reaction: ChemistryReaction) {
+  return (reaction.effects ?? []).map((effect) => {
+    const type = effect.yamlTag?.replace(/^!type:/, "");
+    const value = effect.value ?? {};
+    if (type === "SensitiveReactionExplosionEffect") return `Взрыв при объёме от ${amount(Number(value.threshold ?? 0))}; интенсивность за единицу: ${numberFormat.format(Number(value.intensityPerUnit ?? 0))}.`;
+    if (type === "ExplosionReactionEffect") return `Вызывает взрыв; интенсивность за единицу: ${numberFormat.format(Number(value.intensityPerUnit ?? 0))}.`;
+    if (type === "AreaReactionEffect") return `Создаёт эффект в области${value.duration ? ` на ${numberFormat.format(Number(value.duration))} сек.` : "."}`;
+    if (type === "CreateEntityReactionEffect") return `Создаёт объект: ${value.entity ?? "неизвестно"}.`;
+    return type ? `Дополнительный эффект реакции: ${type}.` : "";
+  }).filter(Boolean);
 }
 
 function ReagentCard({
   entry,
   reagent,
   reactions,
+  onNavigate,
 }: {
   entry: ChemistryCatalogEntry;
   reagent?: ChemistryReagent;
   reactions: ChemistryReaction[];
+  onNavigate: (id: string) => void;
 }) {
   const properties = reagent?.properties;
   const metabolisms = Object.entries(properties?.metabolisms ?? {});
   const style = { "--reagent-color": safeColor(properties?.color) } as CSSProperties;
+  const effectGroups = metabolisms.map(([metabolismId, metabolism]) => {
+    const descriptions = (metabolism.effects ?? []).flatMap((effect) => describeEffect(effect, reagent ?? { id: entry.id, name: entry.name, origin: entry.origin }));
+    return { metabolismId, metabolism, descriptions };
+  });
+  const plantEffects = (properties?.plantMetabolism ?? []).map(describePlantEffect).filter((effect): effect is EffectDescription => Boolean(effect));
   return (
-    <details className="chem-reagent-card" style={style}>
+    <details className="chem-reagent-card" style={style} data-reagent-id={entry.id}>
       <summary>
         <span className="chem-reagent-color" aria-hidden="true" />
         <span className="chem-reagent-heading">
@@ -109,15 +153,15 @@ function ReagentCard({
         <span className="chem-reagent-origin">
           {entry.origin === "stories" ? "STORIES" : entry.origin.toUpperCase()}
         </span>
-        <span className="chem-reagent-arrow" aria-hidden="true">⌄</span>
       </summary>
       <div className="chem-reagent-body">
         <p>{reagent?.description || "Нет описания реагента."}</p>
         {(properties?.overdose !== undefined || properties?.criticalOverdose !== undefined) && (
-          <div className="chem-dose-row">
-            {properties.overdose !== undefined && <span>Передозировка: {amount(properties.overdose)}</span>}
+          <div className="chem-dose-scale">
+            {properties.overdose !== undefined && <span className="is-normal">Обычная доза: до {amount(properties.overdose)}</span>}
+            {properties.overdose !== undefined && <span>Передозировка: от {amount(properties.overdose)}</span>}
             {properties.criticalOverdose !== undefined && (
-              <span className="is-critical">Критическая: {amount(properties.criticalOverdose)}</span>
+              <span className="is-critical">Критическая передозировка: от {amount(properties.criticalOverdose)}</span>
             )}
           </div>
         )}
@@ -126,10 +170,16 @@ function ReagentCard({
             <h4>{reactions.length > 1 ? "Рецепты" : "Рецепт"}</h4>
             {reactions.map((reaction) => (
               <div className="chem-equation" key={reaction.id}>
-                <code>{reactionEquation(reaction)}</code>
+                <div className="chem-reaction-labels"><span>Смешать</span><span>Получится</span></div>
+                <div className="chem-reaction-flow">
+                  <ReactionSide items={reaction.reactants} onNavigate={onNavigate} />
+                  <span className="chem-reaction-separator">→</span>
+                  <ReactionSide items={reaction.products} onNavigate={onNavigate} />
+                </div>
                 {reaction.conditions?.minTemp !== undefined && (
-                  <small>Минимальная температура: {numberFormat.format(reaction.conditions.minTemp)} K</small>
+                  <small>Нагреть минимум до {numberFormat.format(reaction.conditions.minTemp)} K</small>
                 )}
+                {reactionEffectSummary(reaction).map((warning) => <p className="chem-recipe-warning" key={warning}>{warning}</p>)}
               </div>
             ))}
           </section>
@@ -137,17 +187,33 @@ function ReagentCard({
         {metabolisms.length > 0 && (
           <section className="chem-card-section">
             <h4>Воздействие</h4>
-            {metabolisms.map(([metabolismId, metabolism]) => (
+            {effectGroups.map(({ metabolismId, metabolism, descriptions }) => (
               <div className="chem-metabolism" key={metabolismId}>
-                <strong>{metabolismLabels[metabolismId] ?? metabolismId}</strong>
+                <header><strong>{metabolismLabels[metabolismId] ?? metabolismId}</strong>
                 {metabolism.metabolismRate !== undefined && (
-                  <small>Скорость: {numberFormat.format(metabolism.metabolismRate)}u/с</small>
-                )}
-                {(metabolism.effects ?? []).map((effect, index) => (
-                  <span key={(effect.yamlTag ?? "effect") + "-" + index}>{effectSummary(effect)}</span>
+                  <small>Расход организмом: {numberFormat.format(metabolism.metabolismRate)}u/с</small>
+                )}</header>
+                {(["normal", "overdose", "critical"] as EffectTier[]).filter((tier) => (
+                  tier === "normal"
+                  || descriptions.some((effect) => effect.tier === tier)
+                  || (tier === "overdose" && properties?.overdose !== undefined)
+                  || (tier === "critical" && properties?.criticalOverdose !== undefined)
+                )).map((tier) => (
+                  <EffectTierBlock tier={tier} effects={descriptions.filter((effect) => effect.tier === tier)} reagent={reagent!} key={tier} />
                 ))}
               </div>
             ))}
+          </section>
+        )}
+        {plantEffects.length > 0 && (
+          <section className="chem-card-section">
+            <h4>Метаболизм растений</h4>
+            <div className="chem-metabolism chem-plant-metabolism">
+              <header><strong>Воздействие на растение</strong><small>Базово: 1u каждые 3 секунды</small></header>
+              <ul className="chem-plant-effects">{plantEffects.map((effect, index) => (
+                <li className={`is-${effect.tone}`} key={effect.text + index}><HighlightedEffect text={effect.text} /></li>
+              ))}</ul>
+            </div>
           </section>
         )}
       </div>
@@ -344,7 +410,16 @@ function Planner({ catalog }: { catalog: ChemistryCatalog }) {
 function Catalog({ catalog }: { catalog: ChemistryCatalog }) {
   const [sectionId, setSectionId] = useState<ChemistrySectionId>("ordnance");
   const [query, setQuery] = useState("");
+  const [spotlightEntry, setSpotlightEntry] = useState<ChemistryCatalogEntry | null>(null);
+  const [pendingNavigation, setPendingNavigation] = useState<{ id: string } | null>(null);
   const reagents = useMemo(() => ({ ...catalog.dependencies, ...catalog.reagents }), [catalog]);
+  const sectionByReagent = useMemo(() => {
+    const index = new Map<string, ChemistrySectionId>();
+    for (const section of CHEMISTRY_SECTIONS) {
+      for (const entry of catalog.catalogSections[section.id]) index.set(entry.id, section.id);
+    }
+    return index;
+  }, [catalog]);
   const reactionIndex = useMemo(() => {
     const index = new Map<string, ChemistryReaction[]>();
     for (const reaction of Object.values(catalog.reactions)) {
@@ -357,7 +432,7 @@ function Catalog({ catalog }: { catalog: ChemistryCatalog }) {
     return index;
   }, [catalog]);
   const normalizedQuery = query.trim().toLocaleLowerCase("ru-RU");
-  const entries = catalog.catalogSections[sectionId].filter((entry) => {
+  const entries = spotlightEntry ? [spotlightEntry] : catalog.catalogSections[sectionId].filter((entry) => {
     if (!normalizedQuery) return true;
     const reagent = reagents[entry.id];
     return [entry.id, entry.name, reagent?.name, reagent?.description, ...entry.sectionPath]
@@ -374,12 +449,47 @@ function Catalog({ catalog }: { catalog: ChemistryCatalog }) {
     return groups;
   }, new Map<string, ChemistryCatalogEntry[]>());
 
+  useEffect(() => {
+    if (!pendingNavigation) return;
+    const card = [...document.querySelectorAll<HTMLElement>("[data-reagent-id]")]
+      .find((element) => element.dataset.reagentId === pendingNavigation.id);
+    if (!card) return;
+    if (card instanceof HTMLDetailsElement) card.open = true;
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
+    card.querySelector<HTMLElement>("summary")?.focus({ preventScroll: true });
+  }, [pendingNavigation, sectionId, spotlightEntry]);
+
+  const navigateToReagent = (id: string) => {
+    const section = sectionByReagent.get(id);
+    setQuery("");
+    if (section) {
+      setSpotlightEntry(null);
+      setSectionId(section);
+    } else {
+      const reagent = reagents[id];
+      if (!reagent) return;
+      setSpotlightEntry({
+        id,
+        name: reagent.name || id,
+        origin: reagent.origin,
+        sectionPath: ["Компонент рецепта"],
+      });
+    }
+    setPendingNavigation({ id });
+  };
+
+  const selectSection = (id: ChemistrySectionId) => {
+    setSpotlightEntry(null);
+    setPendingNavigation(null);
+    setSectionId(id);
+  };
+
   return (
     <div className="chem-catalog">
       <label className="chem-search">
         <span aria-hidden="true">⌕</span>
-        <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Название, описание или ID реагента…" />
-        <small>{entries.length} из {catalog.catalogSections[sectionId].length}</small>
+        <input type="search" value={query} onChange={(event) => { setSpotlightEntry(null); setQuery(event.target.value); }} placeholder="Название, описание или ID реагента…" />
+        <small>{entries.length} из {spotlightEntry ? 1 : catalog.catalogSections[sectionId].length}</small>
       </label>
       <div className="chem-section-tabs" role="tablist" aria-label="Разделы химии">
         {CHEMISTRY_SECTIONS.map((section) => (
@@ -387,7 +497,7 @@ function Catalog({ catalog }: { catalog: ChemistryCatalog }) {
             type="button"
             role="tab"
             aria-selected={section.id === sectionId}
-            onClick={() => setSectionId(section.id)}
+            onClick={() => selectSection(section.id)}
             key={section.id}
           >
             {section.label}<span>{catalog.catalogSections[section.id].length}</span>
@@ -404,6 +514,7 @@ function Catalog({ catalog }: { catalog: ChemistryCatalog }) {
                   entry={entry}
                   reagent={reagents[entry.id]}
                   reactions={reactionIndex.get(entry.id) ?? []}
+                  onNavigate={navigateToReagent}
                   key={entry.id}
                 />
               ))}

@@ -25,6 +25,7 @@ export type ChemistryReagent = {
     flavor?: string;
     overdose?: number;
     criticalOverdose?: number;
+    plantMetabolism?: ChemistryEffect[];
     metabolisms?: Record<string, {
       metabolismRate?: number;
       effects?: ChemistryEffect[];

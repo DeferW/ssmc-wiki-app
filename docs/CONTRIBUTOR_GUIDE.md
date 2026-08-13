@@ -332,6 +332,8 @@ src/modules/equipment/
 src/modules/chemistry/
   ChemistryPage.tsx
   config.ts
+  effects.ts
+  effects.test.ts
   planner.ts
   planner.test.ts
   types.ts
@@ -340,6 +342,8 @@ src/modules/chemistry/
 - `ChemistryPage.tsx` загружает контракт, показывает каталог и форму плана.
 - `types.ts` описывает публичный JSON и результат расчёта.
 - `config.ts` задаёт независимый корень `VITE_CHEMISTRY_DATA_ROOT`.
+- `effects.ts` переводит игровые эффекты, условия и пороги в понятные игроку
+  описания; React-компонент не интерпретирует YAML-теги самостоятельно.
 - `planner.ts` содержит чистый алгоритм без React и DOM: строит граф реакций,
   выбирает рецепт, разворачивает промежуточные реагенты, группирует одинаковые
   приготовления и раскладывает объёмы по ёмкостям.
