@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import { EquipmentPage } from "./equipment/EquipmentPage";
+import { ChemistryPage } from "./chemistry/ChemistryPage";
 
 export type ModuleDefinition = {
   id: string;
@@ -66,7 +67,8 @@ export const modules: ModuleDefinition[] = [
     shortTitle: "Химия",
     summary: "Реагенты, реакции и пошаговый маршрут приготовления состава.",
     code: "CHM-06",
-    status: "planned",
+    status: "active",
+    Component: ChemistryPage,
   },
 ];
 
