@@ -4,7 +4,7 @@ import { modules } from "../modules/registry";
 export function HomePage() {
   return (
     <main className="home-page">
-      <video className="home-video" autoPlay muted loop playsInline aria-hidden="true">
+      <video className="home-video" autoPlay muted loop playsInline disablePictureInPicture disableRemotePlayback aria-hidden="true">
         <source src={`${import.meta.env.BASE_URL}background-animation.webm`} type="video/webm" />
       </video>
       <div className="home-shade" aria-hidden="true" />

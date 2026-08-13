@@ -1,5 +1,5 @@
 .home-page { position: relative; min-height: calc(100vh - 64px); overflow: hidden; isolation: isolate; }
-.home-video { position: fixed; inset: 64px auto 0 0; z-index: -3; width: min(56vw, 980px); height: calc(100vh - 64px); object-fit: cover; object-position: left center; }
+.home-video { position: fixed; inset: 64px auto 0 0; z-index: -3; width: min(56vw, 980px); height: calc(100vh - 64px); object-fit: cover; object-position: left center; pointer-events: none; }
 .home-shade { position: fixed; inset: 64px 0 0; z-index: -2; background: linear-gradient(90deg, rgba(2, 6, 3, .1), rgba(3, 9, 5, .48) 37%, rgba(3, 7, 4, .95) 65%, var(--bg) 100%); }
 .home-shade::after { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, transparent 0 4px, rgba(128, 235, 170, .018) 5px); content: ""; }
 .home-content { width: min(1240px, calc(100% - 80px)); margin: 0 auto; padding: clamp(52px, 7vw, 96px) 0 90px; }
