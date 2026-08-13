@@ -324,15 +324,13 @@ function CommunicationBlock({ stats, catalog }: { stats: JsonMap; catalog: Catal
     if (Array.isArray(key.channels)) for (const channel of key.channels) channels.add(String(channel));
   }
   const defaultChannel = typeof holder.defaultChannel === "string" ? holder.defaultChannel : null;
-  const staticChannel = Array.isArray(stats.componentTypes) && stats.componentTypes.includes("RMCStaticDefaultChannel");
-  const receiveOnly = staticChannel && defaultChannel && !channels.has(defaultChannel) ? defaultChannel : null;
+  if (defaultChannel) channels.add(defaultChannel);
   const multicast = isMap(mechanics.HeadsetMultiBroadcast) ? mechanics.HeadsetMultiBroadcast : {};
   const headset = isMap(mechanics.RMCHeadset) ? mechanics.RMCHeadset : {};
   return (
     <DetailSection title="Связь">
       <StatGrid rows={[
         ["Каналы передачи", [...channels].map(channelLabel).join(", ") || null],
-        ["Только приём", receiveOnly ? channelLabel(receiveOnly) : null],
         ["Канал по умолчанию", defaultChannel ? channelLabel(defaultChannel) : null],
         ["Слотов для ключей", holder.keySlots],
         ["Общая передача", multicast.cooldown != null ? `перезарядка ${formatNumber(multicast.cooldown)} с` : null],

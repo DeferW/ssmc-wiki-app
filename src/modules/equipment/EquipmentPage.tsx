@@ -124,6 +124,7 @@ export function EquipmentPage() {
           <span aria-hidden="true">⌕</span>
           <span className="sr-only">Поиск по каталогу</span>
           <input
+            id="catalog-search-input"
             type="text"
             role="searchbox"
             value={query}

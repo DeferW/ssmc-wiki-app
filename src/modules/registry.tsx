@@ -25,7 +25,7 @@ export const modules: ModuleDefinition[] = [
   },
   {
     id: "weapon-builder",
-    path: "/module/weapon-builder",
+    path: "/weapon-builder",
     title: "Конструктор оружия",
     shortTitle: "Конструктор",
     summary: "Совместимые обвесы и итоговые параметры оружейной сборки.",
@@ -34,7 +34,7 @@ export const modules: ModuleDefinition[] = [
   },
   {
     id: "damage",
-    path: "/module/damage",
+    path: "/damage",
     title: "Калькулятор урона",
     shortTitle: "Урон",
     summary: "Расчёт урона с учётом дистанции, брони и бронепробития.",
@@ -43,7 +43,7 @@ export const modules: ModuleDefinition[] = [
   },
   {
     id: "compare",
-    path: "/module/compare",
+    path: "/compare",
     title: "Сравнение предметов",
     shortTitle: "Сравнение",
     summary: "Несколько предметов и их важные характеристики на одном экране.",
@@ -52,7 +52,7 @@ export const modules: ModuleDefinition[] = [
   },
   {
     id: "loadout",
-    path: "/module/loadout",
+    path: "/loadout",
     title: "Комплект бойца",
     shortTitle: "Комплект",
     summary: "Оружие, броня, пояс, подсумки и расходники в одной сборке.",
@@ -61,7 +61,7 @@ export const modules: ModuleDefinition[] = [
   },
   {
     id: "chemistry",
-    path: "/module/chemistry",
+    path: "/chemistry",
     title: "Химический планировщик",
     shortTitle: "Химия",
     summary: "Реагенты, реакции и пошаговый маршрут приготовления состава.",

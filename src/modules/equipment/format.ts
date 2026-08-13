@@ -1,5 +1,5 @@
 import { CATEGORY_ORDER } from "./config";
-import type { CatalogItem, JsonMap } from "./types";
+import type { Catalog, CatalogItem, JsonMap } from "./types";
 
 export function isMap(value: unknown): value is JsonMap {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -136,4 +136,21 @@ export function slotLabel(value: string) {
     gloves: "Перчатки", neck: "Шея", shoes: "Обувь", jumpsuit: "Униформа",
   };
   return labels[value] ?? readableId(value);
+}
+
+export function explicitStorageItemIds(item: CatalogItem, catalog: Catalog) {
+  const storage = isMap(item.storageStats) ? item.storageStats : {};
+  const whitelist = isMap(storage.whitelist) ? storage.whitelist : {};
+  const hasExplicitWhitelist = Object.values(whitelist).some((value) => (
+    Array.isArray(value) ? value.length > 0 : isMap(value) ? Object.keys(value).length > 0 : Boolean(value)
+  ));
+  if (!hasExplicitWhitelist || !Array.isArray(storage.acceptedItemIds)) return [];
+
+  const accepted = [...new Set(storage.acceptedItemIds.map(String).filter((id) => catalog.items[id]))];
+  const packed = new Set((item.relationships ?? [])
+    .filter((relation) => relation.itemId && ["contains", "bundleItem", "slotItem"].includes(relation.type ?? ""))
+    .map((relation) => relation.itemId as string));
+
+  if (accepted.length === packed.size && accepted.every((id) => packed.has(id))) return [];
+  return accepted;
 }

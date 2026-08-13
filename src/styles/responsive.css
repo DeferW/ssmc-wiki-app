@@ -28,7 +28,7 @@
     max-height: none;
     padding: 20px;
     border: 0;
-    border-right: 1px solid #40545c;
+    border-right: 1px solid #405448;
     transform: translateX(-102%);
     transition: transform 160ms ease;
   }
@@ -77,6 +77,7 @@
   .details-sprite .sprite-frame, .details-sprite .sprite-placeholder { height: 116px; }
   .details-sprite .sprite-frame img { width: 100px; height: 100px; }
   .details-title h2 { margin-block: 7px; font-size: 1.3rem; }
+  .back-to-search { right: 12px; bottom: 12px; }
   .item-description { padding: 18px 16px; }
   .details-content { padding: 0 16px 40px; }
   .settings-popover { position: fixed; top: 72px; right: 12px; }

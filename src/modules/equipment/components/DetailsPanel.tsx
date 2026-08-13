@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { capitalizeName, descriptionText, isMap } from "../format";
+import { capitalizeName, descriptionText, explicitStorageItemIds } from "../format";
 import type { Catalog, CatalogItem, PanelPosition } from "../types";
 import { ItemLinks } from "./ItemLinks";
 import { ItemSprite } from "./ItemSprite";
@@ -42,10 +42,12 @@ export function DetailsPanel({ item, catalog, position, onClose, onSelect }: {
     ...(item.attachableTo ?? []).flatMap((slot) => slot.weaponIds ?? []),
     ...(item.compatibleWeaponIds ?? []),
   ];
-  const storage = isMap(item.storageStats) ? item.storageStats : {};
-  const accepted = Array.isArray(storage.acceptedItemIds)
-    ? storage.acceptedItemIds.map(String).filter((id) => catalog.items[id])
-    : [];
+  const accepted = explicitStorageItemIds(item, catalog);
+
+  const backToSearch = () => {
+    onClose();
+    window.requestAnimationFrame(() => document.getElementById("catalog-search-input")?.focus());
+  };
 
   return (
     <div className={`details-backdrop is-${position}`} onMouseDown={(event) => {
@@ -74,6 +76,7 @@ export function DetailsPanel({ item, catalog, position, onClose, onSelect }: {
             <LinkedSection title="Совместимость" ids={compatibility} catalog={catalog} onSelect={onSelect} />
           </div>
         </div>
+        <button className="back-to-search" type="button" onClick={backToSearch}>К поиску</button>
       </aside>
     </div>
   );

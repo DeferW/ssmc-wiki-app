@@ -1,5 +1,7 @@
 # SSMC Wiki App
 
+Полное руководство по архитектуре и разработке: [docs/CONTRIBUTOR_GUIDE.md](docs/CONTRIBUTOR_GUIDE.md). Скачиваемая версия: [docs/SSMC_Contributor_Guide.docx](docs/SSMC_Contributor_Guide.docx).
+
 Модульное веб-приложение для инструментов Space Stories Marine Corps.
 
 ## Структура

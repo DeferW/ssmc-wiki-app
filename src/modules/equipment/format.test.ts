@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { capitalizeName, categoryIndex, descriptionText, formatCost, itemMatches, normalize } from "./format";
-import type { CatalogItem } from "./types";
+import { capitalizeName, categoryIndex, descriptionText, explicitStorageItemIds, formatCost, itemMatches, normalize } from "./format";
+import type { Catalog, CatalogItem } from "./types";
 
 describe("equipment formatting", () => {
   it("normalizes Russian search", () => {
@@ -34,5 +34,25 @@ describe("equipment formatting", () => {
   it("replaces empty and malformed descriptions", () => {
     expect(descriptionText("{ \"\" }")).toBe("Нет описания предмета");
     expect(descriptionText({ value: "" })).toBe("Нет описания предмета");
+  });
+
+  it("shows accepted storage items only for an explicit, informative whitelist", () => {
+    const catalog = { items: { Allowed: { id: "Allowed" }, Packed: { id: "Packed" } } } as unknown as Catalog;
+    const generic = { id: "Generic", name: "Generic", storageStats: { acceptedItemIds: ["Allowed"] } } as CatalogItem;
+    const duplicate = {
+      id: "Duplicate",
+      name: "Duplicate",
+      relationships: [{ type: "contains", itemId: "Packed" }],
+      storageStats: { whitelist: { tags: ["Example"] }, acceptedItemIds: ["Packed"] },
+    } as CatalogItem;
+    const restricted = {
+      id: "Restricted",
+      name: "Restricted",
+      storageStats: { whitelist: { tags: ["Example"] }, acceptedItemIds: ["Allowed"] },
+    } as CatalogItem;
+
+    expect(explicitStorageItemIds(generic, catalog)).toEqual([]);
+    expect(explicitStorageItemIds(duplicate, catalog)).toEqual([]);
+    expect(explicitStorageItemIds(restricted, catalog)).toEqual(["Allowed"]);
   });
 });
