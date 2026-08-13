@@ -8,7 +8,7 @@ export function useCatalog() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch(DATA_URL, { signal: controller.signal, cache: "no-cache" })
+    fetch(DATA_URL, { signal: controller.signal, cache: "no-store" })
       .then((response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.json() as Promise<Catalog>;
