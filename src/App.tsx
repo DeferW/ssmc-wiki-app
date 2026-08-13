@@ -1,28 +1,35 @@
 import { Link, NavLink, Route, Routes } from "react-router-dom";
-import { AdminEquipment, Equipment } from "./components/Equipment";
-import { Home } from "./components/Home";
-import { NotFound } from "./components/NotFound";
-import { ToolPlaceholder } from "./components/ToolPlaceholder";
+import { HomePage } from "./pages/HomePage";
+import { NotFoundPage } from "./pages/NotFoundPage";
+import { PlaceholderPage } from "./pages/PlaceholderPage";
+import { activeModules, modules } from "./modules/registry";
 
-function App() {
+export default function App() {
   return (
     <div className="app-shell">
       <header className="site-header">
-        <Link className="brand" to="/">SSMC Wiki App</Link>
+        <Link className="brand" to="/" aria-label="SSMC Tactical Database">
+          <span className="brand-mark" aria-hidden="true">◫</span>
+          <span>SSMC Tactical Database</span>
+        </Link>
         <nav aria-label="Основная навигация">
           <NavLink to="/" end>Главная</NavLink>
-          <NavLink to="/equipment">Снаряжение</NavLink>
+          {activeModules.map((module) => (
+            <NavLink to={module.path} key={module.id}>{module.shortTitle}</NavLink>
+          ))}
         </nav>
       </header>
+
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/equipment" element={<Equipment />} />
-        <Route path="/equipment/admin" element={<AdminEquipment />} />
-        <Route path="/tool/:slug" element={<ToolPlaceholder />} />
-        <Route path="*" element={<NotFound />} />
+        <Route path="/" element={<HomePage />} />
+        {activeModules.map((module) => (
+          <Route path={module.path} element={<module.Component />} key={module.id} />
+        ))}
+        <Route path="/module/:moduleId" element={<PlaceholderPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </div>
   );
 }
 
-export default App;
+export { modules };

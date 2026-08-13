@@ -1,0 +1,105 @@
+@media (min-width: 1800px) {
+  .catalog-page { width: min(1900px, calc(100% - 120px)); }
+  .catalog-layout { grid-template-columns: 270px minmax(0, 1fr); }
+  .equipment-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+  .home-content { width: min(1420px, calc(100% - 120px)); }
+  .module-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 1100px) {
+  .catalog-page { width: min(100% - 36px, 1400px); }
+  .catalog-layout { grid-template-columns: 220px minmax(0, 1fr); gap: 16px; }
+  .details-panel { width: min(680px, 62vw); }
+  .home-content { width: min(100% - 44px, 1100px); }
+}
+
+@media (max-width: 860px) {
+  .catalog-page { width: min(100% - 28px, 1000px); padding-top: 34px; }
+  .catalog-hero { align-items: flex-start; }
+  .catalog-meta { min-width: 150px; }
+  .catalog-layout { display: block; }
+  .filter-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 92;
+    width: min(330px, calc(100vw - 36px));
+    max-height: none;
+    padding: 20px;
+    border: 0;
+    border-right: 1px solid #47684b;
+    transform: translateX(-102%);
+    transition: transform 160ms ease;
+  }
+  .filter-sidebar.is-open { transform: translateX(0); box-shadow: 20px 0 70px rgba(0, 0, 0, .64); }
+  .filter-sidebar header button { display: block; }
+  .filter-backdrop { position: fixed; inset: 0; z-index: 91; display: block; border: 0; background: rgba(0, 4, 1, .72); }
+  .mobile-filter-button { display: inline-flex; }
+  .module-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-intro { margin-right: 0; }
+}
+
+@media (max-width: 700px) {
+  .site-header { min-height: 58px; gap: 12px; padding: 0 14px; }
+  .brand { font-size: .7rem; }
+  .brand-mark { width: 25px; height: 25px; }
+  .site-header nav { gap: 12px; }
+  .site-header nav a { padding: 20px 0 18px; font-size: .66rem; }
+  .page { width: calc(100% - 28px); padding-top: 46px; }
+  .home-page { min-height: calc(100vh - 58px); }
+  .home-video { inset-block-start: 58px; width: 100%; height: 54vh; opacity: .68; }
+  .home-shade { inset-block-start: 58px; background: linear-gradient(180deg, rgba(4, 9, 5, .18), rgba(4, 9, 5, .9) 46%, #071008 68%); }
+  .home-content { width: calc(100% - 28px); padding: 28px 0 54px; }
+  .home-intro { margin-bottom: 22px; padding: 16px; }
+  .home-intro::before { font-size: .52rem; line-height: 1.45; }
+  .home-intro h1 { font-size: clamp(1.8rem, 10vw, 3rem); }
+  .module-grid { grid-template-columns: 1fr; }
+  .module-card { min-height: 170px; padding: 16px; }
+  .catalog-page { width: calc(100% - 24px); padding: 28px 0 54px; }
+  .catalog-hero { display: block; }
+  .catalog-hero h1 { font-size: clamp(2rem, 11vw, 3.2rem); }
+  .catalog-meta { display: inline-grid; margin-top: 18px; }
+  .catalog-controls { position: sticky; top: 66px; z-index: 20; padding: 6px 0; background: rgba(7, 16, 8, .95); backdrop-filter: blur(10px); }
+  .catalog-search input { font-size: .8rem; }
+  .results-toolbar { align-items: flex-start; }
+  .results-toolbar > div { align-items: flex-start; flex-direction: column; }
+  .results-toolbar > label { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .equipment-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  .equipment-card { height: 225px; }
+  .equipment-card > button { padding: 9px; }
+  .equipment-card strong { margin-top: 9px; font-size: .75rem; }
+  .sprite-frame, .sprite-placeholder { height: 100px; margin-top: 8px; }
+  .sprite-frame img { width: 82px; height: 82px; }
+  .details-backdrop, .details-backdrop.is-center { inset: 58px 0 0; display: block; padding: 0; background: #081009; }
+  .details-panel, .is-center .details-panel { width: 100%; height: 100%; border: 0; box-shadow: none; animation: none; }
+  .details-header { grid-template-columns: 116px minmax(0, 1fr); gap: 14px; padding: 18px 52px 18px 14px; }
+  .details-sprite .sprite-frame, .details-sprite .sprite-placeholder { height: 116px; }
+  .details-sprite .sprite-frame img { width: 100px; height: 100px; }
+  .details-title h2 { margin-block: 7px; font-size: 1.3rem; }
+  .item-description { padding: 18px 16px; }
+  .details-content { padding: 0 16px 40px; }
+  .settings-popover { position: fixed; top: 72px; right: 12px; }
+}
+
+@media (max-width: 420px) {
+  .brand span:last-child { font-size: 0; }
+  .brand span:last-child::after { font-size: .68rem; content: "SSMC DB"; }
+  .site-header nav a { font-size: .61rem; }
+  .catalog-page { width: calc(100% - 18px); }
+  .catalog-hero > div:first-child > p:last-child { font-size: .8rem; }
+  .catalog-search > span:first-child { flex-basis: 38px; }
+  .cfg-button { min-width: 64px; padding-inline: 8px; }
+  .equipment-card { height: 216px; }
+  .equipment-card-top { font-size: .55rem; }
+  .equipment-card small { font-size: .52rem; }
+  .sprite-frame, .sprite-placeholder { height: 94px; }
+  .sprite-frame img { width: 76px; height: 76px; }
+  .details-header { grid-template-columns: 92px minmax(0, 1fr); }
+  .details-sprite .sprite-frame, .details-sprite .sprite-placeholder { height: 92px; }
+  .details-sprite .sprite-frame img { width: 80px; height: 80px; }
+  .details-title h2 { font-size: 1.08rem; }
+  .details-title .eyebrow { font-size: .56rem; }
+  .stat-grid > div { align-items: flex-start; }
+  .protection-bars > div { grid-template-columns: 86px minmax(62px, 1fr) 40px; }
+}

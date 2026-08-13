@@ -10,53 +10,8 @@
     <title>SSMC Tactical Database</title>
     <link rel="icon" type="image/png" href="%BASE_URL%favicon.png" />
   </head>
-  <body data-item-panel="center">
+  <body>
     <div id="root"></div>
-
-    <button
-      id="ui-settings-toggle"
-      class="ui-settings-toggle"
-      type="button"
-      aria-controls="ui-settings-panel"
-      aria-expanded="false"
-      title="Настройки интерфейса"
-    >[ CFG ]</button>
-
-    <section
-      id="ui-settings-panel"
-      class="ui-settings-panel"
-      aria-label="Настройки интерфейса"
-      hidden
-    >
-      <div class="ui-settings-head">
-        <strong>Настройки интерфейса</strong>
-        <button id="ui-settings-close" class="ui-settings-close" type="button" aria-label="Закрыть настройки">×</button>
-      </div>
-
-      <fieldset class="ui-settings-group">
-        <legend>Окно предмета</legend>
-
-        <label class="ui-settings-option">
-          <input type="radio" name="item-panel-position" value="center" />
-          <span>
-            По центру
-            <small>Удобнее на широких мониторах. Рекомендуемый вариант.</small>
-          </span>
-        </label>
-
-        <label class="ui-settings-option">
-          <input type="radio" name="item-panel-position" value="right" />
-          <span>
-            Справа
-            <small>Классическая боковая панель каталога.</small>
-          </span>
-        </label>
-      </fieldset>
-
-      <p class="ui-settings-note">Настройка сохраняется только в этом браузере.</p>
-    </section>
-
-    <script src="%BASE_URL%ui-settings.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

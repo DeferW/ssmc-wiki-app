@@ -11,22 +11,22 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "latest",
-    "vite": "latest",
-    "typescript": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "react-router-dom": "latest"
+    "@vitejs/plugin-react": "6.0.5",
+    "vite": "8.2.1",
+    "typescript": "5.9.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-router-dom": "7.18.2"
   },
   "devDependencies": {
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "@eslint/js": "latest",
-    "eslint": "latest",
-    "eslint-plugin-react-hooks": "latest",
-    "globals": "latest",
-    "jsdom": "latest",
-    "typescript-eslint": "latest",
-    "vitest": "latest"
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "@eslint/js": "10.0.1",
+    "eslint": "10.8.1",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.10.0",
+    "jsdom": "30.0.1",
+    "typescript-eslint": "8.67.0",
+    "vitest": "4.1.10"
   }
 }
