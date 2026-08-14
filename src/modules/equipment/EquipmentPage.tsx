@@ -297,7 +297,7 @@ export function EquipmentPage({ adminMode = false }: { adminMode?: boolean }) {
                     <button className="equipment-card-main" type="button" onClick={() => selectItem(id)} aria-haspopup="dialog">
                       <span className="equipment-card-top">
                         <span>{category}</span>
-                        {hasOverride && <i title="Предмет присутствует в overrides">EDITED</i>}
+                        {hasOverride && <i title="Предмет присутствует в overrides">EDT</i>}
                       </span>
                       <ItemSprite item={item} />
                       <strong>{capitalizeName(item.name)}</strong>
