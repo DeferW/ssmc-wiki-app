@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   ammoNeeded,
   applyArmorMitigation,
+  ARMOR_MODIFIER,
+  BRUTE_DAMAGE_TYPES,
   computeHitDamage,
   falloffMultiplier,
   hitsToKill,
+  resistGroup,
   timeToKillSeconds,
 } from "./damageMath";
 import type { MarineArmor, XenoTargetArmor } from "./damageMath";
@@ -45,7 +48,11 @@ describe("falloffMultiplier", () => {
 });
 
 const HELMET_ARMOR: MarineArmor = { kind: "marine", bullet: 20, melee: 20, bio: 20 };
-const WARRIOR_ARMOR: XenoTargetArmor = { kind: "xeno", xenoArmor: 20, immuneToArmorPiercing: false };
+const WARRIOR_ARMOR: XenoTargetArmor = { kind: "xeno", xenoArmor: 20, frontalArmor: 0, sideArmor: 0, immuneToArmorPiercing: false };
+// Real data: RMCXenoCrusherCharger (crusher "Charger" strain) — one of the
+// few castes with nonzero base frontal/side armor even without any ability
+// toggle, so it's a real verification case, not a synthetic one.
+const CHARGER_ARMOR: XenoTargetArmor = { kind: "xeno", xenoArmor: 20, frontalArmor: 30, sideArmor: 15, immuneToArmorPiercing: false };
 
 describe("applyArmorMitigation", () => {
   it("matches the verified two-stage Resist formula for a marine target", () => {
@@ -82,7 +89,7 @@ describe("applyArmorMitigation", () => {
   });
 
   it("ignores armor piercing for a xeno target that is immune to it", () => {
-    const immuneTarget: XenoTargetArmor = { kind: "xeno", xenoArmor: 20, immuneToArmorPiercing: true };
+    const immuneTarget: XenoTargetArmor = { kind: "xeno", xenoArmor: 20, frontalArmor: 0, sideArmor: 0, immuneToArmorPiercing: true };
     const withoutPiercing = applyArmorMitigation({ Piercing: 56 }, 0, "bullet", immuneTarget);
     const withPiercing = applyArmorMitigation({ Piercing: 56 }, 5, "bullet", immuneTarget);
     expect(withPiercing.Piercing).toBeCloseTo(withoutPiercing.Piercing, 10);
@@ -102,6 +109,34 @@ describe("applyArmorMitigation", () => {
     const noArmor: MarineArmor = { kind: "marine", bullet: 5, melee: 0, bio: 0 };
     const result = applyArmorMitigation({ Piercing: 56 }, 10, "bullet", noArmor);
     expect(result.Piercing).toBe(56);
+  });
+
+  it("defaults to a frontal hit when no direction is given", () => {
+    const explicit = applyArmorMitigation({ Piercing: 100 }, 0, "bullet", CHARGER_ARMOR, "front");
+    const implicit = applyArmorMitigation({ Piercing: 100 }, 0, "bullet", CHARGER_ARMOR);
+    expect(implicit).toEqual(explicit);
+  });
+
+  it("adds frontalArmor on a frontal hit and sideArmor on a side hit, but nothing on a back hit", () => {
+    // armor: front 20+30=50, side 20+15=35, back 20+0=20. resistGroup is
+    // independently verified above, so it's used as the oracle here instead
+    // of re-deriving the two-stage formula by hand for three cases at once.
+    const front = applyArmorMitigation({ Piercing: 100 }, 0, "bullet", CHARGER_ARMOR, "front");
+    const side = applyArmorMitigation({ Piercing: 100 }, 0, "bullet", CHARGER_ARMOR, "side");
+    const back = applyArmorMitigation({ Piercing: 100 }, 0, "bullet", CHARGER_ARMOR, "back");
+    expect(front).toEqual(resistGroup({ Piercing: 100 }, 50, BRUTE_DAMAGE_TYPES, ARMOR_MODIFIER));
+    expect(side).toEqual(resistGroup({ Piercing: 100 }, 35, BRUTE_DAMAGE_TYPES, ARMOR_MODIFIER));
+    expect(back).toEqual(resistGroup({ Piercing: 100 }, 20, BRUTE_DAMAGE_TYPES, ARMOR_MODIFIER));
+    // Frontal armor is the real "weak spot vs. strong spot" ordering.
+    expect(front.Piercing).toBeLessThan(side.Piercing);
+    expect(side.Piercing).toBeLessThan(back.Piercing);
+  });
+
+  it("subtracts piercing before adding the directional bonus, not after — matches CMArmorSystem's operation order", () => {
+    // xenoArmor(20) - piercing(40) = -20 first, THEN +30 frontal = 10 (not
+    // clamped to 0 before the bonus is added, which would floor it at 30).
+    const result = applyArmorMitigation({ Piercing: 100 }, 40, "bullet", CHARGER_ARMOR, "front");
+    expect(result).toEqual(resistGroup({ Piercing: 100 }, 10, BRUTE_DAMAGE_TYPES, ARMOR_MODIFIER));
   });
 });
 

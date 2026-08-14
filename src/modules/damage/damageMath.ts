@@ -14,9 +14,16 @@ export type MarineArmor = { kind: "marine"; bullet: number; melee: number; bio: 
 export type XenoTargetArmor = {
   kind: "xeno";
   xenoArmor: number;
+  frontalArmor: number;
+  sideArmor: number;
   immuneToArmorPiercing: boolean;
 };
 export type ArmorTarget = MarineArmor | XenoTargetArmor;
+
+// CMArmorSystem.OnDamageModify: cardinal direction from the shooter to the
+// xeno vs. the xeno's own facing. Marines never read Frontal/SideArmor
+// through this code path — direction only ever matters for xeno targets.
+export type HitDirection = "front" | "side" | "back";
 
 // RMCArmorModifierComponent default; no prototype in the game data overrides it.
 export const ARMOR_MODIFIER = 4;
@@ -114,13 +121,22 @@ export function applyArmorMitigation(
   armorPiercing: number,
   weaponCategory: WeaponCategory,
   target: ArmorTarget,
+  hitDirection: HitDirection = "front",
 ): DamageTypeMap {
   if (target.kind === "xeno") {
     // Verified engine quirk: immuneToArmorPiercing only ever takes effect for
     // xeno targets — a marine's worn-armor ImmuneToAP flag is never consulted
     // through this code path, so it is intentionally not modeled for marines.
     const piercing = target.immuneToArmorPiercing ? 0 : armorPiercing;
-    const armor = Math.max(target.xenoArmor - piercing, 0);
+    // Order matters and is verified from source: piercing is subtracted from
+    // the base armor first, the directional bonus is added on top of that
+    // (unaffected by piercing), and only the combined total is floored at 0 —
+    // a heavily-pierced xeno can still be dragged back above zero by a frontal
+    // plate bonus.
+    const directional = hitDirection === "front" ? target.frontalArmor
+      : hitDirection === "side" ? target.sideArmor
+      : 0;
+    const armor = Math.max(target.xenoArmor - piercing + directional, 0);
     // Xenos only ever resist the Brute group; Burn-type damage (e.g. incendiary
     // Heat) passes through xeno armor completely unmitigated.
     return resistGroup(damage, armor, BRUTE_DAMAGE_TYPES, ARMOR_MODIFIER);
@@ -142,6 +158,7 @@ export type HitDamageInput = {
   armorPiercing: number;
   weaponCategory: WeaponCategory;
   target: ArmorTarget;
+  hitDirection?: HitDirection;
 };
 
 export type HitDamageResult = {
@@ -163,6 +180,7 @@ export function computeHitDamage(input: HitDamageInput): HitDamageResult {
     input.armorPiercing,
     input.weaponCategory,
     input.target,
+    input.hitDirection,
   );
   return {
     perTypeDamage: afterArmor,
