@@ -34,6 +34,24 @@ export const MIN_REMAINING_DAMAGE_MULT = 0.05;
 export const BRUTE_DAMAGE_TYPES = ["Blunt", "Slash", "Piercing"] as const;
 export const BURN_DAMAGE_TYPES = ["Heat", "Shock", "Cold", "Caustic"] as const;
 
+// Living targets only ever use the "Biological" (marines) or "Xeno" damage
+// containers (Resources/Prototypes/Damage/containers.yml,
+// _RMC14/Damage/xeno_damage_containers.yml) — both support exactly the Brute
+// and Burn groups. Anything else a projectile carries (most notably
+// Structural, "Exclusive for structures such as walls, airlocks and others"
+// per damage-type-structural's own doc comment, e.g. XM43E1's anti-materiel
+// round) is silently dropped by the container, not merely unmitigated by
+// armor, so it must never contribute to a living target's damage total.
+const LIVING_TARGET_DAMAGE_TYPES = new Set<string>([...BRUTE_DAMAGE_TYPES, ...BURN_DAMAGE_TYPES]);
+
+export function filterLivingTargetDamage(damage: DamageTypeMap): DamageTypeMap {
+  const result: DamageTypeMap = {};
+  for (const [type, amount] of Object.entries(damage)) {
+    if (LIVING_TARGET_DAMAGE_TYPES.has(type)) result[type] = amount;
+  }
+  return result;
+}
+
 function sumDamage(damage: DamageTypeMap): number {
   return Object.values(damage).reduce((sum, value) => sum + value, 0);
 }
@@ -169,7 +187,7 @@ export type HitDamageResult = {
 
 export function computeHitDamage(input: HitDamageInput): HitDamageResult {
   const afterFalloff = applyRangeFalloff(
-    input.effectiveDamage,
+    filterLivingTargetDamage(input.effectiveDamage),
     input.distance,
     input.falloffThresholds,
     input.weaponFalloffMultiplier,
@@ -204,6 +222,127 @@ export function hitsToKill(
 export function timeToKillSeconds(hits: number, shotsPerSecond: number): number {
   if (!Number.isFinite(hits) || shotsPerSecond <= 0) return Infinity;
   return hits / shotsPerSecond;
+}
+
+// GunStacksSystem (XM88 heavy rifle and any future weapon sharing the
+// component): a hit-streak mechanic, not a steady-state modifier — every
+// projectile that actually lands on a living target increments a counter,
+// which decays if 2 seconds pass without a new hit. Verified from
+// GunStacksComponent's defaults and GunStacksSystem's three handlers:
+//   - OnStacksAmmoShot: this shot's armor-piercing bonus = min(maxArmorPiercingBonus,
+//     increaseArmorPiercing * <hits landed BEFORE this shot>) — scales with streak length.
+//   - OnStacksActiveGetGunDamageModifier: a flat +damageMultiplierBonus once any
+//     hit has landed (not scaled by streak length).
+//   - OnStacksActiveGetGunFireRate: fire rate is *replaced* by activeFireRate
+//     (not multiplied) once any hit has landed.
+// Because the calculator assumes every shot hits (no accuracy/scatter model),
+// the streak simply grows by one every shot once started.
+export type GunStacksConfig = {
+  increaseArmorPiercing: number;
+  maxArmorPiercingBonus: number;
+  damageMultiplierBonus: number;
+  activeFireRate: number;
+};
+
+export type SimulatedShot = {
+  index: number;
+  totalDamage: number;
+  cumulativeDamage: number;
+  cumulativeTimeSeconds: number;
+  armorPiercing: number;
+  damageMultiplier: number;
+  shotsPerSecond: number;
+};
+
+export type EngagementSimulationInput = {
+  effectiveDamage: DamageTypeMap;
+  distance: number;
+  falloffThresholds: DamageFalloffThreshold[];
+  weaponFalloffMultiplier: number;
+  baseArmorPiercing: number;
+  baseDamageMultiplier: number;
+  baseShotsPerSecond: number;
+  weaponCategory: WeaponCategory;
+  target: ArmorTarget;
+  hitDirection?: HitDirection;
+  gunStacks?: GunStacksConfig;
+};
+
+export type EngagementResult = {
+  shots: SimulatedShot[];
+  hitsToCritical: number;
+  hitsToDead: number;
+  timeToCriticalSeconds: number;
+  timeToDeadSeconds: number;
+};
+
+const MAX_SIMULATED_SHOTS = 300;
+
+// Every shot "costs" its own firing period (1/rate at the time it's fired),
+// matching timeToKillSeconds' hits/shotsPerSecond convention for a constant
+// rate — the two agree exactly when gunStacks is absent, since the rate never
+// changes and this degenerates to hits * (1/shotsPerSecond).
+export function simulateEngagement(input: EngagementSimulationInput, thresholds: MobThresholdPair): EngagementResult {
+  const shots: SimulatedShot[] = [];
+  let consecutiveHits = 0;
+  let cumulativeDamage = 0;
+  let cumulativeTimeSeconds = 0;
+  let hitsToCritical = Infinity;
+  let hitsToDead = Infinity;
+  let timeToCriticalSeconds = Infinity;
+  let timeToDeadSeconds = Infinity;
+
+  for (let index = 1; index <= MAX_SIMULATED_SHOTS; index++) {
+    const stacksActive = Boolean(input.gunStacks) && consecutiveHits > 0;
+    const armorPiercingBonus = input.gunStacks
+      ? Math.min(input.gunStacks.maxArmorPiercingBonus, input.gunStacks.increaseArmorPiercing * consecutiveHits)
+      : 0;
+    const armorPiercing = input.baseArmorPiercing + armorPiercingBonus;
+    const damageMultiplier = input.baseDamageMultiplier + (stacksActive ? input.gunStacks!.damageMultiplierBonus : 0);
+    const shotsPerSecond = stacksActive ? input.gunStacks!.activeFireRate : input.baseShotsPerSecond;
+
+    const ratio = input.baseDamageMultiplier > 0 ? damageMultiplier / input.baseDamageMultiplier : 1;
+    const scaledDamage: DamageTypeMap = {};
+    for (const [type, amount] of Object.entries(input.effectiveDamage)) scaledDamage[type] = amount * ratio;
+
+    const hit = computeHitDamage({
+      effectiveDamage: scaledDamage,
+      distance: input.distance,
+      falloffThresholds: input.falloffThresholds,
+      weaponFalloffMultiplier: input.weaponFalloffMultiplier,
+      armorPiercing,
+      weaponCategory: input.weaponCategory,
+      target: input.target,
+      hitDirection: input.hitDirection,
+    });
+
+    cumulativeDamage += hit.totalDamage;
+    cumulativeTimeSeconds += shotsPerSecond > 0 ? 1 / shotsPerSecond : Infinity;
+
+    shots.push({
+      index,
+      totalDamage: hit.totalDamage,
+      cumulativeDamage,
+      cumulativeTimeSeconds,
+      armorPiercing,
+      damageMultiplier,
+      shotsPerSecond,
+    });
+
+    if (hitsToCritical === Infinity && thresholds.critical != null && cumulativeDamage >= thresholds.critical) {
+      hitsToCritical = index;
+      timeToCriticalSeconds = cumulativeTimeSeconds;
+    }
+    if (hitsToDead === Infinity && cumulativeDamage >= thresholds.dead) {
+      hitsToDead = index;
+      timeToDeadSeconds = cumulativeTimeSeconds;
+      break;
+    }
+
+    consecutiveHits += 1;
+  }
+
+  return { shots, hitsToCritical, hitsToDead, timeToCriticalSeconds, timeToDeadSeconds };
 }
 
 export type AmmoNeeded = { shots: number; magazines: number | null };

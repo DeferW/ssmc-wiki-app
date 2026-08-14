@@ -1,7 +1,7 @@
 import type { Catalog } from "../equipment/types";
 import type { ArmorTarget } from "./damageMath";
 import { marineArmorFromItems, MARINE_PRESETS } from "./marinePresets";
-import type { MobCatalog, MobThresholdPair } from "./mobTypes";
+import type { MobCatalog, MobThresholdPair, RmcSize } from "./mobTypes";
 
 export type TargetSelection =
   | { kind: "marine"; presetId: string }
@@ -36,4 +36,15 @@ export function targetThresholdsFrom(
   if (!selection || !mobCatalog) return null;
   if (selection.kind === "marine") return mobCatalog.marine.thresholds;
   return mobCatalog.xenoCastes[selection.casteId]?.thresholds ?? null;
+}
+
+// RMCFocusedShootingSystem only ever grants a bonus against xeno-sized
+// targets — marines have no RMCSizeComponent tier that matters here, so this
+// is null for a marine selection rather than some marine-equivalent size.
+export function targetSizeFrom(
+  selection: TargetSelection | null,
+  mobCatalog: MobCatalog | null,
+): RmcSize | null {
+  if (!selection || selection.kind !== "xeno" || !mobCatalog) return null;
+  return mobCatalog.xenoCastes[selection.casteId]?.size ?? null;
 }

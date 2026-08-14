@@ -11,10 +11,16 @@ export type XenoArmorStats = {
   immuneToArmorPiercing: boolean;
 };
 
+// RMCSizeComponent.Size; an ordered scale (declaration order below is the
+// real enum order) that gates several mechanics, notably which bonus-damage
+// tier RMCFocusedShootingSystem grants a landed aimed shot.
+export type RmcSize = "Small" | "Humanoid" | "VerySmallXeno" | "SmallXeno" | "Xeno" | "Big" | "Immobile";
+
 export type XenoCaste = {
   id: string;
   name: string;
   strainName: string | null;
+  size: RmcSize;
   origin: string;
   sourceFile: string;
   parents: string[];
