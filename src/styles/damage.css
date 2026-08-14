@@ -3,25 +3,53 @@
 .damage-hero h1 { margin: 10px 0 12px; color: var(--text-strong); font-size: clamp(2.2rem, 5vw, 4.6rem); line-height: .92; letter-spacing: -.045em; text-transform: uppercase; }
 .damage-hero > div:first-child > p:last-child { max-width: 760px; margin: 0; color: var(--muted); line-height: 1.6; }
 
-.damage-layout { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: clamp(16px, 2vw, 28px); align-items: start; }
-.damage-weapon-column h2 { margin: 0 0 12px; color: var(--text); font-size: .86rem; text-transform: uppercase; }
-.damage-detail-column { position: sticky; top: 82px; min-height: 200px; padding: 20px; border: 1px solid var(--line); background: var(--surface); }
-.damage-detail-column h3 { margin: 18px 0 10px; color: var(--text); font-size: .78rem; text-transform: uppercase; }
+.damage-loadout { display: grid; gap: 20px; max-width: 900px; padding: 22px; border: 1px solid var(--line); background: var(--surface); }
+.damage-loadout h3 { margin: 4px 0 0; color: var(--text); font-size: .78rem; text-transform: uppercase; }
+.loadout-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px; }
 
-.weapon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; max-height: calc(100vh - 220px); overflow: auto; padding-right: 4px; }
+.attachment-slot-wrap { display: grid; gap: 6px; justify-items: center; }
+
+.direction-control { display: flex; gap: 8px; }
+.direction-control button { padding: 8px 14px; border: 1px solid var(--line); background: var(--surface-raised); color: var(--muted); font-size: .68rem; text-transform: uppercase; cursor: pointer; }
+.direction-control button:hover { border-color: var(--line-strong); color: var(--text); }
+.direction-control button.is-active { border-color: var(--accent); color: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.attachment-toggle { padding: 5px 9px; border: 1px solid var(--line-strong); background: var(--surface-raised); color: var(--muted); font-size: .6rem; text-transform: uppercase; cursor: pointer; }
+.attachment-toggle.is-active { border-color: var(--accent); color: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+
+.item-slot { display: flex; flex-direction: column; align-items: center; }
+.item-slot.is-empty { display: flex; width: 132px; height: 132px; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border: 1px dashed var(--line-strong); background: transparent; color: var(--muted); cursor: pointer; }
+.item-slot.is-empty:hover { border-color: var(--accent); color: var(--accent-soft); }
+.item-slot.is-empty .item-slot-plus { font-size: 1.6rem; line-height: 1; color: var(--accent); }
+.item-slot.is-empty span:last-child { max-width: 100px; font-size: .62rem; text-align: center; text-transform: uppercase; }
+.item-slot.is-empty.is-compact { width: 88px; height: 88px; }
+.item-slot.is-empty.is-compact .item-slot-plus { font-size: 1.2rem; }
+
+.item-slot.is-filled { position: relative; width: 132px; }
+.item-slot.is-filled.is-compact { width: 88px; }
+.item-slot-main { display: flex; width: 100%; height: 132px; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 10px; border: 1px solid var(--line); background: linear-gradient(160deg, var(--surface-raised), var(--surface)); color: inherit; cursor: pointer; }
+.item-slot.is-compact .item-slot-main { height: 88px; padding: 6px; gap: 4px; }
+.item-slot-main:hover { border-color: var(--line-strong); }
+.item-slot-main strong { display: -webkit-box; overflow: hidden; color: var(--text); font-size: .68rem; line-height: 1.25; text-align: center; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.item-slot-main small { overflow: hidden; color: var(--muted); font-size: .56rem; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+.item-slot-main .sprite-frame, .item-slot-main .sprite-placeholder { width: auto; height: 64px; margin: 0; }
+.item-slot.is-compact .item-slot-main .sprite-frame, .item-slot.is-compact .item-slot-main .sprite-placeholder { height: 40px; }
+.item-slot-main .sprite-frame img { width: 52px; height: 52px; }
+.item-slot.is-compact .item-slot-main .sprite-frame img { width: 32px; height: 32px; }
+.item-slot-clear { position: absolute; top: -8px; right: -8px; z-index: 1; width: 22px; height: 22px; border: 1px solid var(--line-strong); border-radius: 50%; background: var(--surface-highlight); color: var(--text); font-size: .8rem; line-height: 1; cursor: pointer; }
+.item-slot-clear:hover { border-color: var(--danger); color: var(--danger); }
+
+.stat-delta { display: inline-flex; align-items: center; gap: 5px; }
+.stat-delta i { color: var(--muted); font-style: normal; }
+.stat-delta.is-better { color: var(--accent-soft); }
+.stat-delta.is-worse { color: var(--danger); }
+
+.weapon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 .weapon-card { display: flex; height: 168px; flex-direction: column; align-items: flex-start; overflow: hidden; padding: 10px; border: 1px solid var(--line); background: linear-gradient(160deg, var(--surface-raised), var(--surface)); color: inherit; text-align: left; cursor: pointer; }
 .weapon-card:hover, .weapon-card.is-selected { border-color: var(--line-strong); box-shadow: inset 0 0 24px rgba(86, 144, 105, .055), 0 0 0 1px rgba(114, 216, 149, .04); }
 .weapon-card.is-selected { box-shadow: inset 3px 0 0 var(--accent), inset 0 0 24px rgba(86, 144, 105, .055); }
 .weapon-card strong { display: -webkit-box; margin-top: 8px; overflow: hidden; color: var(--text); font-size: .72rem; line-height: 1.3; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .weapon-card .sprite-frame, .weapon-card .sprite-placeholder { width: 100%; height: 88px; margin-top: 0; }
 .weapon-card .sprite-frame img { width: 70px; height: 70px; }
-
-.damage-weapon-summary { display: flex; align-items: center; gap: 14px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
-.damage-weapon-summary .sprite-frame, .damage-weapon-summary .sprite-placeholder { flex: 0 0 64px; width: 64px; height: 64px; margin: 0; }
-.damage-weapon-summary .sprite-frame img { width: 52px; height: 52px; }
-.damage-weapon-summary div { display: grid; gap: 4px; min-width: 0; }
-.damage-weapon-summary strong { color: var(--text-strong); font-size: 1rem; }
-.damage-weapon-summary small { color: var(--muted); font-size: .65rem; }
 
 .ammo-picker { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
 .ammo-chip { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; border: 1px solid var(--line); background: var(--surface-raised); color: var(--text); font-size: .68rem; text-align: left; cursor: pointer; }
@@ -31,4 +59,33 @@
 .ammo-chip.is-ap.is-selected { box-shadow: inset 2px 0 0 var(--warning), inset 0 0 0 1px var(--accent); }
 .ammo-chip small { color: var(--muted); font-size: .6rem; }
 
-.damage-todo-note { margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--line); }
+.damage-todo-note { margin-top: 6px; padding-top: 14px; border-top: 1px dashed var(--line); }
+
+.picker-backdrop { position: fixed; inset: var(--header-height) 0 0; z-index: 80; display: flex; align-items: center; justify-content: center; padding: clamp(18px, 3vw, 48px); background: rgba(1, 4, 2, .82); }
+.picker-panel { display: flex; width: min(1000px, calc(100vw - 56px)); height: min(760px, calc(100dvh - var(--header-height) - clamp(36px, 6vw, 96px))); flex-direction: column; overflow: hidden; border: 1px solid var(--line); background: var(--surface); box-shadow: 0 30px 100px rgba(0, 0, 0, .78); animation: picker-in 160ms ease-out; }
+@keyframes picker-in { from { opacity: 0; transform: translateY(10px) scale(.99); } }
+.picker-header { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--line); background: linear-gradient(135deg, var(--surface-raised), var(--surface)); }
+.picker-header strong { color: var(--text-strong); font-size: .95rem; text-transform: uppercase; }
+.picker-close { width: 32px; height: 32px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-size: 1.2rem; cursor: pointer; }
+.picker-close:hover { border-color: var(--accent); }
+.picker-body { min-height: 0; overflow: auto; padding: 20px; }
+
+.target-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+.target-tabs button { padding: 8px 14px; border: 1px solid var(--line); background: var(--surface-raised); color: var(--muted); font-size: .72rem; text-transform: uppercase; cursor: pointer; }
+.target-tabs button:hover { border-color: var(--line-strong); color: var(--text); }
+.target-tabs button.is-active { border-color: var(--accent); color: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+
+.target-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.target-card { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 12px; border: 1px solid var(--line); background: linear-gradient(160deg, var(--surface-raised), var(--surface)); color: inherit; text-align: left; cursor: pointer; }
+.target-card:hover, .target-card.is-selected { border-color: var(--line-strong); box-shadow: inset 0 0 24px rgba(86, 144, 105, .055), 0 0 0 1px rgba(114, 216, 149, .04); }
+.target-card.is-selected { box-shadow: inset 3px 0 0 var(--accent), inset 0 0 24px rgba(86, 144, 105, .055); }
+.target-card strong { color: var(--text); font-size: .76rem; }
+.target-card small { color: var(--muted); font-size: .62rem; line-height: 1.4; }
+.target-card .stat-grid { width: 100%; margin-top: 4px; }
+.target-card .stat-grid > div { padding: 5px 0; }
+.target-card .sprite-frame, .target-card .sprite-placeholder { width: auto; height: 64px; margin: 0; }
+.target-card .sprite-frame img { width: 52px; height: 52px; }
+
+.target-card-icons { display: flex; flex-wrap: wrap; gap: 4px; }
+.target-card-icons .sprite-frame, .target-card-icons .sprite-placeholder { flex: 0 0 auto; width: 40px; height: 40px; margin: 0; }
+.target-card-icons .sprite-frame img { width: 32px; height: 32px; }
