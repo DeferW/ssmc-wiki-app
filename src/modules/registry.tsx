@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 import { EquipmentPage } from "./equipment/EquipmentPage";
 import { ChemistryPage } from "./chemistry/ChemistryPage";
+import { DamagePage } from "./damage/DamagePage";
 
 export type ModuleDefinition = {
   id: string;
@@ -40,7 +41,8 @@ export const modules: ModuleDefinition[] = [
     shortTitle: "Урон",
     summary: "Расчёт урона с учётом дистанции, брони и бронепробития.",
     code: "DMG-03",
-    status: "planned",
+    status: "active",
+    Component: DamagePage,
   },
   {
     id: "compare",

@@ -6,6 +6,7 @@ import "./styles/base.css";
 import "./styles/home.css";
 import "./styles/equipment.css";
 import "./styles/chemistry.css";
+import "./styles/damage.css";
 import "./styles/responsive.css";
 
 createRoot(document.getElementById("root")!).render(
