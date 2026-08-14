@@ -44,7 +44,7 @@ ssmc-wiki-data/scripts/       ssmc-wiki-app/src/modules/
 ```
 
 Новый модуль создаётся как `scripts/<module-id>/` и
-`src/modules/<module-id>/`, а не внутри общей папки `module/`. Общий код
+`src/modules/<module-id>/`. Общий код
 выносится только после появления второго реального потребителя.
 
 ## 3. Репозиторий данных
