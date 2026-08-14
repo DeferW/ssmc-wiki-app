@@ -10,15 +10,21 @@ import {
   statDelta,
 } from "./attachmentModifiers";
 import type { EquippedAttachment, StatDirection, WeaponModifiableStats } from "./attachmentModifiers";
-import type { HitDirection } from "./damageMath";
+import { aimedShotAbilityFrom } from "./aimedShot";
+import type { AimedShotEffectConfig } from "./aimedShot";
+import type { DamageFalloffThreshold, DamageTypeMap, HitDirection } from "./damageMath";
 import { useMobCatalog } from "./mobCatalogStore";
-import { targetArmorFrom, targetThresholdsFrom } from "./target";
+import { targetArmorFrom, targetSizeFrom, targetThresholdsFrom } from "./target";
 import type { TargetSelection } from "./target";
 import { applyXenoAbilityBonuses, toggleXenoAbility, XENO_DEFENSIVE_ABILITIES } from "./xenoAbilities";
+import { WEAPON_GUN_STACKS } from "./weaponGunStacks";
+import { AimedShotCard } from "./components/AimedShotCard";
 import { AmmoPicker, ammoProjectiles } from "./components/AmmoPicker";
 import { AttachmentPicker } from "./components/AttachmentPicker";
+import { DistanceControl } from "./components/DistanceControl";
 import { ItemSlot } from "./components/ItemSlot";
 import { PickerModal } from "./components/PickerModal";
+import { ResultPanel } from "./components/ResultPanel";
 import { TargetPicker } from "./components/TargetPicker";
 import { TargetSlot } from "./components/TargetSlot";
 import { WeaponPicker } from "./components/WeaponPicker";
@@ -27,6 +33,43 @@ type PickerState = { type: "weapon" } | { type: "attachment"; slotId: string } |
 
 function numberField(container: unknown, key: string): number | undefined {
   return isMap(container) && typeof container[key] === "number" ? (container[key] as number) : undefined;
+}
+
+function damageTypeMapFrom(value: unknown): DamageTypeMap {
+  if (!isMap(value)) return {};
+  const result: DamageTypeMap = {};
+  for (const [type, amount] of Object.entries(value)) {
+    if (typeof amount === "number") result[type] = amount;
+  }
+  return result;
+}
+
+function scaleDamage(damage: DamageTypeMap, ratio: number): DamageTypeMap {
+  const result: DamageTypeMap = {};
+  for (const [type, amount] of Object.entries(damage)) result[type] = amount * ratio;
+  return result;
+}
+
+function aimedShotEffectFrom(projectile: JsonMap | undefined): AimedShotEffectConfig | undefined {
+  const raw = projectile?.aimedShotEffect;
+  if (!isMap(raw) || typeof raw.extraHits !== "number") return undefined;
+  return {
+    extraHits: raw.extraHits,
+    fireStacksOnHit: typeof raw.fireStacksOnHit === "number" ? raw.fireStacksOnHit : undefined,
+    blindDuration: typeof raw.blindDuration === "number" ? raw.blindDuration : undefined,
+    slowDuration: typeof raw.slowDuration === "number" ? raw.slowDuration : undefined,
+    superSlowDuration: typeof raw.superSlowDuration === "number" ? raw.superSlowDuration : undefined,
+  };
+}
+
+function falloffThresholdsFrom(projectile: JsonMap | undefined): DamageFalloffThreshold[] {
+  const raw = isMap(projectile?.damageFalloff) ? projectile.damageFalloff.thresholds : undefined;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(isMap).map((entry) => ({
+    range: typeof entry.range === "number" ? entry.range : 0,
+    falloff: typeof entry.falloff === "number" ? entry.falloff : 0,
+    ignoreModifiers: entry.ignoreModifiers === true,
+  }));
 }
 
 function StatRow({ label, from, to, direction, format }: {
@@ -61,6 +104,7 @@ export function DamagePage() {
   const [target, setTarget] = useState<TargetSelection | null>(null);
   const [hitDirection, setHitDirection] = useState<HitDirection>("front");
   const [activeAbilities, setActiveAbilities] = useState<Set<string>>(new Set());
+  const [distance, setDistance] = useState(5);
   const [picker, setPicker] = useState<PickerState>(null);
 
   const selectedWeapon = selectedWeaponId && catalog ? catalog.items[selectedWeaponId] : null;
@@ -134,6 +178,34 @@ export function DamagePage() {
     ? foldAttachmentModifiers(baseStats, collectRangedModifierEntries(equippedAttachments, selectedWeapon?.tags ?? []))
     : null;
 
+  // effectiveDamage in the catalog already has the weapon's own damageMultiplier
+  // baked in; attachments only change that multiplier, so the attachment-adjusted
+  // damage is the catalog value rescaled by the ratio of modified to base multiplier.
+  const damageRatio = baseStats && modifiedStats && baseStats.damageMultiplier > 0
+    ? modifiedStats.damageMultiplier / baseStats.damageMultiplier
+    : 1;
+  const selectedProjectile = projectiles[0] as JsonMap | undefined;
+  const adjustedEffectiveDamage = scaleDamage(
+    damageTypeMapFrom(selectedProjectile?.effectiveDamage ?? selectedProjectile?.damage),
+    damageRatio,
+  );
+  const falloffThresholds = falloffThresholdsFrom(selectedProjectile);
+  const weaponFalloffMultiplier = numberField(
+    isMap(selectedWeapon?.properties) ? selectedWeapon.properties.RMCWeaponDamageFalloff : undefined,
+    "falloffMultiplier",
+  ) ?? 1;
+  const armorPiercing = typeof selectedProjectile?.armorPiercing === "number" ? selectedProjectile.armorPiercing : 0;
+  // directFeed ammo (XM88's manually-chambered rounds, shotgun shells) loads
+  // one round at a time or from a box, not a swappable magazine — "capacity"
+  // there means the box/tube size, not a reload unit worth counting.
+  const hasMagazine = selectedAmmo != null && selectedAmmo.directFeed !== true;
+  const magazineCapacity = hasMagazine && typeof selectedAmmo?.capacity === "number" ? selectedAmmo.capacity : null;
+
+  const aimedShotAbilityRaw = isMap(weaponStats?.aimedShot) ? weaponStats.aimedShot : undefined;
+  const hasAimedShot = weaponStats != null && "aimedShot" in weaponStats;
+  const hasFocusedShooting = weaponStats?.hasFocusedShooting === true;
+  const aimedShotEffect = aimedShotEffectFrom(selectedProjectile);
+
   const selectTarget = (selection: TargetSelection) => {
     setTarget(selection);
     setActiveAbilities(new Set());
@@ -148,6 +220,7 @@ export function DamagePage() {
 
   const baseTargetArmor = useMemo(() => targetArmorFrom(target, catalog, mobCatalog), [target, catalog, mobCatalog]);
   const targetThresholds = useMemo(() => targetThresholdsFrom(target, mobCatalog), [target, mobCatalog]);
+  const targetSize = useMemo(() => targetSizeFrom(target, mobCatalog), [target, mobCatalog]);
   const xenoAbilities = target?.kind === "xeno" ? XENO_DEFENSIVE_ABILITIES[target.casteId] : undefined;
   const targetArmor = target?.kind === "xeno" && baseTargetArmor?.kind === "xeno"
     ? applyXenoAbilityBonuses(baseTargetArmor, target.casteId, activeAbilities)
@@ -237,7 +310,10 @@ export function DamagePage() {
                     <article key={`${String(projectile.projectileId)}:${index}`}>
                       <strong>{String(projectile.name ?? "Снаряд")}</strong>
                       <dl className="stat-grid">
-                        <div><dt>Урон</dt><dd>{formatDamage(projectile.effectiveDamage ?? projectile.damage) ?? "—"}</dd></div>
+                        <div>
+                          <dt>Урон</dt>
+                          <dd>{formatDamage(scaleDamage(damageTypeMapFrom(projectile.effectiveDamage ?? projectile.damage), damageRatio)) ?? "—"}</dd>
+                        </div>
                         {projectile.armorPiercing != null && (
                           <div><dt>Бронепробитие</dt><dd>{formatNumber(projectile.armorPiercing)}</dd></div>
                         )}
@@ -249,12 +325,6 @@ export function DamagePage() {
             ) : (
               <p className="muted">У этого оружия нет вариантов боеприпасов в каталоге.</p>
             )
-          )}
-
-          {selectedWeapon && (
-            <p className="muted damage-todo-note">
-              Дистанция — в следующем срезе. Урон патрона пока не учитывает бонус обвесов к множителю.
-            </p>
           )}
         </section>
       )}
@@ -341,6 +411,48 @@ export function DamagePage() {
               )}
             </dl>
           )}
+        </section>
+      )}
+
+      {selectedWeapon && selectedProjectile && target && targetArmor && targetThresholds && (
+        <section className="damage-loadout">
+          <h3>Дистанция</h3>
+          <DistanceControl distance={distance} onChange={setDistance} />
+          <ResultPanel
+            effectiveDamage={adjustedEffectiveDamage}
+            distance={distance}
+            falloffThresholds={falloffThresholds}
+            weaponFalloffMultiplier={weaponFalloffMultiplier}
+            baseArmorPiercing={armorPiercing}
+            baseDamageMultiplier={modifiedStats?.damageMultiplier ?? 1}
+            baseShotsPerSecond={modifiedStats?.shotsPerSecond ?? 0}
+            weaponCategory="bullet"
+            target={targetArmor}
+            hitDirection={hitDirection}
+            thresholds={targetThresholds}
+            magazineCapacity={magazineCapacity}
+            gunStacks={selectedWeapon ? WEAPON_GUN_STACKS[selectedWeapon.id] : undefined}
+          />
+        </section>
+      )}
+
+      {selectedWeapon && selectedProjectile && target && targetArmor && hasAimedShot && aimedShotEffect && (
+        <section className="damage-loadout">
+          <AimedShotCard
+            ability={aimedShotAbilityFrom(aimedShotAbilityRaw)}
+            hasFocusedShooting={hasFocusedShooting}
+            effect={aimedShotEffect}
+            distance={distance}
+            effectiveDamage={adjustedEffectiveDamage}
+            falloffThresholds={falloffThresholds}
+            weaponFalloffMultiplier={weaponFalloffMultiplier}
+            armorPiercing={armorPiercing}
+            weaponCategory="bullet"
+            target={targetArmor}
+            hitDirection={hitDirection}
+            targetSize={targetSize}
+            criticalThreshold={targetThresholds?.critical ?? null}
+          />
         </section>
       )}
 

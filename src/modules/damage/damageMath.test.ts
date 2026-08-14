@@ -6,11 +6,13 @@ import {
   BRUTE_DAMAGE_TYPES,
   computeHitDamage,
   falloffMultiplier,
+  filterLivingTargetDamage,
   hitsToKill,
   resistGroup,
+  simulateEngagement,
   timeToKillSeconds,
 } from "./damageMath";
-import type { MarineArmor, XenoTargetArmor } from "./damageMath";
+import type { GunStacksConfig, MarineArmor, XenoTargetArmor } from "./damageMath";
 
 // Verified against BulletRifle10x24mm / WeaponRifleM4SPR data pulled from the
 // real equipment-catalog.json: effectiveDamage.Piercing = 56, weapon
@@ -153,6 +155,175 @@ describe("computeHitDamage", () => {
     });
     expect(result.preArmorTotal).toBe(56);
     expect(result.totalDamage).toBeCloseTo(56 / 1.331, 6);
+  });
+
+  it("drops Structural damage entirely against living targets (real data: XM43E1's round)", () => {
+    // Resources/Prototypes/Damage/containers.yml + xeno_damage_containers.yml:
+    // marines use the "Biological" container, xenos use "Xeno" -- neither
+    // supports Structural (damage-type-structural: "Exclusive for structures
+    // such as walls, airlocks and others"), so it must never contribute to a
+    // living target's damage total, not merely pass through unmitigated.
+    const marineResult = computeHitDamage({
+      effectiveDamage: { Piercing: 125, Structural: 1275 },
+      distance: 1,
+      falloffThresholds: [],
+      weaponFalloffMultiplier: 0,
+      armorPiercing: 0,
+      weaponCategory: "bullet",
+      target: HELMET_ARMOR,
+    });
+    const xenoResult = computeHitDamage({
+      effectiveDamage: { Piercing: 125, Structural: 1275 },
+      distance: 1,
+      falloffThresholds: [],
+      weaponFalloffMultiplier: 0,
+      armorPiercing: 0,
+      weaponCategory: "bullet",
+      target: WARRIOR_ARMOR,
+    });
+    expect(marineResult.preArmorTotal).toBe(125);
+    expect(xenoResult.preArmorTotal).toBe(125);
+  });
+});
+
+describe("filterLivingTargetDamage", () => {
+  it("keeps Brute and Burn types, drops everything else", () => {
+    expect(filterLivingTargetDamage({ Piercing: 125, Structural: 1275, Heat: 10 })).toEqual({
+      Piercing: 125,
+      Heat: 10,
+    });
+  });
+
+  it("is a no-op when every type is already Brute/Burn", () => {
+    expect(filterLivingTargetDamage({ Blunt: 10, Slash: 5 })).toEqual({ Blunt: 10, Slash: 5 });
+  });
+});
+
+// Real data: WeaponRifleXM88 (XM88 heavy rifle) — the only weapon with a
+// GunStacksComponent. Component defaults, verified from
+// GunStacksComponent.cs: increaseArmorPiercing=10, maxArmorPiercingBonus=50,
+// damageMultiplierBonus=0.2 (flat, not per-hit), activeFireRate=1.4285
+// (a hard replacement, not a multiplier).
+const XM88_STACKS: GunStacksConfig = {
+  increaseArmorPiercing: 10,
+  maxArmorPiercingBonus: 50,
+  damageMultiplierBonus: 0.2,
+  activeFireRate: 1.4285,
+};
+const NO_FALLOFF_AT_DISTANCE_1: never[] = [];
+
+describe("simulateEngagement", () => {
+  it("matches hitsToKill/timeToKillSeconds exactly when there is no gunStacks config (constant rate)", () => {
+    // Real data: RMCWeaponRifleM54C (M41A MK2) vs. a base Warrior, no
+    // attachments — effectiveDamage.Piercing=44, armorPiercing=5,
+    // damageMultiplier=1.1 (base == modified, nothing folding it), shotsPerSecond=4.
+    const perHitDamage = computeHitDamage({
+      effectiveDamage: { Piercing: 44 },
+      distance: 1,
+      falloffThresholds: NO_FALLOFF_AT_DISTANCE_1,
+      weaponFalloffMultiplier: 0,
+      armorPiercing: 5,
+      weaponCategory: "bullet",
+      target: WARRIOR_ARMOR,
+    }).totalDamage;
+    const thresholds = { critical: 500, dead: 600 };
+    const expectedHitsDead = hitsToKill(perHitDamage, thresholds, "dead");
+    const expectedHitsCritical = hitsToKill(perHitDamage, thresholds, "critical");
+
+    const result = simulateEngagement({
+      effectiveDamage: { Piercing: 44 },
+      distance: 1,
+      falloffThresholds: NO_FALLOFF_AT_DISTANCE_1,
+      weaponFalloffMultiplier: 0,
+      baseArmorPiercing: 5,
+      baseDamageMultiplier: 1.1,
+      baseShotsPerSecond: 4,
+      weaponCategory: "bullet",
+      target: WARRIOR_ARMOR,
+    }, thresholds);
+
+    expect(result.hitsToDead).toBe(expectedHitsDead);
+    expect(result.hitsToCritical).toBe(expectedHitsCritical);
+    expect(result.timeToDeadSeconds).toBeCloseTo(timeToKillSeconds(expectedHitsDead, 4), 10);
+    expect(result.timeToCriticalSeconds).toBeCloseTo(timeToKillSeconds(expectedHitsCritical, 4), 10);
+    // Every shot has identical stats when there's no stacking mechanic.
+    expect(result.shots.every((shot) => shot.armorPiercing === 5 && shot.damageMultiplier === 1.1 && shot.shotsPerSecond === 4)).toBe(true);
+  });
+
+  it("ramps armor-piercing per consecutive hit and flips damage/fire-rate once active, matching GunStacksSystem", () => {
+    // Real data: WeaponRifleXM88 vs. a base Warrior (xenoArmor=20) at
+    // point-blank (no falloff). effectiveDamage.Piercing=80, armorPiercing=10,
+    // damageMultiplier=1, shotsPerSecond=1 (all real catalog values).
+    const thresholds = { critical: 500, dead: 600 };
+    const result = simulateEngagement({
+      effectiveDamage: { Piercing: 80 },
+      distance: 1,
+      falloffThresholds: NO_FALLOFF_AT_DISTANCE_1,
+      weaponFalloffMultiplier: 0,
+      baseArmorPiercing: 10,
+      baseDamageMultiplier: 1,
+      baseShotsPerSecond: 1,
+      weaponCategory: "bullet",
+      target: WARRIOR_ARMOR,
+      gunStacks: XM88_STACKS,
+    }, thresholds);
+
+    // Shot 1: cold gun — 0 prior hits, so no armor-piercing bonus, base
+    // multiplier, base fire rate.
+    const shot1 = computeHitDamage({
+      effectiveDamage: { Piercing: 80 },
+      distance: 1,
+      falloffThresholds: NO_FALLOFF_AT_DISTANCE_1,
+      weaponFalloffMultiplier: 0,
+      armorPiercing: 10,
+      weaponCategory: "bullet",
+      target: WARRIOR_ARMOR,
+    }).totalDamage;
+    expect(result.shots[0]).toMatchObject({ armorPiercing: 10, damageMultiplier: 1, shotsPerSecond: 1 });
+    expect(result.shots[0].totalDamage).toBeCloseTo(shot1, 10);
+
+    // Shot 2: 1 prior hit — +10 armor-piercing (10*1), the flat +0.2 damage
+    // bonus is now active, and fire rate is replaced by activeFireRate.
+    const shot2 = computeHitDamage({
+      effectiveDamage: { Piercing: 80 * 1.2 },
+      distance: 1,
+      falloffThresholds: NO_FALLOFF_AT_DISTANCE_1,
+      weaponFalloffMultiplier: 0,
+      armorPiercing: 20,
+      weaponCategory: "bullet",
+      target: WARRIOR_ARMOR,
+    }).totalDamage;
+    expect(result.shots[1]).toMatchObject({ armorPiercing: 20, damageMultiplier: 1.2, shotsPerSecond: 1.4285 });
+    expect(result.shots[1].totalDamage).toBeCloseTo(shot2, 10);
+
+    // Armor-piercing bonus caps at maxArmorPiercingBonus (50) from the 6th
+    // shot onward (5 prior consecutive hits * 10 = 50).
+    expect(result.shots[4].armorPiercing).toBe(50); // 4 prior hits * 10 = 40 bonus
+    expect(result.shots[5].armorPiercing).toBe(60); // 5 prior hits * 10 = 50 bonus, at the cap
+    expect(result.shots[6]?.armorPiercing).toBe(60); // 6 prior hits: still capped at 50
+
+    // Once xenoArmor(20) - armorPiercing <= 0, the target is fully pierced
+    // and takes the raw (already stacked) damage with no mitigation at all.
+    expect(result.shots[1].totalDamage).toBe(80 * 1.2);
+
+    expect(result.hitsToCritical).toBe(6);
+    expect(result.hitsToDead).toBe(7);
+  });
+
+  it("stops simulating once the dead threshold is crossed", () => {
+    const result = simulateEngagement({
+      effectiveDamage: { Piercing: 80 },
+      distance: 1,
+      falloffThresholds: NO_FALLOFF_AT_DISTANCE_1,
+      weaponFalloffMultiplier: 0,
+      baseArmorPiercing: 10,
+      baseDamageMultiplier: 1,
+      baseShotsPerSecond: 1,
+      weaponCategory: "bullet",
+      target: WARRIOR_ARMOR,
+      gunStacks: XM88_STACKS,
+    }, { critical: 500, dead: 600 });
+    expect(result.shots.length).toBe(result.hitsToDead);
   });
 });
 
