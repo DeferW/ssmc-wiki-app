@@ -6,7 +6,7 @@
 игровые YAML самостоятельно.
 
 Полное руководство по архитектуре и разработке:
-[Markdown](docs/CONTRIBUTOR_GUIDE.md) · [DOCX](docs/SSMC_Contributor_Guide.docx).
+[Markdown](docs/CONTRIBUTOR_GUIDE.md).
 
 ## Что уже работает
 
