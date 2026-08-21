@@ -60,11 +60,17 @@ export type MapOverlay = {
   mapPath: string;
   prototypes: Record<string, OverlayPrototype>;
   occurrences: Record<string, OverlayOccurrence[]>;
-  insertMaps: Record<string, { occurrences: Record<string, OverlayOccurrence[]> }>;
-  areas?: {
-    types: [prototypeId: string, name: string, supportMask: number][];
-    rows: number[][];
-  } | null;
+  insertMaps: Record<string, {
+    occurrences: Record<string, OverlayOccurrence[]>;
+    tiles?: string;
+    areas?: MapAreaGrid | null;
+  }>;
+  areas?: MapAreaGrid | null;
+};
+
+export type MapAreaGrid = {
+  types: [prototypeId: string, name: string, supportMask: number][];
+  rows: number[][];
 };
 
 export type MapArea = {
@@ -89,8 +95,24 @@ export type OverlayPoint = {
   probability?: number;
 };
 
+export type InsertPlacement = {
+  key: string;
+  path: string;
+  origin: Point;
+  tiles: string;
+  clearEntities: boolean;
+  clearDecals: boolean;
+  replaceAreas: boolean;
+};
+
+export type ActiveInsertRender = InsertPlacement & {
+  manifest: TileManifest;
+  manifestUrl: string;
+};
+
 export type LayerSettings = Record<OverlayCategory, boolean> & {
   coordinateGrid: boolean;
+  areaSupport: boolean;
   markerScale: number;
 };
 

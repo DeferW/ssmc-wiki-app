@@ -1,11 +1,12 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { chooseLevel, fitView, mapPixelToWorld, visibleTiles, worldToMapPixel } from "./tileMath";
-import type { CanvasStats, LayerSettings, OverlayPoint, Point, TileManifest, ViewState } from "./types";
+import type { ActiveInsertRender, CanvasStats, GridManifest, LayerSettings, OverlayPoint, Point, TileLevel, TileManifest, ViewState } from "./types";
 
 type Props = {
   manifest: TileManifest;
   manifestUrl: string;
   points: OverlayPoint[];
+  insertRenders: ActiveInsertRender[];
   layers: LayerSettings;
   selectedKey?: string;
   onSelect: (point?: OverlayPoint) => void;
@@ -24,6 +25,14 @@ export type SelectionAnchor = {
 
 type CachedTile = { image: ImageBitmap; bytes: number; used: number };
 type PointerDrag = { id: number; startX: number; startY: number; viewX: number; viewY: number; moved: boolean };
+type PinchGesture = { distance: number; center: Point; view: ViewState };
+type InsertTileLayer = {
+  render: ActiveInsertRender;
+  grid: GridManifest;
+  level: TileLevel;
+  maximum: TileLevel;
+  urls: string[];
+};
 
 const TILE_CACHE_LIMIT = 80;
 const CATEGORY_COLOR: Record<OverlayPoint["category"], string> = {
@@ -42,7 +51,7 @@ const QUIET_MARKERS: Record<string, { glyph: string; color: string }> = {
 
 function tileUrl(pattern: string, manifestUrl: string, revision: number, z: number, x: number, y: number): string {
   const url = new URL(pattern.replace("{z}", String(z)).replace("{x}", String(x)).replace("{y}", String(y)), manifestUrl);
-  url.searchParams.set("v", String(revision));
+  url.searchParams.set("v", new URL(manifestUrl).searchParams.get("v") ?? String(revision));
   return url.toString();
 }
 
@@ -51,10 +60,24 @@ function eventPoint(event: { clientX: number; clientY: number }, element: HTMLEl
   return { x: event.clientX - rect.left, y: event.clientY - rect.top };
 }
 
+function insertPixelToMapPixel(
+  mainGrid: GridManifest,
+  render: ActiveInsertRender,
+  insertGrid: GridManifest,
+  pixel: Point,
+): Point {
+  const local = mapPixelToWorld(insertGrid, pixel);
+  return worldToMapPixel(mainGrid, {
+    x: render.origin.x + local.x,
+    y: render.origin.y + local.y,
+  });
+}
+
 export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
   manifest,
   manifestUrl,
   points,
+  insertRenders,
   layers,
   selectedKey,
   onSelect,
@@ -66,11 +89,16 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
   const cacheRef = useRef(new Map<string, CachedTile>());
   const pendingRef = useRef(new Map<string, AbortController>());
   const dragRef = useRef<PointerDrag | undefined>(undefined);
+  const pointersRef = useRef(new Map<number, Point>());
+  const pinchRef = useRef<PinchGesture | undefined>(undefined);
+  const viewRef = useRef<ViewState>({ x: 0, y: 0, scale: 1 });
   const [size, setSize] = useState({ width: 1, height: 1 });
   const [view, setView] = useState<ViewState>({ x: 0, y: 0, scale: 1 });
   const [tileRevision, setTileRevision] = useState(0);
   const grid = manifest.grids[0];
   const maximum = grid.levels.at(-1)!;
+
+  useEffect(() => { viewRef.current = view; }, [view]);
 
   const reset = useCallback(() => {
     setView(fitView(maximum.width, maximum.height, size.width, size.height));
@@ -120,16 +148,52 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
     () => visible.map(([x, y]) => tileUrl(grid.path, manifestUrl, manifest.schemaVersion, level.z, x, y)),
     [grid.path, level.z, manifest.schemaVersion, manifestUrl, visible],
   );
+  const insertLayers = useMemo<InsertTileLayer[]>(() => insertRenders.flatMap((render) => (
+    render.manifest.grids.flatMap((insertGrid) => {
+      const insertMaximum = insertGrid.levels.at(-1)!;
+      const insertScreenScale = view.scale * grid.pixelsPerMeter / insertGrid.pixelsPerMeter;
+      const insertLevel = chooseLevel(insertGrid.levels, insertScreenScale, window.devicePixelRatio || 1);
+      const corners = [
+        insertPixelToMapPixel(grid, render, insertGrid, { x: 0, y: 0 }),
+        insertPixelToMapPixel(grid, render, insertGrid, { x: insertMaximum.width, y: 0 }),
+        insertPixelToMapPixel(grid, render, insertGrid, { x: 0, y: insertMaximum.height }),
+        insertPixelToMapPixel(grid, render, insertGrid, { x: insertMaximum.width, y: insertMaximum.height }),
+      ].map((point) => ({ x: view.x + point.x * view.scale, y: view.y + point.y * view.scale }));
+      const left = Math.min(...corners.map((point) => point.x));
+      const right = Math.max(...corners.map((point) => point.x));
+      const top = Math.min(...corners.map((point) => point.y));
+      const bottom = Math.max(...corners.map((point) => point.y));
+      if (right < 0 || bottom < 0 || left > size.width || top > size.height) return [];
+      return [{
+        render,
+        grid: insertGrid,
+        level: insertLevel,
+        maximum: insertMaximum,
+        urls: insertLevel.tiles.map(([x, y]) => tileUrl(
+          insertGrid.path,
+          render.manifestUrl,
+          render.manifest.schemaVersion,
+          insertLevel.z,
+          x,
+          y,
+        )),
+      }];
+    })
+  )), [grid, insertRenders, size.height, size.width, view]);
+  const neededUrls = useMemo(
+    () => [...visibleUrls, ...insertLayers.flatMap((layer) => layer.urls)],
+    [insertLayers, visibleUrls],
+  );
 
   useEffect(() => {
-    const needed = new Set(visibleUrls);
+    const needed = new Set(neededUrls);
     for (const [url, controller] of pendingRef.current) {
       if (!needed.has(url)) {
         controller.abort();
         pendingRef.current.delete(url);
       }
     }
-    for (const url of visibleUrls) {
+    for (const url of neededUrls) {
       const cached = cacheRef.current.get(url);
       if (cached) {
         cached.used = performance.now();
@@ -168,7 +232,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
           setTileRevision((value) => value + 1);
         });
     }
-  }, [visibleUrls]);
+  }, [neededUrls]);
 
   useEffect(() => {
     const bytes = [...cacheRef.current.values()].reduce((sum, tile) => sum + tile.bytes, 0);
@@ -210,6 +274,39 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       const sourceHeight = Math.min(manifest.tileSize, level.height - sourceY);
       context.drawImage(tile.image, sourceX / ratioX, sourceY / ratioY, sourceWidth / ratioX, sourceHeight / ratioY);
     });
+
+    for (const layer of insertLayers) {
+      const origin = insertPixelToMapPixel(grid, layer.render, layer.grid, { x: 0, y: 0 });
+      const horizontal = insertPixelToMapPixel(grid, layer.render, layer.grid, { x: 1, y: 0 });
+      const vertical = insertPixelToMapPixel(grid, layer.render, layer.grid, { x: 0, y: 1 });
+      const ratioInsertX = layer.level.width / layer.maximum.width;
+      const ratioInsertY = layer.level.height / layer.maximum.height;
+      context.save();
+      context.transform(
+        horizontal.x - origin.x,
+        horizontal.y - origin.y,
+        vertical.x - origin.x,
+        vertical.y - origin.y,
+        origin.x,
+        origin.y,
+      );
+      layer.level.tiles.forEach(([x, y], index) => {
+        const tile = cacheRef.current.get(layer.urls[index]);
+        if (!tile) return;
+        const sourceX = x * layer.render.manifest.tileSize;
+        const sourceY = y * layer.render.manifest.tileSize;
+        const sourceWidth = Math.min(layer.render.manifest.tileSize, layer.level.width - sourceX);
+        const sourceHeight = Math.min(layer.render.manifest.tileSize, layer.level.height - sourceY);
+        context.drawImage(
+          tile.image,
+          sourceX / ratioInsertX,
+          sourceY / ratioInsertY,
+          sourceWidth / ratioInsertX,
+          sourceHeight / ratioInsertY,
+        );
+      });
+      context.restore();
+    }
 
     if (layers.coordinateGrid && view.scale * grid.pixelsPerMeter >= 18) {
       const step = grid.pixelsPerMeter * 10;
@@ -282,7 +379,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       context.stroke();
     }
     context.restore();
-  }, [grid, layers, level, manifest.tileSize, maximum, selectedKey, size, tileRevision, view, visible, visiblePoints, visibleUrls]);
+  }, [grid, insertLayers, layers, level, manifest.tileSize, maximum, selectedKey, size, tileRevision, view, visible, visiblePoints, visibleUrls]);
 
   const mapPointAt = useCallback((screen: Point) => ({
     x: (screen.x - view.x) / view.scale,
@@ -315,7 +412,11 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
     const pixel = worldToMapPixel(grid, point);
     const screen = { x: view.x + pixel.x * view.scale, y: view.y + pixel.y * view.scale };
     const visible = screen.x >= 0 && screen.x <= size.width && screen.y >= 0 && screen.y <= size.height;
-    onSelectedAnchor(visible ? { ...screen, align: screen.x > size.width * 0.64 ? "right" : "left" } : undefined);
+    onSelectedAnchor(visible ? {
+      ...screen,
+      align: screen.x > size.width * 0.64 ? "right" : "left",
+      vertical: screen.y > size.height * 0.55 ? "above" : "below",
+    } : undefined);
   }, [grid, onSelectedAnchor, selectedKey, size.height, size.width, view, visiblePoints]);
 
   return (
@@ -332,7 +433,19 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       onPointerDown={(event) => {
         const point = eventPoint(event, event.currentTarget);
         event.currentTarget.setPointerCapture(event.pointerId);
-        dragRef.current = { id: event.pointerId, startX: point.x, startY: point.y, viewX: view.x, viewY: view.y, moved: false };
+        pointersRef.current.set(event.pointerId, point);
+        if (pointersRef.current.size === 1) {
+          dragRef.current = { id: event.pointerId, startX: point.x, startY: point.y, viewX: view.x, viewY: view.y, moved: false };
+          pinchRef.current = undefined;
+        } else if (pointersRef.current.size === 2) {
+          const [first, second] = [...pointersRef.current.values()];
+          pinchRef.current = {
+            distance: Math.max(1, Math.hypot(second.x - first.x, second.y - first.y)),
+            center: { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 },
+            view,
+          };
+          dragRef.current = undefined;
+        }
       }}
       onPointerMove={(event) => {
         const screen = eventPoint(event, event.currentTarget);
@@ -342,6 +455,20 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
           align: screen.x > size.width * 0.64 ? "right" : "left",
           vertical: screen.y > size.height * 0.45 ? "above" : "below",
         });
+        if (pointersRef.current.has(event.pointerId)) pointersRef.current.set(event.pointerId, screen);
+        const pinch = pinchRef.current;
+        if (pinch && pointersRef.current.size >= 2) {
+          const [first, second] = [...pointersRef.current.values()];
+          const center = { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 };
+          const distance = Math.max(1, Math.hypot(second.x - first.x, second.y - first.y));
+          const scale = Math.min(8, Math.max(0.02, pinch.view.scale * distance / pinch.distance));
+          const mapX = (pinch.center.x - pinch.view.x) / pinch.view.scale;
+          const mapY = (pinch.center.y - pinch.view.y) / pinch.view.scale;
+          const nextView = { scale, x: center.x - mapX * scale, y: center.y - mapY * scale };
+          viewRef.current = nextView;
+          setView(nextView);
+          return;
+        }
         const drag = dragRef.current;
         if (!drag || drag.id !== event.pointerId) return;
         const dx = screen.x - drag.startX;
@@ -351,9 +478,22 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       }}
       onPointerUp={(event) => {
         const drag = dragRef.current;
-        if (drag && !drag.moved) onSelect(nearestPoint(eventPoint(event, event.currentTarget)));
-        dragRef.current = undefined;
+        const wasPinching = Boolean(pinchRef.current);
+        if (!wasPinching && drag && !drag.moved) onSelect(nearestPoint(eventPoint(event, event.currentTarget)));
+        pointersRef.current.delete(event.pointerId);
+        pinchRef.current = undefined;
+        const remaining = [...pointersRef.current.entries()][0];
+        const currentView = viewRef.current;
+        dragRef.current = remaining
+          ? { id: remaining[0], startX: remaining[1].x, startY: remaining[1].y, viewX: currentView.x, viewY: currentView.y, moved: true }
+          : undefined;
         event.currentTarget.releasePointerCapture(event.pointerId);
+      }}
+      onPointerCancel={(event) => {
+        pointersRef.current.delete(event.pointerId);
+        pinchRef.current = undefined;
+        dragRef.current = undefined;
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
       }}
       onPointerLeave={() => onCoordinate(undefined, undefined)}
       onKeyDown={(event) => {

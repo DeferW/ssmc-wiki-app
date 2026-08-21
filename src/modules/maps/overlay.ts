@@ -1,4 +1,4 @@
-import type { MapArea, MapOverlay, OverlayCategory, OverlayOccurrence, OverlayPoint, OverlayPrototype, Point } from "./types";
+import type { InsertPlacement, MapArea, MapAreaGrid, MapOverlay, OverlayCategory, OverlayOccurrence, OverlayPoint, OverlayPrototype, Point } from "./types";
 
 const LOOT_COMPONENTS = new Set([
   "RandomSpawner",
@@ -66,6 +66,27 @@ const CORPSE_ROLE_TRANSLATIONS: Record<string, string> = {
   "We-Ya PMC Standard": "боец ЧВК Вестон-Ямада",
 };
 
+const COMPONENT_TRANSLATIONS: Record<string, string> = {
+  CommunicationsTowerSpawner: "Спавнер вышки связи",
+  ConditionalSpawner: "Условный спавнер",
+  EntityTableSpawner: "Табличный спавнер",
+  GunSpawner: "Спавнер оружия",
+  IntelSpawner: "Спавнер разведданных",
+  ItemPoolSpawner: "Спавнер набора предметов",
+  MapInsert: "Вариативная часть карты",
+  ProportionalSpawner: "Пропорциональный спавнер",
+  RandomSpawner: "Случайный спавнер",
+  SquadSpawner: "Спавнер отряда",
+  UniqueRandomSpawner: "Уникальный случайный спавнер",
+};
+
+export type InsertVariationOption = {
+  path: string;
+  probability: number;
+  offset: Point;
+  index: number;
+};
+
 function categoryOf(id: string, prototype: OverlayPrototype, occurrence: OverlayOccurrence): OverlayCategory {
   if (typeof occurrence[4] === "string") return "label";
   const components = Object.keys(prototype.components ?? {});
@@ -106,36 +127,97 @@ function pointsFor(
   return points;
 }
 
-function rotate(x: number, y: number, radians: number): [number, number] {
-  return [x * Math.cos(radians) - y * Math.sin(radians), x * Math.sin(radians) + y * Math.cos(radians)];
+function vector(value: unknown): Point {
+  if (typeof value === "string") {
+    const [x, y, ...rest] = value.split(",").map(Number);
+    if (rest.length === 0 && Number.isFinite(x) && Number.isFinite(y)) return { x, y };
+  }
+  if (Array.isArray(value) && value.length === 2 && value.every((part) => typeof part === "number")) {
+    return { x: value[0], y: value[1] };
+  }
+  return { x: 0, y: 0 };
 }
 
-export function flattenOverlay(overlay: MapOverlay): OverlayPoint[] {
+export function insertVariations(point: OverlayPoint): InsertVariationOption[] {
+  const insert = point.components?.MapInsert;
+  const variations = Array.isArray(insert?.variations) ? insert.variations : [];
+  return variations.flatMap((rawVariation, index) => {
+    if (!rawVariation || typeof rawVariation !== "object") return [];
+    const variation = rawVariation as Record<string, unknown>;
+    if (typeof variation.spawn !== "string") return [];
+    return [{
+      path: variation.spawn,
+      probability: probabilityValue(variation.probability) ?? 1,
+      offset: vector(variation.offset),
+      index,
+    }];
+  });
+}
+
+export function insertOrigin(anchor: OverlayPoint, variation: InsertVariationOption): Point {
+  // Mirrors MapInsertSystem: map coordinates - 0.5, then the variation offset,
+  // finally a C# integer cast (truncation toward zero). Inserts are not rotated.
+  return {
+    x: Math.trunc(anchor.x - 0.5 + variation.offset.x),
+    y: Math.trunc(anchor.y - 0.5 + variation.offset.y),
+  };
+}
+
+export function flattenOverlay(
+  overlay: MapOverlay,
+  activeInserts: Record<string, string> = {},
+): OverlayPoint[] {
   const points = pointsFor(overlay.occurrences, overlay.prototypes, "map");
-  for (const anchor of points.filter((point) => point.category === "insert")) {
-    const insert = overlay.prototypes[anchor.prototypeId]?.components?.MapInsert;
-    const variations = Array.isArray(insert?.variations) ? insert.variations : [];
-    variations.forEach((rawVariation, variationIndex) => {
-      if (!rawVariation || typeof rawVariation !== "object") return;
-      const variation = rawVariation as Record<string, unknown>;
-      const path = variation.spawn;
-      if (typeof path !== "string") return;
-      const insertMap = overlay.insertMaps[path];
-      if (!insertMap) return;
-      for (const local of pointsFor(insertMap.occurrences, overlay.prototypes, `insert:${anchor.key}:${variationIndex}`)) {
-        const [x, y] = rotate(local.x, local.y, anchor.rotation);
-        points.push({
-          ...local,
-          key: `${local.key}:${anchor.key}`,
-          x: anchor.x + x,
-          y: anchor.y + y,
-          insertPath: path,
-          probability: probabilityValue(variation.probability),
-        });
-      }
-    });
-  }
+  const expand = (anchors: OverlayPoint[]) => {
+    for (const anchor of anchors.filter((point) => point.category === "insert")) {
+      const selectedPath = activeInserts[anchor.key];
+      const variation = insertVariations(anchor).find((candidate) => candidate.path === selectedPath);
+      if (!variation) continue;
+      const insertMap = overlay.insertMaps[variation.path];
+      if (!insertMap) continue;
+      const origin = insertOrigin(anchor, variation);
+      const inserted = pointsFor(
+        insertMap.occurrences,
+        overlay.prototypes,
+        `insert:${anchor.key}:${variation.index}`,
+      ).map((local) => ({
+        ...local,
+        key: `${local.key}:${anchor.key}`,
+        x: origin.x + local.x,
+        y: origin.y + local.y,
+        insertPath: variation.path,
+        probability: variation.probability,
+      }));
+      points.push(...inserted);
+      expand(inserted);
+    }
+  };
+  expand(points);
   return points;
+}
+
+export function activeInsertPlacements(
+  overlay: MapOverlay,
+  points: OverlayPoint[],
+  activeInserts: Record<string, string>,
+): InsertPlacement[] {
+  return points.flatMap((anchor) => {
+    if (anchor.category !== "insert") return [];
+    const path = activeInserts[anchor.key];
+    const variation = insertVariations(anchor).find((candidate) => candidate.path === path);
+    const insertMap = variation ? overlay.insertMaps[variation.path] : undefined;
+    if (!variation || !insertMap?.tiles) return [];
+    const component = anchor.components?.MapInsert;
+    return [{
+      key: anchor.key,
+      path: variation.path,
+      origin: insertOrigin(anchor, variation),
+      tiles: insertMap.tiles,
+      clearEntities: component?.clearEntities === true,
+      clearDecals: component?.clearDecals === true,
+      replaceAreas: component?.replaceAreas === true,
+    }];
+  });
 }
 
 export function pointDisplayName(point: OverlayPoint): string {
@@ -147,21 +229,38 @@ export function pointDisplayName(point: OverlayPoint): string {
   return point.name;
 }
 
-export function areaAt(overlay: MapOverlay | undefined, point: Point | undefined): MapArea | undefined {
-  if (!overlay?.areas || !point) return undefined;
+function areaInGrid(grid: MapAreaGrid | null | undefined, point: Point): MapArea | undefined {
+  if (!grid) return undefined;
   const x = Math.floor(point.x);
   const y = Math.floor(point.y);
-  const row = overlay.areas.rows.find((candidate) => candidate[0] === y);
+  const row = grid.rows.find((candidate) => candidate[0] === y);
   if (!row) return undefined;
   for (let index = 1; index + 2 < row.length; index += 3) {
     const start = row[index];
     const length = row[index + 1];
     if (x < start || x >= start + length) continue;
-    const area = overlay.areas.types[row[index + 2]];
+    const area = grid.types[row[index + 2]];
     if (!area) return undefined;
     return { prototypeId: area[0], name: area[1], supportMask: area[2] };
   }
   return undefined;
+}
+
+export function areaAt(
+  overlay: MapOverlay | undefined,
+  point: Point | undefined,
+  inserts: InsertPlacement[] = [],
+): MapArea | undefined {
+  if (!overlay || !point) return undefined;
+  for (const insert of [...inserts].reverse()) {
+    if (!insert.replaceAreas) continue;
+    const area = areaInGrid(overlay.insertMaps[insert.path]?.areas, {
+      x: point.x - insert.origin.x,
+      y: point.y - insert.origin.y,
+    });
+    if (area) return area;
+  }
+  return areaInGrid(overlay.areas, point);
 }
 
 export function describeComponents(point: OverlayPoint): string[] {
@@ -170,11 +269,28 @@ export function describeComponents(point: OverlayPoint): string[] {
     const chance = probabilityValue(component.chance);
     const prototypes = Array.isArray(component.prototypes) ? component.prototypes : [];
     const groups = Array.isArray(component.groups) ? component.groups : [];
-    const bits = [name];
+    const bits = [COMPONENT_TRANSLATIONS[name] ?? name];
     if (chance !== undefined) bits.push(`шанс ${Math.round(chance * 100)}%`);
     if (prototypes.length) bits.push(`${prototypes.length} вариантов`);
     if (groups.length) bits.push(`${groups.length} групп`);
     result.push(bits.join(" · "));
+  }
+  return result;
+}
+
+export function pointProbabilityDescriptions(point: OverlayPoint, points: OverlayPoint[]): string[] {
+  const result: string[] = [];
+  if (point.insertPath && point.probability !== undefined) {
+    result.push(`Вероятность активного варианта: ${Math.round(point.probability * 100)}%`);
+  }
+  const tower = point.components?.CommunicationsTowerSpawner;
+  if (typeof tower?.group === "string") {
+    const candidates = points.filter((candidate) => (
+      candidate.components?.CommunicationsTowerSpawner?.group === tower.group
+    ));
+    if (candidates.length > 0) {
+      result.push(`Вероятность появления вышки: ${Math.round(100 / candidates.length)}%`);
+    }
   }
   return result;
 }
@@ -184,12 +300,14 @@ export function spawnOptions(point: OverlayPoint): string[] {
   const visit = (value: unknown, key = "") => {
     if (Array.isArray(value)) {
       if (/prototypes?|entities|choices|spawns?/i.test(key)) {
-        for (const item of value) if (typeof item === "string") options.add(item);
+        for (const item of value) {
+          if (typeof item === "string" && !/\.ya?ml$/i.test(item)) options.add(item);
+        }
       }
       for (const item of value) visit(item, key);
     } else if (value && typeof value === "object") {
       for (const [childKey, child] of Object.entries(value as Record<string, unknown>)) visit(child, childKey);
-    } else if (typeof value === "string" && /prototype|entity|spawn/i.test(key)) {
+    } else if (typeof value === "string" && /prototype|entity|spawn/i.test(key) && !/\.ya?ml$/i.test(value)) {
       options.add(value);
     }
   };

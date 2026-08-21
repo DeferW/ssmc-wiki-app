@@ -1,26 +1,36 @@
 import { describe, expect, it } from "vitest";
-import { areaAt, flattenOverlay, pointDisplayName, spawnOptions } from "./overlay";
+import { activeInsertPlacements, areaAt, flattenOverlay, pointDisplayName, pointProbabilityDescriptions, spawnOptions } from "./overlay";
 import type { MapOverlay, OverlayPoint } from "./types";
 
 describe("map overlays", () => {
-  it("classifies loot and rotates insert contents using renderer radians", () => {
+  it("shows only the selected insert and mirrors the game's integer offset", () => {
     const overlay: MapOverlay = {
       schemaVersion: 1,
       mapPath: "/Maps/test.yml",
       prototypes: {
-        Insert: { name: "room", kind: "insert", components: { MapInsert: { variations: [{ spawn: "/Maps/room.yml", probability: 0.5 }] } } },
+        Insert: { name: "room", kind: "insert", components: { MapInsert: { variations: [{ spawn: "/Maps/room.yml", probability: 0.5, offset: "2,-1" }] } } },
         Loot: { name: "supplies", kind: "spawner", components: { RandomSpawner: { chance: 0.25, prototypes: ["Medkit", "Ammo"] } } },
       },
       occurrences: { Insert: [[10, 20, Math.PI / 2]], Loot: [[2, 3]] },
-      insertMaps: { "/Maps/room.yml": { occurrences: { Loot: [[4, 0]] } } },
+      insertMaps: { "/Maps/room.yml": { occurrences: { Loot: [[4, 0]] }, tiles: "inserts/room/tiles.json" } },
     };
-    const points = flattenOverlay(overlay);
+    expect(flattenOverlay(overlay).some((point) => point.insertPath)).toBe(false);
+    const points = flattenOverlay(overlay, { "map:Insert:0": "/Maps/room.yml" });
     expect(points.find((point) => point.key === "map:Loot:0")?.category).toBe("loot");
     const inserted = points.find((point) => point.insertPath);
-    expect(inserted?.x).toBeCloseTo(10);
-    expect(inserted?.y).toBeCloseTo(24);
+    expect(inserted?.x).toBe(15);
+    expect(inserted?.y).toBe(18);
     expect(inserted?.probability).toBe(0.5);
     expect(spawnOptions(points.find((point) => point.key === "map:Loot:0")!)).toEqual(["Ammo", "Medkit"]);
+    expect(activeInsertPlacements(overlay, points, { "map:Insert:0": "/Maps/room.yml" })).toEqual([{
+      key: "map:Insert:0",
+      path: "/Maps/room.yml",
+      origin: { x: 11, y: 18 },
+      tiles: "inserts/room/tiles.json",
+      clearEntities: false,
+      clearDecals: false,
+      replaceAreas: false,
+    }]);
   });
 
   it("reads compact area runs at tile coordinates", () => {
@@ -57,5 +67,22 @@ describe("map overlays", () => {
 
     expect(pointDisplayName(point)).toBe("Ограничитель транспорта");
     expect(pointDisplayName({ ...point, label: "Aurora Medical Clinic" })).toBe("Aurora Medical Clinic");
+  });
+
+  it("calculates grouped communication tower probability", () => {
+    const tower: OverlayPoint = {
+      key: "tower:1",
+      prototypeId: "RMCSpawnerCommunicationsTowerOne",
+      name: "static comms",
+      category: "marker",
+      x: 0,
+      y: 0,
+      rotation: 0,
+      components: { CommunicationsTowerSpawner: { group: "tower-a" } },
+    };
+
+    expect(pointProbabilityDescriptions(tower, [tower, { ...tower, key: "tower:2" }])).toEqual([
+      "Вероятность появления вышки: 50%",
+    ]);
   });
 });

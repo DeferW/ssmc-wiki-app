@@ -3,8 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import { loadMapCatalog, loadMapOverlay, loadTileManifest } from "./api";
 import { mapDataUrl } from "./config";
 import { MapCanvas, type MapCanvasHandle, type SelectionAnchor } from "./MapCanvas";
-import { areaAt, describeComponents, flattenOverlay, pointDisplayName, spawnOptions } from "./overlay";
-import type { CanvasStats, LayerSettings, MapCatalog, MapOverlay, OverlayCategory, OverlayPoint, Point, TileManifest } from "./types";
+import { activeInsertPlacements, areaAt, describeComponents, flattenOverlay, insertVariations, pointDisplayName, pointProbabilityDescriptions, spawnOptions } from "./overlay";
+import type { ActiveInsertRender, CanvasStats, LayerSettings, MapCatalog, MapOverlay, OverlayCategory, OverlayPoint, Point, TileManifest } from "./types";
 
 const SETTINGS_KEY = "ssmc-map-layers-v2";
 const DEFAULT_LAYERS: LayerSettings = {
@@ -14,6 +14,7 @@ const DEFAULT_LAYERS: LayerSettings = {
   spawn: false,
   marker: false,
   coordinateGrid: false,
+  areaSupport: false,
   markerScale: 1,
 };
 
@@ -33,16 +34,19 @@ const CATEGORY_LABELS: Record<OverlayCategory, string> = {
   marker: "Технический маркер",
 };
 
-const AREA_SUPPORT = [
-  { bit: 0, label: "Авиаудар (CAS)" },
-  { bit: 1, label: "Эвакуация «Фултон»" },
-  { bit: 2, label: "Лазерное целеуказание" },
-  { bit: 3, label: "Установка миномёта" },
-  { bit: 4, label: "Огонь миномёта" },
-  { bit: 5, label: "Медэвак" },
-  { bit: 6, label: "Десантирование" },
-  { bit: 7, label: "Орбитальный удар" },
-  { bit: 8, label: "Сброс снабжения" },
+const AREA_SUPPORT_COLUMNS = [
+  [
+    { bit: 7, label: "Орбитальный удар" },
+    { bit: 0, label: "Авиаудар (CAS)" },
+    { bit: 4, label: "Огонь миномёта" },
+    { bit: 3, label: "Установка миномёта" },
+  ],
+  [
+    { bit: 5, label: "Медэвак" },
+    { bit: 1, label: "Эвакуация «Фултон»" },
+    { bit: 6, label: "Десантирование" },
+    { bit: 8, label: "Сброс снабжения" },
+  ],
 ] as const;
 
 function initialLayers(): LayerSettings {
@@ -63,12 +67,91 @@ function formatCoordinate(point?: Point): string {
   return point ? `X ${point.x.toFixed(1)} · Y ${point.y.toFixed(1)}` : "Наведите на карту";
 }
 
+function MapPicker({
+  maps,
+  value,
+  onChange,
+}: {
+  maps: MapCatalog["maps"];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selectedIndex = Math.max(0, maps.findIndex((map) => map.id === value));
+  const [activeIndex, setActiveIndex] = useState(selectedIndex);
+  const selected = maps[selectedIndex];
+
+  const choose = (index: number) => {
+    const map = maps[index];
+    if (!map) return;
+    onChange(map.id);
+    setOpen(false);
+  };
+
+  return (
+    <div className="maps-picker-control" onBlur={(event) => {
+      if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+    }}>
+      <button
+        className="maps-picker-trigger"
+        type="button"
+        role="combobox"
+        aria-label="Карта"
+        aria-expanded={open}
+        aria-controls="maps-picker-options"
+        onClick={() => setOpen((valueOpen) => {
+          if (!valueOpen) setActiveIndex(selectedIndex);
+          return !valueOpen;
+        })}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            setOpen(false);
+            return;
+          }
+          if (!["ArrowDown", "ArrowUp", "Enter"].includes(event.key)) return;
+          event.preventDefault();
+          if (!open) {
+            setOpen(true);
+            return;
+          }
+          if (event.key === "ArrowDown") setActiveIndex((index) => (index + 1) % maps.length);
+          else if (event.key === "ArrowUp") setActiveIndex((index) => (index - 1 + maps.length) % maps.length);
+          else choose(activeIndex);
+        }}
+      >
+        <strong>{selected?.name ?? "Загрузка карт…"}</strong><span aria-hidden="true">⌄</span>
+      </button>
+      {open && (
+        <div className="maps-picker-options" id="maps-picker-options" role="listbox">
+          {maps.map((map, index) => (
+            <button
+              type="button"
+              role="option"
+              aria-selected={map.id === value}
+              className={index === activeIndex ? "is-active" : ""}
+              onMouseDown={(event) => event.preventDefault()}
+              onMouseEnter={() => setActiveIndex(index)}
+              onClick={() => choose(index)}
+              key={map.id}
+            >
+              <strong>{map.name}</strong>
+              <code>{map.kind === "ship" ? "Корабль" : "Планета"}</code>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function MapPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const canvasRef = useRef<MapCanvasHandle>(null);
   const [catalog, setCatalog] = useState<MapCatalog>();
   const [manifestResult, setManifestResult] = useState<{ url: string; value: TileManifest }>();
   const [overlayResult, setOverlayResult] = useState<{ url: string; value: MapOverlay }>();
+  const [insertManifests, setInsertManifests] = useState<Record<string, TileManifest>>({});
+  const [activeInserts, setActiveInserts] = useState<Record<string, string>>({});
   const [layers, setLayers] = useState<LayerSettings>(initialLayers);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<OverlayPoint>();
@@ -141,7 +224,10 @@ export function MapPage() {
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(layers)); } catch { /* private storage may be unavailable */ }
   }, [layers]);
 
-  const allPoints = useMemo(() => overlay ? flattenOverlay(overlay) : [], [overlay]);
+  const allPoints = useMemo(
+    () => overlay ? flattenOverlay(overlay, activeInserts) : [],
+    [activeInserts, overlay],
+  );
   const points = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("ru");
     if (!query) return allPoints;
@@ -152,7 +238,43 @@ export function MapPage() {
     return counts;
   }, {}), [allPoints]);
   const selectedOptions = useMemo(() => selected ? spawnOptions(selected) : [], [selected]);
-  const hoveredArea = useMemo(() => areaAt(overlay, coordinate), [coordinate, overlay]);
+  const insertPlacements = useMemo(
+    () => overlay ? activeInsertPlacements(overlay, allPoints, activeInserts) : [],
+    [activeInserts, allPoints, overlay],
+  );
+  const activeInsertRenders = useMemo<ActiveInsertRender[]>(() => insertPlacements.flatMap((placement) => {
+    const manifestUrlValue = mapDataUrl(placement.tiles);
+    const insertManifest = insertManifests[manifestUrlValue];
+    return insertManifest ? [{ ...placement, manifest: insertManifest, manifestUrl: manifestUrlValue }] : [];
+  }), [insertManifests, insertPlacements]);
+  const hoveredArea = useMemo(
+    () => areaAt(overlay, coordinate, insertPlacements),
+    [coordinate, insertPlacements, overlay],
+  );
+  const selectedInsertVariants = useMemo(
+    () => selected?.category === "insert" ? insertVariations(selected) : [],
+    [selected],
+  );
+  const selectedProbabilityDescriptions = useMemo(
+    () => selected ? pointProbabilityDescriptions(selected, allPoints) : [],
+    [allPoints, selected],
+  );
+
+  useEffect(() => {
+    const missing = insertPlacements
+      .map((placement) => mapDataUrl(placement.tiles))
+      .filter((url) => !insertManifests[url]);
+    if (missing.length === 0) return;
+    const controller = new AbortController();
+    Promise.all(missing.map(async (url) => [url, await loadTileManifest(url, controller.signal)] as const))
+      .then((loaded) => setInsertManifests((current) => ({ ...current, ...Object.fromEntries(loaded) })))
+      .catch((reason: unknown) => {
+        if (!(reason instanceof DOMException && reason.name === "AbortError")) {
+          setError(reason instanceof Error ? reason.message : "Не удалось загрузить рендер инсерта.");
+        }
+      });
+    return () => controller.abort();
+  }, [insertManifests, insertPlacements]);
 
   const toggleLayer = (key: OverlayCategory) => setLayers((current) => ({ ...current, [key]: !current[key] }));
   const onStats = useCallback((value: CanvasStats) => setStats(value), []);
@@ -177,26 +299,26 @@ export function MapPage() {
           {sidebarOpen ? "‹" : "☰"}
         </button>
         <div className="maps-map-picker">
-          <label className="sr-only" htmlFor="map-select">Карта</label>
-          <select
-            id="map-select"
-            value={entry?.id ?? ""}
-            disabled={!catalog}
-            onChange={(event) => {
+          {catalog && (
+            <MapPicker
+              maps={catalog.maps}
+              value={entry?.id ?? ""}
+              onChange={(mapId) => {
               setSelected(undefined);
+              setActiveInserts({});
+              setInsertManifests({});
               setCoordinate(undefined);
               setCoordinateAnchor(undefined);
               setError(undefined);
-              setSearchParams({ map: event.target.value });
-            }}
-          >
-            {catalog?.maps.map((map) => <option value={map.id} key={map.id}>{map.name}</option>)}
-          </select>
+                setSearchParams({ map: mapId });
+              }}
+            />
+          )}
           {entry && <span className={`map-kind map-kind--${entry.kind}`}>{entry.kind === "ship" ? "корабль" : "планета"}</span>}
         </div>
         <div className="maps-toolbar-actions" aria-label="Управление масштабом">
           <button type="button" onClick={() => canvasRef.current?.zoomBy(0.8)} aria-label="Уменьшить">−</button>
-          <button type="button" onClick={() => canvasRef.current?.reset()}>Вписать</button>
+          <button type="button" onClick={() => canvasRef.current?.reset()}>Сбросить</button>
           <button type="button" onClick={() => canvasRef.current?.zoomBy(1.25)} aria-label="Увеличить">+</button>
         </div>
         <div className="maps-network" title="В памяти находятся только тайлы вокруг видимой области">
@@ -213,6 +335,7 @@ export function MapPage() {
               manifest={manifest}
               manifestUrl={manifestUrl}
               points={coordinatesReady ? points : []}
+              insertRenders={activeInsertRenders}
               layers={layers}
               selectedKey={selected?.key}
               onSelect={onSelect}
@@ -225,9 +348,9 @@ export function MapPage() {
           )}
 
           <nav className="maps-mode-dock" aria-label="Режим работы карты">
-            <button className="is-active" type="button" aria-current="page" aria-label="Просмотр карты" title="Просмотр карты">⌖</button>
-            <button type="button" disabled aria-label="Редактор разметки — запланировано" title="Редактор разметки — следующий модуль">✎</button>
-            <button type="button" disabled aria-label="Расчёт зон огня — запланировано" title="Расчёт зон огня — следующий модуль">◎</button>
+            <button className="is-active" type="button" aria-current="page" aria-label="Просмотр карты" data-tooltip="Просмотр карты">⌖</button>
+            <button type="button" disabled aria-label="Редактор разметки" data-tooltip="Редактор разметки">✎</button>
+            <button type="button" disabled aria-label="Расчёт зон огня" data-tooltip="Расчёт зон огня">◎</button>
           </nav>
 
           {!coordinatesReady && manifest && (
@@ -239,7 +362,7 @@ export function MapPage() {
           <div className="maps-coordinate">{formatCoordinate(coordinate)}</div>
           {search && <div className="maps-result-count">Найдено: {points.length}</div>}
 
-          {coordinate && coordinateAnchor && hoveredArea && (
+          {layers.areaSupport && coordinate && coordinateAnchor && hoveredArea && (
             <section
               className={`maps-tile-info maps-tile-info--${coordinateAnchor.align} maps-tile-info--${coordinateAnchor.vertical ?? "above"}`}
               style={{ left: coordinateAnchor.x, top: coordinateAnchor.y }}
@@ -250,21 +373,25 @@ export function MapPage() {
               </div>
               <strong>{hoveredArea.name}</strong>
               <div className="maps-support-grid">
-                {AREA_SUPPORT.map((support) => {
-                  const allowed = Boolean(hoveredArea.supportMask & (1 << support.bit));
-                  return (
-                    <span className={allowed ? "is-allowed" : "is-blocked"} key={support.bit}>
-                      <i aria-hidden="true">{allowed ? "✓" : "—"}</i>{support.label}
-                    </span>
-                  );
-                })}
+                {AREA_SUPPORT_COLUMNS.map((column, columnIndex) => (
+                  <div className="maps-support-column" key={columnIndex}>
+                    {column.map((support) => {
+                      const allowed = Boolean(hoveredArea.supportMask & (1 << support.bit));
+                      return (
+                        <span className={allowed ? "is-allowed" : "is-blocked"} key={support.bit}>
+                          <i aria-hidden="true">{allowed ? "✓" : "—"}</i>{support.label}
+                        </span>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
             </section>
           )}
 
           {selected && selectionAnchor && (
             <section
-              className={`maps-inspector maps-inspector--${selectionAnchor.align}`}
+              className={`maps-inspector maps-inspector--${selectionAnchor.align} maps-inspector--${selectionAnchor.vertical ?? "below"}`}
               style={{ left: selectionAnchor.x, top: selectionAnchor.y }}
             >
               <button className="maps-inspector-close" type="button" onClick={() => setSelected(undefined)} aria-label="Закрыть информацию">×</button>
@@ -274,7 +401,43 @@ export function MapPage() {
               <p>X {selected.x.toFixed(1)} · Y {selected.y.toFixed(1)}</p>
               {selected.probability !== undefined && <p>Вероятность инсерта: {Math.round(selected.probability * 100)}%</p>}
               {selected.insertPath && <p className="maps-path">Вариант: {selected.insertPath}</p>}
+              {selectedProbabilityDescriptions.map((description) => <p key={description}>{description}</p>)}
               {describeComponents(selected).map((description) => <p key={description}>{description}</p>)}
+              {selectedInsertVariants.length > 0 && (
+                <section className="maps-insert-switcher">
+                  <strong>Рендер инсерта</strong>
+                  <p>Можно подменить этот участок карты выбранным игровым вариантом.</p>
+                  <button
+                    type="button"
+                    className={!activeInserts[selected.key] ? "is-active" : ""}
+                    onClick={() => setActiveInserts((current) => {
+                      const next = { ...current };
+                      delete next[selected.key];
+                      return next;
+                    })}
+                  >
+                    <span>Обычная карта</span><output>База</output>
+                  </button>
+                  {selectedInsertVariants.map((variation, index) => {
+                    const available = Boolean(overlay?.insertMaps[variation.path]?.tiles);
+                    return (
+                      <button
+                        type="button"
+                        className={activeInserts[selected.key] === variation.path ? "is-active" : ""}
+                        disabled={!available}
+                        onClick={() => setActiveInserts((current) => ({ ...current, [selected.key]: variation.path }))}
+                        key={`${variation.path}:${index}`}
+                      >
+                        <span>{variation.path.split("/").at(-1)?.replace(/\.yml$/i, "") ?? `Вариант ${index + 1}`}</span>
+                        <output>{Math.round(variation.probability * 100)}%</output>
+                      </button>
+                    );
+                  })}
+                  {selectedInsertVariants.some((variation) => !overlay?.insertMaps[variation.path]?.tiles) && (
+                    <small>Рендеры появятся после обновления данных карт.</small>
+                  )}
+                </section>
+              )}
               {selectedOptions.length > 0 && (
                 <details className="maps-spawn-options">
                   <summary>Возможные сущности ({selectedOptions.length})</summary>
@@ -288,7 +451,6 @@ export function MapPage() {
         <aside id="map-layers" className={sidebarOpen ? "maps-sidebar is-open" : "maps-sidebar"}>
           <div className="maps-sidebar-heading">
             <div><span className="eyebrow">Отображение</span><h1>Слои</h1></div>
-            <button type="button" onClick={() => setSidebarOpen(false)} aria-label="Свернуть панель">‹</button>
           </div>
 
           <label className="maps-search">
@@ -308,6 +470,10 @@ export function MapPage() {
               <input type="checkbox" checked={layers.coordinateGrid} onChange={() => setLayers((value) => ({ ...value, coordinateGrid: !value.coordinateGrid }))} />
               <span title="Шаг 10 игровых метров"><strong>Сетка координат</strong></span>
             </label>
+            <label className="maps-layer">
+              <input type="checkbox" checked={layers.areaSupport} onChange={() => setLayers((value) => ({ ...value, areaSupport: !value.areaSupport }))} />
+              <span title="Разрешения поддержки под курсором"><strong>Поддержка тайла</strong></span>
+            </label>
           </section>
 
           <label className="maps-marker-size">
@@ -315,7 +481,11 @@ export function MapPage() {
             <input type="range" min="0.6" max="1.8" step="0.1" value={layers.markerScale} onChange={(event) => setLayers((value) => ({ ...value, markerScale: Number(event.target.value) }))} />
           </label>
 
-          <p className="maps-sidebar-hint">Колесо — масштаб · перетаскивание — обзор · клик — данные точки</p>
+          <p className="maps-sidebar-hint">
+            <span>Колесо или два пальца — масштаб</span>
+            <span>Перетаскивание — обзор</span>
+            <span>Клик — данные точки</span>
+          </p>
         </aside>
       </div>
     </main>
