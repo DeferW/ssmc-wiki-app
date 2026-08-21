@@ -288,6 +288,7 @@ export function DamagePage() {
       )}
 
       <div className="damage-workspace">
+      <div className="damage-weapon-column">
       {catalog && (
         <section className="damage-loadout">
           <div className="loadout-row">
@@ -383,7 +384,10 @@ export function DamagePage() {
           )}
         </section>
       )}
+      </div>
 
+      <div className="damage-side-grid">
+      <div className="damage-target-stack">
       {catalog && (
         <section className="damage-loadout">
           <div className="loadout-row">
@@ -468,7 +472,9 @@ export function DamagePage() {
           )}
         </section>
       )}
+      </div>
 
+      <div className="damage-result-stack">
       {selectedWeapon && selectedProjectile && target && targetArmor && targetThresholds && (
         <section className="damage-loadout">
           <h3>Дистанция</h3>
@@ -494,24 +500,24 @@ export function DamagePage() {
       </div>
 
       {selectedWeapon && selectedProjectile && target && targetArmor && hasAimedShot && aimedShotEffect && (
-        <section className="damage-loadout">
-          <AimedShotCard
-            ability={aimedShotAbilityFrom(aimedShotAbilityRaw)}
-            hasFocusedShooting={hasFocusedShooting}
-            effect={aimedShotEffect}
-            distance={distance}
-            effectiveDamage={adjustedEffectiveDamage}
-            falloffThresholds={falloffThresholds}
-            weaponFalloffMultiplier={weaponFalloffMultiplier}
-            armorPiercing={armorPiercing}
-            weaponCategory="bullet"
-            target={targetArmor}
-            hitDirection={hitDirection}
-            targetSize={targetSize}
-            criticalThreshold={targetThresholds?.critical ?? null}
-          />
-        </section>
+        <AimedShotCard
+          ability={aimedShotAbilityFrom(aimedShotAbilityRaw)}
+          hasFocusedShooting={hasFocusedShooting}
+          effect={aimedShotEffect}
+          distance={distance}
+          effectiveDamage={adjustedEffectiveDamage}
+          falloffThresholds={falloffThresholds}
+          weaponFalloffMultiplier={weaponFalloffMultiplier}
+          armorPiercing={armorPiercing}
+          weaponCategory="bullet"
+          target={targetArmor}
+          hitDirection={hitDirection}
+          targetSize={targetSize}
+          criticalThreshold={targetThresholds?.critical ?? null}
+        />
       )}
+      </div>
+      </div>
 
       {picker?.type === "weapon" && catalog && (
         <PickerModal title="Выбор оружия" onClose={() => setPicker(null)}>
