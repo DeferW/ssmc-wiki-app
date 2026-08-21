@@ -18,6 +18,10 @@
 .damage-panel-empty strong { color: var(--text); font-size: 1rem; text-transform: uppercase; }
 .damage-panel-empty p { max-width: 300px; margin: 0; color: var(--muted); font-size: .68rem; line-height: 1.6; }
 .loadout-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px; }
+.damage-weapon-card > .loadout-row { flex-wrap: nowrap; gap: 8px; overflow-x: auto; padding: 0 2px 6px; }
+.damage-weapon-card > .loadout-row > .item-slot { flex: 0 0 132px; }
+.damage-weapon-card > .loadout-row > .attachment-slot-wrap { flex: 0 0 68px; min-width: 0; }
+.damage-weapon-card > .loadout-row .item-slot.is-compact { width: 68px; }
 
 .attachment-slot-wrap { display: grid; gap: 6px; justify-items: center; }
 
