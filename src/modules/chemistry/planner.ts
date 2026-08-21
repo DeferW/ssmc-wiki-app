@@ -4,14 +4,12 @@ import type {
   ChemistryReaction,
   PlannedBatch,
   PlannedPreparation,
-  PlannerMode,
   PreparationPlan,
   TransferMode,
 } from "./types";
 import { formatReagentName } from "./format";
 
 export const BEAKER_CAPACITY = 100;
-export const TANK_CAPACITY = 1000;
 export const CHEM_MASTER_AMOUNTS = [100, 50, 30, 25, 20, 15, 10, 5, 1] as const;
 
 type PlannerContext = {
@@ -137,13 +135,56 @@ function effectWarning(effect: ChemistryEffect) {
   return type ? `Дополнительный эффект реакции: ${type}.` : "";
 }
 
+function batchActionCount(reaction: ChemistryReaction, scale: number) {
+  let occupied = 0;
+  let actions = 0;
+  for (const reactant of reaction.reactants) {
+    const amount = roundAmount(reactant.amount * scale);
+    actions += transferModes(amount, BEAKER_CAPACITY - occupied).length;
+    occupied += amount;
+  }
+  return actions;
+}
+
+function optimalRunGroups(
+  reaction: ChemistryReaction,
+  scaleQuantum: number,
+  quantumRuns: number,
+  maxQuantumRuns: number,
+) {
+  type Candidate = { actions: number; groups: number[] };
+  const best: Array<Candidate | undefined> = Array(quantumRuns + 1);
+  best[0] = { actions: 0, groups: [] };
+
+  for (let totalRuns = 1; totalRuns <= quantumRuns; totalRuns += 1) {
+    const maximumCurrent = Math.min(totalRuns, maxQuantumRuns);
+    for (let currentRuns = 1; currentRuns <= maximumCurrent; currentRuns += 1) {
+      const previous = best[totalRuns - currentRuns];
+      if (!previous) continue;
+      const candidate: Candidate = {
+        actions: previous.actions + batchActionCount(reaction, currentRuns * scaleQuantum),
+        groups: [...previous.groups, currentRuns],
+      };
+      const stored = best[totalRuns];
+      if (
+        !stored
+        || candidate.actions < stored.actions
+        || (candidate.actions === stored.actions && candidate.groups.length < stored.groups.length)
+      ) {
+        best[totalRuns] = candidate;
+      }
+    }
+  }
+
+  const groups = best[quantumRuns]?.groups ?? [];
+  return groups.sort((left, right) => right - left);
+}
+
 function planPreparation(
   context: PlannerContext,
   reagentId: string,
   requestedAmount: number,
   capacity: number,
-  vessel: "beaker" | "tank",
-  allowMultipleBatches: boolean,
   stack: string[],
 ): PlannedPreparation {
   const reaction = context.recipes.get(reagentId);
@@ -178,21 +219,12 @@ function planPreparation(
   }
 
   const quantumRuns = Math.ceil((requestedAmount - EPSILON) / targetQuantum);
-  if (!allowMultipleBatches && quantumRuns > maxQuantumRuns) {
-    const maximumTarget = roundAmount(maxQuantumRuns * targetQuantum);
-    throw new Error(
-      `В одном баке можно приготовить не больше ${maximumTarget}u выбранного вещества: `
-      + `смесь достигнет лимита ${capacity}u.`,
-    );
-  }
-
-  const runGroups: number[] = [];
-  let runsLeft = quantumRuns;
-  while (runsLeft > 0) {
-    const currentRuns = Math.min(runsLeft, maxQuantumRuns);
-    runGroups.push(currentRuns);
-    runsLeft -= currentRuns;
-  }
+  const runGroups = optimalRunGroups(
+    reaction,
+    scaleQuantum,
+    quantumRuns,
+    maxQuantumRuns,
+  );
 
   const batches: PlannedBatch[] = runGroups.map((runs, batchIndex) => {
     const scale = runs * scaleQuantum;
@@ -210,7 +242,7 @@ function planPreparation(
       key: `${[...stack, reagentId].join("/")}:${batchIndex}`,
       batchNumber: batchIndex + 1,
       batchCount: runGroups.length,
-      vessel,
+      vessel: "beaker" as const,
       capacity,
       targetAmount,
       totalInput: roundAmount(reaction.reactants.reduce(
@@ -252,8 +284,6 @@ function planPreparation(
     inputReagentId,
     inputAmount,
     BEAKER_CAPACITY,
-    "beaker",
-    true,
     [...stack, reagentId],
   ));
 
@@ -299,7 +329,6 @@ export function buildPreparationPlan(
   catalog: ChemistryCatalog,
   reagentId: string,
   requestedAmount: number,
-  mode: PlannerMode,
 ): PreparationPlan {
   if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
     throw new Error("Укажите положительный объём вещества.");
@@ -309,13 +338,10 @@ export function buildPreparationPlan(
     context,
     reagentId,
     requestedAmount,
-    mode === "tank" ? TANK_CAPACITY : BEAKER_CAPACITY,
-    mode === "tank" ? "tank" : "beaker",
-    mode === "beakers",
+    BEAKER_CAPACITY,
     [],
   );
   return {
-    mode,
     requestedAmount,
     producedAmount: target.producedAmount,
     surplusAmount: target.surplusAmount,
@@ -351,23 +377,14 @@ export function transferModes(amount: number, freeCapacity: number): TransferMod
   return fixedTransferModes(amount);
 }
 
-export function tankTransferPortions(amount: number) {
-  if (!Number.isInteger(amount) || amount < 0) {
-    throw new Error(`Нельзя перенести ${amount}u через мензурку на 100u.`);
-  }
-  const portions: Array<{ amount: number; modes: TransferMode[] }> = [];
-  let left = amount;
-  while (left > 0) {
-    const current = Math.min(left, BEAKER_CAPACITY);
-    portions.push({
-      amount: current,
-      modes: transferModes(current, BEAKER_CAPACITY),
-    });
-    left -= current;
-  }
-  return portions;
-}
-
 export function formatTransferModes(modes: TransferMode[]) {
-  return modes.join(" → ");
+  const groups: Array<{ mode: TransferMode; count: number }> = [];
+  for (const mode of modes) {
+    const previous = groups[groups.length - 1];
+    if (previous?.mode === mode) previous.count += 1;
+    else groups.push({ mode, count: 1 });
+  }
+  return groups.map(({ mode, count }) => (
+    count > 1 ? `${mode} × ${count}` : String(mode)
+  )).join(" → ");
 }

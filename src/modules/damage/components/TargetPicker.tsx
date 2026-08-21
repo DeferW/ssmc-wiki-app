@@ -17,12 +17,24 @@ export function TargetPicker({ catalog, mobCatalog, selected, onSelect }: {
   onSelect: (selection: TargetSelection) => void;
 }) {
   const [tab, setTab] = useState<Tab>(selected?.kind === "xeno" ? "xeno" : "marine");
+  const [query, setQuery] = useState("");
+  const normalizedQuery = query.trim().toLocaleLowerCase("ru-RU");
 
   const xenoCastes = useMemo(() => (
     Object.values(mobCatalog.xenoCastes).sort((a, b) => (
       a.name.localeCompare(b.name, "ru") || (a.strainName ?? "").localeCompare(b.strainName ?? "", "ru")
     ))
   ), [mobCatalog]);
+  const visibleMarinePresets = useMemo(() => (
+    normalizedQuery
+      ? MARINE_PRESETS.filter((preset) => `${preset.name} ${preset.description}`.toLocaleLowerCase("ru-RU").includes(normalizedQuery))
+      : MARINE_PRESETS
+  ), [normalizedQuery]);
+  const visibleXenoCastes = useMemo(() => (
+    normalizedQuery
+      ? xenoCastes.filter((caste) => `${xenoCasteLabel(caste)} ${caste.name} ${caste.id} ${caste.strainName ?? ""}`.toLocaleLowerCase("ru-RU").includes(normalizedQuery))
+      : xenoCastes
+  ), [normalizedQuery, xenoCastes]);
 
   return (
     <div className="target-picker">
@@ -46,10 +58,15 @@ export function TargetPicker({ catalog, mobCatalog, selected, onSelect }: {
           Ксеноморф
         </button>
       </div>
+      <label className="picker-search">
+        <span aria-hidden="true">⌕</span>
+        <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск цели…" autoFocus />
+        <small>{tab === "marine" ? visibleMarinePresets.length : visibleXenoCastes.length}</small>
+      </label>
 
       {tab === "marine" && (
         <div className="target-grid">
-          {MARINE_PRESETS.map((preset) => {
+          {visibleMarinePresets.map((preset) => {
             const armor = marineArmorFromItems(preset.itemIds, catalog);
             const isSelected = selected?.kind === "marine" && selected.presetId === preset.id;
             return (
@@ -76,12 +93,13 @@ export function TargetPicker({ catalog, mobCatalog, selected, onSelect }: {
               </button>
             );
           })}
+          {!visibleMarinePresets.length && <p className="picker-empty">Цель не найдена.</p>}
         </div>
       )}
 
       {tab === "xeno" && (
         <div className="target-grid">
-          {xenoCastes.map((caste) => {
+          {visibleXenoCastes.map((caste) => {
             const isSelected = selected?.kind === "xeno" && selected.casteId === caste.id;
             return (
               <button
@@ -100,6 +118,7 @@ export function TargetPicker({ catalog, mobCatalog, selected, onSelect }: {
               </button>
             );
           })}
+          {!visibleXenoCastes.length && <p className="picker-empty">Цель не найдена.</p>}
         </div>
       )}
     </div>

@@ -6,7 +6,6 @@ import {
   buildPreparationPlan,
   craftableReagentIds,
   formatTransferModes,
-  tankTransferPortions,
   transferModes,
 } from "./planner";
 import type {
@@ -17,7 +16,6 @@ import type {
   ChemistrySectionId,
   PlannedBatch,
   PlannedPreparation,
-  PlannerMode,
   PreparationPlan,
 } from "./types";
 
@@ -222,28 +220,17 @@ function ReagentCard({
   );
 }
 
-function InputInstruction({ batch, inputIndex }: { batch: PlannedBatch; inputIndex: number }) {
+function InputInstruction({ batch, inputIndex, repeatCount = 1 }: { batch: PlannedBatch; inputIndex: number; repeatCount?: number }) {
   const input = batch.inputs[inputIndex];
   const prepared = input.prepared ? "приготовленный " : "";
-  if (batch.vessel === "tank") {
-    const portions = tankTransferPortions(input.amount);
-    const transfers = portions.map((portion, index) => (
-      (index + 1) + ") " + amount(portion.amount) + " [" + formatTransferModes(portion.modes) + "]"
-    ));
-    return (
-      <li>
-        Выберите {prepared}<strong>{formatReagentName(input.name, input.reagentId)}</strong> в химмастере. Наполните 100u-мензурку
-        и вылейте её в бак: {transfers.join("; ")}.
-      </li>
-    );
-  }
   const occupiedBefore = batch.inputs
     .slice(0, inputIndex)
     .reduce((total, current) => total + current.amount, 0);
   const modes = transferModes(input.amount, batch.capacity - occupiedBefore);
   return (
     <li>
-      В химмастере выберите {prepared}<strong>{formatReagentName(input.name, input.reagentId)}</strong> и перенесите {amount(input.amount)}:
+      В химмастере выберите {prepared}<strong>{formatReagentName(input.name, input.reagentId)}</strong> и
+      {repeatCount > 1 ? ` в каждую из ${repeatCount} мензурок перенесите ` : " перенесите "}{amount(input.amount)}:
       <code className="chem-mode-sequence">{formatTransferModes(modes)}</code>
     </li>
   );
@@ -258,6 +245,7 @@ function PreparationBlock({
   root?: boolean;
   depth?: number;
 }) {
+  const groups = groupEquivalentBatches(preparation.batches);
   return (
     <section className={"chem-preparation depth-" + Math.min(depth, 3)}>
       <header>
@@ -282,28 +270,28 @@ function PreparationBlock({
           ))}
         </div>
       )}
-      {preparation.batches.map((batch) => (
+      {groups.map(({ batch, first, last, count }) => (
         <article className="chem-batch" key={batch.key}>
           <h4>
-            {batch.vessel === "tank"
-              ? "Приготовление в баке"
-              : "Мензурка " + batch.batchNumber + " из " + batch.batchCount}
-            <span>{amount(batch.targetAmount)} {formatReagentName(preparation.name, preparation.reagentId)}</span>
+            {count > 1
+              ? `Мензурки ${first}–${last} из ${batch.batchCount}`
+              : `Мензурка ${first} из ${batch.batchCount}`}
+            <span>{count > 1 ? `${count} × ` : ""}{amount(batch.targetAmount)} {formatReagentName(preparation.name, preparation.reagentId)}</span>
           </h4>
           <ol>
             <li>
-              {batch.vessel === "tank"
-                ? "Подготовьте пустой бак. Его нельзя вставить в химмастер: каждый реагент переносится через отдельную 100u-мензурку."
+              {count > 1
+                ? `Подготовьте ${count} чистых мензурок на 100u. Выполняйте один шаг сразу для всей группы, не переключая реагент после каждой мензурки.`
                 : "Возьмите чистую мензурку на 100u и установите её в химмастер."}
             </li>
             {batch.inputs.map((input, inputIndex) => (
-              <InputInstruction batch={batch} inputIndex={inputIndex} key={batch.key + ":" + input.reagentId} />
+              <InputInstruction batch={batch} inputIndex={inputIndex} repeatCount={count} key={batch.key + ":" + input.reagentId} />
             ))}
             {batch.minTemperature !== undefined && (
               <li>Нагрейте смесь минимум до <strong>{numberFormat.format(batch.minTemperature)} K</strong>.</li>
             )}
             <li>
-              Получится <strong>{amount(batch.targetAmount)} {formatReagentName(preparation.name, preparation.reagentId)}</strong>
+              {count > 1 ? "В каждой мензурке получится " : "Получится "}<strong>{amount(batch.targetAmount)} {formatReagentName(preparation.name, preparation.reagentId)}</strong>
               {batch.byproducts.length > 0 && (
                 <> и {batch.byproducts.map((item) => amount(item.amount) + " " + formatReagentName(item.name, item.reagentId)).join(", ")}</>
               )}.
@@ -317,6 +305,27 @@ function PreparationBlock({
       ))}
     </section>
   );
+}
+
+function groupEquivalentBatches(batches: PlannedBatch[]) {
+  const groups: Array<{ batch: PlannedBatch; first: number; last: number; count: number }> = [];
+  const signature = (batch: PlannedBatch) => JSON.stringify({
+    targetAmount: batch.targetAmount,
+    inputs: batch.inputs,
+    byproducts: batch.byproducts,
+    minTemperature: batch.minTemperature,
+    warnings: batch.warnings,
+  });
+  for (const batch of batches) {
+    const previous = groups[groups.length - 1];
+    if (previous && signature(previous.batch) === signature(batch)) {
+      previous.last = batch.batchNumber;
+      previous.count += 1;
+    } else {
+      groups.push({ batch, first: batch.batchNumber, last: batch.batchNumber, count: 1 });
+    }
+  }
+  return groups;
 }
 
 function ReagentCombobox({
@@ -433,11 +442,8 @@ function ReagentCombobox({
 function Planner({ catalog }: { catalog: ChemistryCatalog }) {
   const craftableIds = useMemo(() => craftableReagentIds(catalog), [catalog]);
   const reagents = useMemo(() => ({ ...catalog.dependencies, ...catalog.reagents }), [catalog]);
-  const [reagentId, setReagentId] = useState(
-    craftableIds.includes("CMBicaridine") ? "CMBicaridine" : craftableIds[0] ?? "",
-  );
-  const [requestedAmount, setRequestedAmount] = useState(100);
-  const [mode, setMode] = useState<PlannerMode>("beakers");
+  const [reagentId, setReagentId] = useState("");
+  const [requestedAmount, setRequestedAmount] = useState("100");
   const [plan, setPlan] = useState<PreparationPlan | null>(null);
   const [error, setError] = useState("");
 
@@ -449,7 +455,7 @@ function Planner({ catalog }: { catalog: ChemistryCatalog }) {
       return;
     }
     try {
-      setPlan(buildPreparationPlan(catalog, reagentId, requestedAmount, mode));
+      setPlan(buildPreparationPlan(catalog, reagentId, Number(requestedAmount)));
       setError("");
     } catch (caught) {
       setPlan(null);
@@ -468,26 +474,20 @@ function Planner({ catalog }: { catalog: ChemistryCatalog }) {
           <span>Требуемый объём</span>
           <span className="chem-amount-input">
             <input
-              type="number"
-              min="1"
-              step="1"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={requestedAmount}
-              onChange={(event) => setRequestedAmount(Number(event.target.value))}
+              onChange={(event) => {
+                const next = event.target.value;
+                if (!/^\d*$/u.test(next)) return;
+                setRequestedAmount(next.replace(/^0+(?=\d)/u, ""));
+              }}
             />
             <b>u</b>
           </span>
         </label>
-        <fieldset>
-          <legend>Режим приготовления</legend>
-          <label>
-            <input type="radio" name="planner-mode" checked={mode === "beakers"} onChange={() => setMode("beakers")} />
-            <span><strong>Мензурки</strong><small>Порции по 100u</small></span>
-          </label>
-          <label>
-            <input type="radio" name="planner-mode" checked={mode === "tank"} onChange={() => setMode("tank")} />
-            <span><strong>Бак</strong><small>До 1000u, заливка через мензурки</small></span>
-          </label>
-        </fieldset>
+        <div className="chem-vessel-note"><strong>Мензурка 100u</strong><small>Большие объёмы автоматически делятся на оптимальные порции</small></div>
         <button type="submit">[ ПОСТРОИТЬ МАРШРУТ ]</button>
       </form>
 

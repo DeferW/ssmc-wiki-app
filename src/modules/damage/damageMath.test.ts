@@ -325,6 +325,32 @@ describe("simulateEngagement", () => {
     }, { critical: 500, dead: 600 });
     expect(result.shots.length).toBe(result.hitsToDead);
   });
+
+  it("adds the emergency pause when a continuous burst overheats", () => {
+    const result = simulateEngagement({
+      effectiveDamage: { Piercing: 1 },
+      distance: 1,
+      falloffThresholds: [],
+      weaponFalloffMultiplier: 0,
+      baseArmorPiercing: 0,
+      baseDamageMultiplier: 1,
+      baseShotsPerSecond: 10,
+      weaponCategory: "bullet",
+      target: { kind: "marine", bullet: 0, melee: 0, bio: 0 },
+      overheat: {
+        maxHeat: 40,
+        heatPerShot: 1,
+        cooldownRate: 0,
+        emergencyCooldownMultiplier: 0.375,
+        emergencyCooldownDelaySeconds: 1,
+      },
+    }, { critical: null, dead: 45 });
+
+    expect(result.hitsToDead).toBe(45);
+    expect(result.overheatCount).toBe(1);
+    expect(result.shots[39]).toMatchObject({ overheated: true, heatAfterShot: 40 });
+    expect(result.timeToDeadSeconds).toBeCloseTo(5.4, 10);
+  });
 });
 
 describe("hitsToKill", () => {

@@ -244,6 +244,14 @@ export type GunStacksConfig = {
   activeFireRate: number;
 };
 
+export type OverheatConfig = {
+  maxHeat: number;
+  heatPerShot: number;
+  cooldownRate: number;
+  emergencyCooldownMultiplier: number;
+  emergencyCooldownDelaySeconds: number;
+};
+
 export type SimulatedShot = {
   index: number;
   totalDamage: number;
@@ -252,6 +260,8 @@ export type SimulatedShot = {
   armorPiercing: number;
   damageMultiplier: number;
   shotsPerSecond: number;
+  heatAfterShot?: number;
+  overheated?: boolean;
 };
 
 export type EngagementSimulationInput = {
@@ -266,6 +276,7 @@ export type EngagementSimulationInput = {
   target: ArmorTarget;
   hitDirection?: HitDirection;
   gunStacks?: GunStacksConfig;
+  overheat?: OverheatConfig;
 };
 
 export type EngagementResult = {
@@ -274,6 +285,7 @@ export type EngagementResult = {
   hitsToDead: number;
   timeToCriticalSeconds: number;
   timeToDeadSeconds: number;
+  overheatCount: number;
 };
 
 const MAX_SIMULATED_SHOTS = 300;
@@ -291,6 +303,8 @@ export function simulateEngagement(input: EngagementSimulationInput, thresholds:
   let hitsToDead = Infinity;
   let timeToCriticalSeconds = Infinity;
   let timeToDeadSeconds = Infinity;
+  let currentHeat = 0;
+  let overheatCount = 0;
 
   for (let index = 1; index <= MAX_SIMULATED_SHOTS; index++) {
     const stacksActive = Boolean(input.gunStacks) && consecutiveHits > 0;
@@ -317,7 +331,23 @@ export function simulateEngagement(input: EngagementSimulationInput, thresholds:
     });
 
     cumulativeDamage += hit.totalDamage;
-    cumulativeTimeSeconds += shotsPerSecond > 0 ? 1 / shotsPerSecond : Infinity;
+    const firingPeriod = shotsPerSecond > 0 ? 1 / shotsPerSecond : Infinity;
+    let intervalAfterShot = firingPeriod;
+    let heatAfterShot: number | undefined;
+    let overheated = false;
+    if (input.overheat) {
+      currentHeat += input.overheat.heatPerShot;
+      heatAfterShot = currentHeat;
+      overheated = currentHeat >= input.overheat.maxHeat;
+      if (overheated) {
+        overheatCount += 1;
+        intervalAfterShot = Math.max(firingPeriod, input.overheat.emergencyCooldownDelaySeconds);
+        currentHeat *= input.overheat.emergencyCooldownMultiplier;
+      } else if (Number.isFinite(firingPeriod)) {
+        currentHeat = Math.max(0, currentHeat - input.overheat.cooldownRate * firingPeriod);
+      }
+    }
+    cumulativeTimeSeconds += intervalAfterShot;
 
     shots.push({
       index,
@@ -327,6 +357,8 @@ export function simulateEngagement(input: EngagementSimulationInput, thresholds:
       armorPiercing,
       damageMultiplier,
       shotsPerSecond,
+      heatAfterShot,
+      overheated,
     });
 
     if (hitsToCritical === Infinity && thresholds.critical != null && cumulativeDamage >= thresholds.critical) {
@@ -342,7 +374,7 @@ export function simulateEngagement(input: EngagementSimulationInput, thresholds:
     consecutiveHits += 1;
   }
 
-  return { shots, hitsToCritical, hitsToDead, timeToCriticalSeconds, timeToDeadSeconds };
+  return { shots, hitsToCritical, hitsToDead, timeToCriticalSeconds, timeToDeadSeconds, overheatCount };
 }
 
 export type AmmoNeeded = { shots: number; magazines: number | null };

@@ -6,6 +6,7 @@ import type {
   DamageTypeMap,
   GunStacksConfig,
   HitDirection,
+  OverheatConfig,
   WeaponCategory,
 } from "../damageMath";
 import type { MobThresholdPair } from "../mobTypes";
@@ -45,6 +46,7 @@ export function ResultPanel({
   thresholds,
   magazineCapacity,
   gunStacks,
+  overheat,
 }: {
   effectiveDamage: DamageTypeMap;
   distance: number;
@@ -59,6 +61,7 @@ export function ResultPanel({
   thresholds: MobThresholdPair;
   magazineCapacity: number | null;
   gunStacks?: GunStacksConfig;
+  overheat?: OverheatConfig;
 }) {
   const engagement = simulateEngagement({
     effectiveDamage,
@@ -72,6 +75,7 @@ export function ResultPanel({
     target,
     hitDirection,
     gunStacks,
+    overheat,
   }, thresholds);
 
   const ammoDead = ammoNeeded(engagement.hitsToDead, magazineCapacity);
@@ -94,9 +98,10 @@ export function ResultPanel({
               : "—"}
           </dd>
         </div>
+        {overheat && <div><dt>Перегревов за бой</dt><dd>{engagement.overheatCount}</dd></div>}
       </dl>
 
-      {gunStacks && engagement.shots.length > 1 && (
+      {(gunStacks || overheat) && engagement.shots.length > 1 && (
         <div className="shot-progression">
           <h4>Прогрессия по выстрелам</h4>
           <table>
@@ -108,13 +113,14 @@ export function ResultPanel({
                 <th>БП</th>
                 <th>Множитель</th>
                 <th>Темп</th>
+                {overheat && <th>Нагрев</th>}
               </tr>
             </thead>
             <tbody>
               {visibleShotRows(engagement.shots).map((shot, index) => (
                 shot === "gap" ? (
                   <tr key="gap" className="shot-progression-gap">
-                    <td colSpan={6}>⋮ ещё {engagement.shots.length - MAX_DISPLAYED_SHOTS} выстрелов</td>
+                    <td colSpan={overheat ? 7 : 6}>⋮ ещё {engagement.shots.length - MAX_DISPLAYED_SHOTS} выстрелов</td>
                   </tr>
                 ) : (
                   <tr key={`${shot.index}:${index}`}>
@@ -124,6 +130,7 @@ export function ResultPanel({
                     <td>{formatNumber(shot.armorPiercing)}</td>
                     <td>×{formatNumber(shot.damageMultiplier)}</td>
                     <td>{formatNumber(shot.shotsPerSecond)}/с</td>
+                    {overheat && <td className={shot.overheated ? "is-overheated" : ""}>{formatNumber(shot.heatAfterShot ?? 0)}{shot.overheated ? " · ПЕРЕГРЕВ" : ""}</td>}
                   </tr>
                 )
               ))}

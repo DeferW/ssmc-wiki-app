@@ -12,14 +12,14 @@ import {
 import type { EquippedAttachment, StatDirection, WeaponModifiableStats } from "./attachmentModifiers";
 import { aimedShotAbilityFrom } from "./aimedShot";
 import type { AimedShotEffectConfig } from "./aimedShot";
-import type { DamageFalloffThreshold, DamageTypeMap, HitDirection } from "./damageMath";
+import type { DamageFalloffThreshold, DamageTypeMap, HitDirection, OverheatConfig } from "./damageMath";
 import { useMobCatalog } from "./mobCatalogStore";
 import { targetArmorFrom, targetSizeFrom, targetThresholdsFrom } from "./target";
 import type { TargetSelection } from "./target";
 import { applyXenoAbilityBonuses, toggleXenoAbility, XENO_DEFENSIVE_ABILITIES } from "./xenoAbilities";
 import { WEAPON_GUN_STACKS } from "./weaponGunStacks";
 import { AimedShotCard } from "./components/AimedShotCard";
-import { AmmoPicker, ammoProjectiles } from "./components/AmmoPicker";
+import { AmmoModePicker, AmmoPicker, ammoProjectiles } from "./components/AmmoPicker";
 import { AttachmentPicker } from "./components/AttachmentPicker";
 import { DistanceControl } from "./components/DistanceControl";
 import { ItemSlot } from "./components/ItemSlot";
@@ -72,6 +72,29 @@ function falloffThresholdsFrom(projectile: JsonMap | undefined): DamageFalloffTh
   }));
 }
 
+function overheatConfigFrom(stats: JsonMap | undefined): OverheatConfig | undefined {
+  const raw = isMap(stats?.overheat) ? stats.overheat : undefined;
+  if (!raw) return undefined;
+  const maxHeat = numberField(raw, "maxHeat");
+  const heatPerShot = numberField(raw, "heatPerShot");
+  if (maxHeat == null || heatPerShot == null) return undefined;
+  return {
+    maxHeat,
+    heatPerShot,
+    cooldownRate: numberField(raw, "cooldownRate") ?? 0,
+    emergencyCooldownMultiplier: numberField(raw, "emergencyCooldownMultiplier") ?? 0,
+    emergencyCooldownDelaySeconds: numberField(raw, "emergencyCooldownDelaySeconds") ?? 0,
+  };
+}
+
+function sustainedShotsToOverheat(overheat: OverheatConfig | undefined, shotsPerSecond: number) {
+  if (!overheat || shotsPerSecond <= 0) return null;
+  const netHeatPerSecond = shotsPerSecond * overheat.heatPerShot - overheat.cooldownRate;
+  return netHeatPerSecond > 0
+    ? Math.ceil((overheat.maxHeat / netHeatPerSecond) * shotsPerSecond)
+    : null;
+}
+
 function StatRow({ label, from, to, direction, format }: {
   label: string;
   from: number;
@@ -99,6 +122,7 @@ export function DamagePage() {
   const { mobCatalog, error: mobError, loading: mobLoading } = useMobCatalog();
   const [selectedWeaponId, setSelectedWeaponId] = useState<string | null>(null);
   const [selectedAmmoIndex, setSelectedAmmoIndex] = useState(0);
+  const [selectedAmmoModeIndex, setSelectedAmmoModeIndex] = useState(0);
   const [attachmentBySlot, setAttachmentBySlot] = useState<Record<string, string>>({});
   const [attachmentActiveBySlot, setAttachmentActiveBySlot] = useState<Record<string, boolean>>({});
   const [target, setTarget] = useState<TargetSelection | null>(null);
@@ -116,10 +140,17 @@ export function DamagePage() {
   }, [selectedWeapon]);
   const selectedAmmo: JsonMap | undefined = ammunition[selectedAmmoIndex];
   const projectiles = useMemo(() => ammoProjectiles(selectedAmmo), [selectedAmmo]);
+  const ammoModes = useMemo(() => {
+    const raw = selectedWeapon?.weaponStats?.ammoModes;
+    return Array.isArray(raw) ? raw.filter(isMap) : [];
+  }, [selectedWeapon]);
+  const selectedAmmoMode = ammoModes[selectedAmmoModeIndex];
 
   const selectWeapon = (id: string) => {
     setSelectedWeaponId(id);
     setSelectedAmmoIndex(0);
+    const defaultMode = catalog?.items[id]?.weaponStats?.defaultAmmoModeIndex;
+    setSelectedAmmoModeIndex(typeof defaultMode === "number" ? defaultMode : 0);
     setAttachmentBySlot({});
     setAttachmentActiveBySlot({});
     setPicker(null);
@@ -168,7 +199,7 @@ export function DamagePage() {
   const weaponStats = selectedWeapon?.weaponStats;
   const baseStats: WeaponModifiableStats | null = selectedWeapon ? {
     damageMultiplier: numberField(weaponStats, "damageMultiplier") ?? 1,
-    accuracyWieldedMultiplier: numberField(isMap(weaponStats) ? weaponStats.accuracy : undefined, "wieldedMultiplier") ?? 0,
+    accuracyWieldedMultiplier: numberField(isMap(weaponStats) ? weaponStats.accuracy : undefined, "wieldedMultiplier") ?? 1,
     scatterWielded: numberField(isMap(weaponStats) ? weaponStats.scatter : undefined, "wielded") ?? 0,
     recoilWielded: numberField(isMap(weaponStats) ? weaponStats.recoil : undefined, "wielded") ?? 0,
     shotsPerSecond: numberField(weaponStats, "shotsPerSecond") ?? 0,
@@ -186,7 +217,7 @@ export function DamagePage() {
     : 1;
   const selectedProjectile = projectiles[0] as JsonMap | undefined;
   const adjustedEffectiveDamage = scaleDamage(
-    damageTypeMapFrom(selectedProjectile?.effectiveDamage ?? selectedProjectile?.damage),
+    damageTypeMapFrom(selectedAmmoMode?.damage ?? selectedProjectile?.effectiveDamage ?? selectedProjectile?.damage),
     damageRatio,
   );
   const falloffThresholds = falloffThresholdsFrom(selectedProjectile);
@@ -194,7 +225,11 @@ export function DamagePage() {
     isMap(selectedWeapon?.properties) ? selectedWeapon.properties.RMCWeaponDamageFalloff : undefined,
     "falloffMultiplier",
   ) ?? 1;
-  const armorPiercing = typeof selectedProjectile?.armorPiercing === "number" ? selectedProjectile.armorPiercing : 0;
+  const armorPiercing = typeof selectedAmmoMode?.armorPiercing === "number"
+    ? selectedAmmoMode.armorPiercing
+    : typeof selectedProjectile?.armorPiercing === "number" ? selectedProjectile.armorPiercing : 0;
+  const overheat = overheatConfigFrom(weaponStats);
+  const estimatedShotsToOverheat = sustainedShotsToOverheat(overheat, modifiedStats?.shotsPerSecond ?? 0);
   // directFeed ammo (XM88's manually-chambered rounds, shotgun shells) loads
   // one round at a time or from a box, not a swappable magazine — "capacity"
   // there means the box/tube size, not a reload unit worth counting.
@@ -252,6 +287,7 @@ export function DamagePage() {
         </div>
       )}
 
+      <div className="damage-workspace">
       {catalog && (
         <section className="damage-loadout">
           <div className="loadout-row">
@@ -299,11 +335,30 @@ export function DamagePage() {
             </dl>
           )}
 
+          {overheat && modifiedStats && (
+            <section className="damage-overheat-summary" aria-label="Нагрев оружия">
+              <h3>Нагрев</h3>
+              <dl className="stat-grid">
+                <div><dt>Предел нагрева</dt><dd>{formatNumber(overheat.maxHeat)}</dd></div>
+                <div><dt>За выстрел</dt><dd>+{formatNumber(overheat.heatPerShot)}</dd></div>
+                <div><dt>Остывание</dt><dd>{formatNumber(overheat.cooldownRate)} ед./с</dd></div>
+                {estimatedShotsToOverheat != null && <div><dt>Непрерывная очередь</dt><dd>≈ {estimatedShotsToOverheat} выстр.</dd></div>}
+                <div><dt>Аварийная пауза</dt><dd>{formatNumber(overheat.emergencyCooldownDelaySeconds)} с</dd></div>
+              </dl>
+            </section>
+          )}
+
           {selectedWeapon && (
             ammunition.length > 0 ? (
               <>
                 <h3>Боеприпас</h3>
                 <AmmoPicker ammunition={ammunition} selectedIndex={selectedAmmoIndex} onSelect={setSelectedAmmoIndex} />
+                {ammoModes.length > 0 && (
+                  <>
+                    <h3>Режим боеприпаса</h3>
+                    <AmmoModePicker modes={ammoModes} selectedIndex={selectedAmmoModeIndex} onSelect={setSelectedAmmoModeIndex} />
+                  </>
+                )}
 
                 <div className="projectile-list">
                   {projectiles.map((projectile, index) => (
@@ -312,10 +367,10 @@ export function DamagePage() {
                       <dl className="stat-grid">
                         <div>
                           <dt>Урон</dt>
-                          <dd>{formatDamage(scaleDamage(damageTypeMapFrom(projectile.effectiveDamage ?? projectile.damage), damageRatio)) ?? "—"}</dd>
+                          <dd>{formatDamage(scaleDamage(damageTypeMapFrom(selectedAmmoMode?.damage ?? projectile.effectiveDamage ?? projectile.damage), damageRatio)) ?? "—"}</dd>
                         </div>
-                        {projectile.armorPiercing != null && (
-                          <div><dt>Бронепробитие</dt><dd>{formatNumber(projectile.armorPiercing)}</dd></div>
+                        {(selectedAmmoMode?.armorPiercing != null || projectile.armorPiercing != null) && (
+                          <div><dt>Бронепробитие</dt><dd>{formatNumber(selectedAmmoMode?.armorPiercing ?? projectile.armorPiercing)}</dd></div>
                         )}
                       </dl>
                     </article>
@@ -432,9 +487,11 @@ export function DamagePage() {
             thresholds={targetThresholds}
             magazineCapacity={magazineCapacity}
             gunStacks={selectedWeapon ? WEAPON_GUN_STACKS[selectedWeapon.id] : undefined}
+            overheat={overheat}
           />
         </section>
       )}
+      </div>
 
       {selectedWeapon && selectedProjectile && target && targetArmor && hasAimedShot && aimedShotEffect && (
         <section className="damage-loadout">

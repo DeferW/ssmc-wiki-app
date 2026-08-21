@@ -57,6 +57,9 @@ function WeaponBlock({ stats }: { stats: JsonMap }) {
   const provider = isMap(stats.ammoProvider) ? stats.ammoProvider : {};
   const fireModes = Array.isArray(stats.fireModes) ? stats.fireModes.map((mode) => readableId(String(mode))).join(", ") : null;
   const ammunition = Array.isArray(stats.ammunition) ? stats.ammunition.filter(isMap) : [];
+  const ammoModes = Array.isArray(stats.ammoModes) ? stats.ammoModes.filter(isMap) : [];
+  const overheat = isMap(stats.overheat) ? stats.overheat : {};
+  const sustainedShots = sustainedShotsToOverheat(stats, overheat);
   return (
     <DetailSection title="Оружие">
       <StatGrid rows={[
@@ -72,6 +75,37 @@ function WeaponBlock({ stats }: { stats: JsonMap }) {
         ["Разброс · с рук", scatter.unwielded],
         ["Точность · в упоре", accuracy.wieldedMultiplier != null ? `×${formatNumber(accuracy.wieldedMultiplier)}` : null],
       ]} />
+      {ammoModes.length > 0 && (
+        <div className="ammo-list">
+          <h4>Режимы боеприпасов</h4>
+          {ammoModes.map((mode, index) => (
+            <article key={String(mode.id ?? index)}>
+              <div className="ammo-heading">
+                <strong>{ammoModeLabel(String(mode.nameId ?? mode.id ?? `Режим ${index + 1}`))}</strong>
+                {index === Number(stats.defaultAmmoModeIndex ?? 0) && <span>По умолчанию</span>}
+              </div>
+              <p>
+                {formatDamage(isMap(mode.damage) ? mode.damage : null) ?? "Урон не указан"}
+                {mode.armorPiercing != null && <small> · БП {formatNumber(mode.armorPiercing)}</small>}
+              </p>
+            </article>
+          ))}
+        </div>
+      )}
+      {Object.keys(overheat).length > 0 && (
+        <>
+          <h4>Нагрев</h4>
+          <StatGrid rows={[
+            ["Предел нагрева", overheat.maxHeat],
+            ["За выстрел", overheat.heatPerShot != null ? `+${formatNumber(overheat.heatPerShot)}` : null],
+            ["Охлаждение", overheat.cooldownRate != null ? `${formatNumber(overheat.cooldownRate)}/с` : null],
+            ["До перегрева непрерывной очередью", sustainedShots != null ? `≈ ${sustainedShots} выстр.` : overheat.shotsToOverheatFromCold != null ? `${formatNumber(overheat.shotsToOverheatFromCold)} выстр.` : null],
+            ["Блокировка после перегрева", overheat.emergencyCooldownDelaySeconds != null ? `${formatNumber(overheat.emergencyCooldownDelaySeconds)} с` : null],
+            ["Нагрев после аварийного охлаждения", emergencyHeat(overheat)],
+            ["Урон оружию при перегреве", isMap(overheat.damage) ? formatDamage(overheat.damage) : null],
+          ]} />
+        </>
+      )}
       {ammunition.length > 0 && (
         <div className="ammo-list">
           <h4>Боеприпасы и итоговый урон</h4>
@@ -168,7 +202,7 @@ function ArmorBlock({ stats }: { stats: JsonMap }) {
       ]} />
       {rows.length ? <div className="protection-bars">{rows.map(([label, amount]) => (
         <div key={label}>
-          <span>{label}</span><i><b style={{ width: `${Math.max(0, Math.min(100, amount))}%` }} /></i><strong>{formatNumber(amount)}%</strong>
+          <span>{label}</span><i><b style={{ width: `${Math.max(0, Math.min(100, amount))}%` }} /></i><strong>{formatNumber(amount)}</strong>
         </div>
       ))}</div> : <p className="muted">Числовая защита не указана.</p>}
     </DetailSection>
@@ -222,6 +256,8 @@ function attachmentRows(entry: JsonMap) {
     scatterFlat: "Разброс", recoilFlat: "Отдача", walk: "Скорость ходьбы",
     sprint: "Скорость бега", delay: "Время вскидывания", size: "Размер предмета",
     extraFireModes: "Добавляет режим огня", setFireMode: "Переключает режим огня",
+    projectileSpeedFlat: "Скорость снаряда", damageFalloffAddMult: "Падение урона",
+    rangeFlat: "Дальность", shotsPerBurstFlat: "Выстрелов в очереди",
   };
   for (const [key, raw] of Object.entries(entry)) {
     if (key === "conditions") continue;
@@ -235,6 +271,9 @@ function attachmentRows(entry: JsonMap) {
     if (typeof raw === "number" && /AddMult$|^walk$|^sprint$/u.test(key)) value = signedPercent(raw);
     if (typeof raw === "number" && /Delay|^delay$/u.test(key)) value = `${signedNumber(raw)} с`;
     if (typeof raw === "number" && key === "size") value = `${signedNumber(raw)} ур.`;
+    if (typeof raw === "number" && key === "projectileSpeedFlat") value = signedNumber(raw);
+    if (typeof raw === "number" && key === "rangeFlat") value = `${signedNumber(raw)} клет.`;
+    if (typeof raw === "number" && key === "shotsPerBurstFlat") value = `${signedNumber(raw)} выстр.`;
     rows.push({ label: labels[key], value, condition });
   }
   return rows;
@@ -246,7 +285,58 @@ function conditionsText(value: unknown) {
   if (value.activeOnly === true) labels.push("когда включён");
   if (value.inactiveOnly === true) labels.push("когда выключен");
   if (value.wieldedOnly === true) labels.push("при удержании двумя руками");
+  if (value.unwieldedOnly === true) labels.push("при стрельбе с одной руки");
+  const whitelistFilter = isMap(value.whitelist) ? value.whitelist : null;
+  const blacklistFilter = isMap(value.blacklist) ? value.blacklist : null;
+  const whitelist = whitelistFilter && Array.isArray(whitelistFilter.tags)
+    ? whitelistFilter.tags.map(String)
+    : [];
+  const blacklist = blacklistFilter && Array.isArray(blacklistFilter.tags)
+    ? blacklistFilter.tags.map(String)
+    : [];
+  if (whitelist.length && whitelistFilter) labels.push(filterConditionText(whitelist, true, whitelistFilter));
+  if (blacklist.length && blacklistFilter) labels.push(filterConditionText(blacklist, false, blacklistFilter));
   return labels.join(" · ") || undefined;
+}
+
+function filterConditionText(tags: string[], allowed: boolean, filter: JsonMap) {
+  const names = tags.map(weaponTagLabel);
+  const conjunction = filter.requireAll === true ? " и " : " или ";
+  return `${allowed ? "только для" : "кроме"}: ${names.join(conjunction)}`;
+}
+
+function weaponTagLabel(value: string) {
+  const labels: Record<string, string> = {
+    RMCWeaponShotgun: "дробовиков",
+    CMM96SSniperRifle: "M96S",
+    RMCWeaponLMGM60: "M60",
+    RMCGunBipodFullAuto: "оружия с автоогнём от сошек",
+    RMCWeaponPistolL14: "пистолета L14",
+  };
+  return labels[value] ?? readableId(value);
+}
+
+function ammoModeLabel(value: string) {
+  const labels: Record<string, string> = {
+    "rmc-toggleable-ammo-highly-precise": "Высокоточный режим",
+    "rmc-toggleable-ammo-armor-shredding": "Бронебойный режим",
+  };
+  return labels[value] ?? readableId(value);
+}
+
+function sustainedShotsToOverheat(stats: JsonMap, overheat: JsonMap) {
+  const shotsPerSecond = typeof stats.shotsPerSecond === "number" ? stats.shotsPerSecond : null;
+  const maxHeat = typeof overheat.maxHeat === "number" ? overheat.maxHeat : null;
+  const heatPerShot = typeof overheat.heatPerShot === "number" ? overheat.heatPerShot : null;
+  const cooldownRate = typeof overheat.cooldownRate === "number" ? overheat.cooldownRate : 0;
+  if (shotsPerSecond == null || maxHeat == null || heatPerShot == null) return null;
+  const heatPerSecond = shotsPerSecond * heatPerShot - cooldownRate;
+  return heatPerSecond > 0 ? Math.ceil((maxHeat / heatPerSecond) * shotsPerSecond) : null;
+}
+
+function emergencyHeat(overheat: JsonMap) {
+  if (typeof overheat.maxHeat !== "number" || typeof overheat.emergencyCooldownMultiplier !== "number") return null;
+  return formatNumber(overheat.maxHeat * overheat.emergencyCooldownMultiplier);
 }
 
 function attachmentGroupLabel(value: string) {
