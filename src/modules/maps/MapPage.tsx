@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { loadMapCatalog, loadMapOverlay, loadTileManifest } from "./api";
 import { MAP_DATA_ROOT } from "./config";
-import { MapCanvas, type MapCanvasHandle } from "./MapCanvas";
+import { MapCanvas, type MapCanvasHandle, type SelectionAnchor } from "./MapCanvas";
 import { describeComponents, flattenOverlay, spawnOptions } from "./overlay";
 import type { CanvasStats, LayerSettings, MapCatalog, MapOverlay, OverlayCategory, OverlayPoint, Point, TileManifest } from "./types";
 
@@ -52,10 +52,11 @@ export function MapPage() {
   const [layers, setLayers] = useState<LayerSettings>(initialLayers);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<OverlayPoint>();
+  const [selectionAnchor, setSelectionAnchor] = useState<SelectionAnchor>();
   const [coordinate, setCoordinate] = useState<Point>();
   const [stats, setStats] = useState<CanvasStats>({ loadedTiles: 0, loadedBytes: 0, pendingTiles: 0, zoom: 0 });
   const [error, setError] = useState<string>();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const requestedMap = searchParams.get("map");
 
   useEffect(() => {
@@ -81,6 +82,7 @@ export function MapPage() {
   const manifest = manifestResult?.url === manifestUrl ? manifestResult.value : undefined;
   const overlay = overlayResult?.url === overlayUrl ? overlayResult.value : undefined;
   const overlaysEnabled = LAYER_OPTIONS.some(({ key }) => layers[key]);
+  const coordinatesReady = manifest?.grids.every((grid) => Boolean(grid.worldMin)) ?? false;
 
   useEffect(() => {
     if (!entry) return;
@@ -131,12 +133,23 @@ export function MapPage() {
   const onStats = useCallback((value: CanvasStats) => setStats(value), []);
   const onCoordinate = useCallback((value?: Point) => setCoordinate(value), []);
   const onSelect = useCallback((value?: OverlayPoint) => setSelected(value), []);
+  const onSelectedAnchor = useCallback((value?: SelectionAnchor) => setSelectionAnchor(value), []);
 
   return (
     <main className="maps-page">
       <header className="maps-toolbar">
+        <button
+          className="maps-sidebar-toggle"
+          type="button"
+          aria-expanded={sidebarOpen}
+          aria-controls="map-layers"
+          onClick={() => setSidebarOpen((value) => !value)}
+          title={sidebarOpen ? "Свернуть слои" : "Открыть слои"}
+        >
+          {sidebarOpen ? "‹" : "☰"}
+        </button>
         <div className="maps-map-picker">
-          <label htmlFor="map-select">Карта</label>
+          <label className="sr-only" htmlFor="map-select">Карта</label>
           <select
             id="map-select"
             value={entry?.id ?? ""}
@@ -155,7 +168,6 @@ export function MapPage() {
           <button type="button" onClick={() => canvasRef.current?.zoomBy(0.8)} aria-label="Уменьшить">−</button>
           <button type="button" onClick={() => canvasRef.current?.reset()}>Вписать</button>
           <button type="button" onClick={() => canvasRef.current?.zoomBy(1.25)} aria-label="Увеличить">+</button>
-          <button className="maps-layers-button" type="button" onClick={() => setSidebarOpen((value) => !value)}>Слои</button>
         </div>
         <div className="maps-network" title="В памяти находятся только тайлы вокруг видимой области">
           <span className={stats.pendingTiles ? "maps-network-dot is-loading" : "maps-network-dot"} />
@@ -164,38 +176,45 @@ export function MapPage() {
       </header>
 
       <div className="maps-workspace">
-        <aside className={sidebarOpen ? "maps-sidebar is-open" : "maps-sidebar"}>
-          <div className="maps-sidebar-heading">
-            <div><span className="eyebrow">MAP-02</span><h1>Слои карты</h1></div>
-            <button type="button" onClick={() => setSidebarOpen(false)} aria-label="Закрыть панель">×</button>
-          </div>
+        <section className="maps-stage">
+          {manifest && entry ? (
+            <MapCanvas
+              ref={canvasRef}
+              manifest={manifest}
+              manifestUrl={manifestUrl}
+              points={coordinatesReady ? points : []}
+              layers={layers}
+              selectedKey={selected?.key}
+              onSelect={onSelect}
+              onSelectedAnchor={onSelectedAnchor}
+              onCoordinate={onCoordinate}
+              onStats={onStats}
+            />
+          ) : (
+            <div className="maps-loading"><span className="maps-loader" />{error ? "Карта недоступна" : "Загрузка манифеста карты…"}</div>
+          )}
 
-          <label className="maps-search">
-            <span>Поиск точки</span>
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="лут, эвакуация…" />
-          </label>
+          <nav className="maps-mode-dock" aria-label="Режим работы карты">
+            <button className="is-active" type="button" aria-current="page" aria-label="Просмотр карты" title="Просмотр карты">⌖</button>
+            <button type="button" disabled aria-label="Редактор разметки — запланировано" title="Редактор разметки — следующий модуль">✎</button>
+            <button type="button" disabled aria-label="Расчёт зон огня — запланировано" title="Расчёт зон огня — следующий модуль">◎</button>
+          </nav>
 
-          <section className="maps-layer-list" aria-label="Слои данных">
-            {LAYER_OPTIONS.map((option) => (
-              <label className="maps-layer" key={option.key}>
-                <input type="checkbox" checked={layers[option.key]} onChange={() => toggleLayer(option.key)} />
-                <span><strong>{option.label}</strong><small>{option.detail}</small></span>
-                {overlay && <output>{pointCounts[option.key] ?? 0}</output>}
-              </label>
-            ))}
-            <label className="maps-layer">
-              <input type="checkbox" checked={layers.coordinateGrid} onChange={() => setLayers((value) => ({ ...value, coordinateGrid: !value.coordinateGrid }))} />
-              <span><strong>Координатная сетка</strong><small>шаг 10 игровых метров</small></span>
-            </label>
-          </section>
+          {!coordinatesReady && manifest && (
+            <div className="maps-data-warning" role="status">
+              Координаты слоёв ожидают обновления данных карт. Сам рендер доступен, маркеры временно скрыты.
+            </div>
+          )}
+          {error && <div className="maps-error" role="alert"><strong>Ошибка данных</strong><span>{error}</span><button type="button" onClick={() => window.location.reload()}>Повторить</button></div>}
+          <div className="maps-coordinate">{formatCoordinate(coordinate)}</div>
+          {search && <div className="maps-result-count">Найдено: {points.length}</div>}
 
-          <label className="maps-marker-size">
-            <span>Размер маркеров <output>{layers.markerScale.toFixed(1)}×</output></span>
-            <input type="range" min="0.6" max="1.8" step="0.1" value={layers.markerScale} onChange={(event) => setLayers((value) => ({ ...value, markerScale: Number(event.target.value) }))} />
-          </label>
-
-          {selected ? (
-            <section className="maps-inspector">
+          {selected && selectionAnchor && (
+            <section
+              className={`maps-inspector maps-inspector--${selectionAnchor.align}`}
+              style={{ left: selectionAnchor.x, top: selectionAnchor.y }}
+            >
+              <button className="maps-inspector-close" type="button" onClick={() => setSelected(undefined)} aria-label="Закрыть информацию">×</button>
               <div className={`maps-point-badge maps-point-badge--${selected.category}`}>{selected.category}</div>
               <h2>{selected.label || selected.name}</h2>
               <code>{selected.prototypeId}</code>
@@ -210,31 +229,41 @@ export function MapPage() {
                 </details>
               )}
             </section>
-          ) : (
-            <p className="maps-sidebar-hint">Нажмите на маркер, чтобы открыть его параметры. Колесо — масштаб, перетаскивание — перемещение.</p>
           )}
-        </aside>
-
-        <section className="maps-stage">
-          {manifest && entry ? (
-            <MapCanvas
-              ref={canvasRef}
-              manifest={manifest}
-              manifestUrl={manifestUrl}
-              points={points}
-              layers={layers}
-              selectedKey={selected?.key}
-              onSelect={onSelect}
-              onCoordinate={onCoordinate}
-              onStats={onStats}
-            />
-          ) : (
-            <div className="maps-loading"><span className="maps-loader" />{error ? "Карта недоступна" : "Загрузка манифеста карты…"}</div>
-          )}
-          {error && <div className="maps-error" role="alert"><strong>Ошибка данных</strong><span>{error}</span><button type="button" onClick={() => window.location.reload()}>Повторить</button></div>}
-          <div className="maps-coordinate">{formatCoordinate(coordinate)}</div>
-          {search && <div className="maps-result-count">Найдено точек: {points.length}</div>}
         </section>
+
+        <aside id="map-layers" className={sidebarOpen ? "maps-sidebar is-open" : "maps-sidebar"}>
+          <div className="maps-sidebar-heading">
+            <div><span className="eyebrow">Отображение</span><h1>Слои</h1></div>
+            <button type="button" onClick={() => setSidebarOpen(false)} aria-label="Свернуть панель">‹</button>
+          </div>
+
+          <label className="maps-search">
+            <span>Поиск точки</span>
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="лут, эвакуация…" />
+          </label>
+
+          <section className="maps-layer-list" aria-label="Слои данных">
+            {LAYER_OPTIONS.map((option) => (
+              <label className="maps-layer" key={option.key}>
+                <input type="checkbox" checked={layers[option.key]} onChange={() => toggleLayer(option.key)} />
+                <span title={option.detail}><strong>{option.label}</strong></span>
+                {overlay && <output>{pointCounts[option.key] ?? 0}</output>}
+              </label>
+            ))}
+            <label className="maps-layer">
+              <input type="checkbox" checked={layers.coordinateGrid} onChange={() => setLayers((value) => ({ ...value, coordinateGrid: !value.coordinateGrid }))} />
+              <span title="Шаг 10 игровых метров"><strong>Сетка координат</strong></span>
+            </label>
+          </section>
+
+          <label className="maps-marker-size">
+            <span>Размер маркеров <output>{layers.markerScale.toFixed(1)}×</output></span>
+            <input type="range" min="0.6" max="1.8" step="0.1" value={layers.markerScale} onChange={(event) => setLayers((value) => ({ ...value, markerScale: Number(event.target.value) }))} />
+          </label>
+
+          <p className="maps-sidebar-hint">Колесо — масштаб · перетаскивание — обзор · клик — данные точки</p>
+        </aside>
       </div>
     </main>
   );

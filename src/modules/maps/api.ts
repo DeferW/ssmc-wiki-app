@@ -23,7 +23,7 @@ export function loadMapCatalog(): Promise<MapCatalog> {
 
 export async function loadTileManifest(url: string, signal: AbortSignal): Promise<TileManifest> {
   const value = await fetchJson<TileManifest>(url, signal);
-  if (value.schemaVersion !== 1 || !Array.isArray(value.grids) || value.grids.length === 0) {
+  if (![1, 2].includes(value.schemaVersion) || !Array.isArray(value.grids) || value.grids.length === 0) {
     throw new Error("Тайловый манифест имеет неподдерживаемый формат.");
   }
   return value;

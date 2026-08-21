@@ -9,11 +9,13 @@ type Props = {
   layers: LayerSettings;
   selectedKey?: string;
   onSelect: (point?: OverlayPoint) => void;
+  onSelectedAnchor: (anchor?: SelectionAnchor) => void;
   onCoordinate: (point?: Point) => void;
   onStats: (stats: CanvasStats) => void;
 };
 
 export type MapCanvasHandle = { reset: () => void; zoomBy: (factor: number) => void };
+export type SelectionAnchor = { x: number; y: number; align: "left" | "right" };
 
 type CachedTile = { image: ImageBitmap; bytes: number; used: number };
 type PointerDrag = { id: number; startX: number; startY: number; viewX: number; viewY: number; moved: boolean };
@@ -43,6 +45,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
   layers,
   selectedKey,
   onSelect,
+  onSelectedAnchor,
   onCoordinate,
   onStats,
 }, ref) {
@@ -255,6 +258,22 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
     }
     return winner;
   }, [grid, mapPointAt, view.scale, visiblePoints]);
+
+  useEffect(() => {
+    if (!selectedKey) {
+      onSelectedAnchor(undefined);
+      return;
+    }
+    const point = visiblePoints.find((candidate) => candidate.key === selectedKey);
+    if (!point) {
+      onSelectedAnchor(undefined);
+      return;
+    }
+    const pixel = worldToMapPixel(grid, point);
+    const screen = { x: view.x + pixel.x * view.scale, y: view.y + pixel.y * view.scale };
+    const visible = screen.x >= 0 && screen.x <= size.width && screen.y >= 0 && screen.y <= size.height;
+    onSelectedAnchor(visible ? { ...screen, align: screen.x > size.width * 0.64 ? "right" : "left" } : undefined);
+  }, [grid, onSelectedAnchor, selectedKey, size.height, size.width, view, visiblePoints]);
 
   return (
     <canvas
