@@ -1,0 +1,61 @@
+.project-page {
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: clamp(48px, 7vw, 88px) 0 96px;
+}
+
+.project-hero {
+  display: grid;
+  align-items: end;
+  gap: clamp(28px, 6vw, 80px);
+  padding-bottom: 34px;
+  border-bottom: 1px solid var(--line);
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 310px);
+}
+.project-hero h1 {
+  margin: 12px 0 18px;
+  color: var(--text-strong);
+  font-size: clamp(3rem, 8vw, 6.8rem);
+  line-height: .88;
+  letter-spacing: -.055em;
+  text-transform: uppercase;
+}
+.project-lead { max-width: 760px; margin: 0; color: var(--muted-strong); font-size: clamp(.82rem, 1.4vw, 1rem); line-height: 1.8; }
+.project-status { display: grid; gap: 8px; padding: 18px; border: 1px solid var(--warning-line); background: linear-gradient(145deg, color-mix(in srgb, var(--warning) 7%, var(--surface)), var(--surface)); box-shadow: inset 3px 0 var(--warning); }
+.project-status span, .project-overview article > span, .project-contact span { color: var(--muted); font-size: .58rem; letter-spacing: .11em; }
+.project-status strong { color: var(--warning); font-size: .9rem; }
+.project-status small { color: var(--muted-strong); font-size: .62rem; }
+
+.project-overview { display: grid; margin: 34px 0; border: 1px solid var(--line); grid-template-columns: 1fr 1fr; }
+.project-overview article { min-width: 0; padding: clamp(20px, 3vw, 30px); background: var(--surface); }
+.project-overview article + article { border-left: 1px solid var(--line); }
+.project-overview h2 { margin: 12px 0 10px; color: var(--text); font-size: clamp(1rem, 2vw, 1.35rem); text-transform: uppercase; }
+.project-overview p { max-width: 470px; margin: 0; color: var(--muted); font-size: .72rem; line-height: 1.7; }
+
+.project-repositories { margin-top: clamp(48px, 7vw, 76px); }
+.project-repositories > header { margin-bottom: 20px; }
+.project-repositories h2 { margin: 9px 0 0; color: var(--text-strong); font-size: clamp(1.35rem, 3vw, 2.1rem); text-transform: uppercase; }
+.project-repositories > div { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
+.project-repositories a { position: relative; display: grid; min-width: 0; min-height: 220px; align-content: end; gap: 10px; overflow: hidden; padding: clamp(22px, 3vw, 30px); border: 1px solid var(--line); background: linear-gradient(145deg, var(--surface-raised), var(--surface)); text-decoration: none; }
+.project-repositories a::before { position: absolute; top: 0; left: 0; width: 32%; height: 2px; background: var(--accent); content: ""; transition: width 180ms ease; }
+.project-repositories a:hover { border-color: var(--line-strong); background: var(--surface-highlight); }
+.project-repositories a:hover::before { width: 100%; }
+.project-repositories a > span { position: absolute; top: 22px; right: 24px; color: var(--line-strong); font-size: clamp(1.8rem, 5vw, 3.5rem); font-weight: 800; }
+.project-repositories h3 { position: relative; margin: 0; color: var(--text-strong); font-size: 1.05rem; text-transform: uppercase; }
+.project-repositories p { position: relative; max-width: 480px; margin: 0; color: var(--muted); font-size: .68rem; line-height: 1.65; }
+.project-repositories strong { position: relative; margin-top: 8px; color: var(--accent-soft); font-size: .62rem; }
+
+.project-contact { display: flex; align-items: center; justify-content: space-between; gap: 30px; margin-top: 34px; padding: clamp(22px, 4vw, 34px); border-left: 3px solid var(--accent); background: var(--surface); }
+.project-contact h2 { margin: 9px 0; color: var(--text); font-size: clamp(1rem, 2.4vw, 1.5rem); text-transform: uppercase; }
+.project-contact p { margin: 0; color: var(--muted); font-size: .7rem; line-height: 1.6; }
+.project-contact code { flex: 0 0 auto; padding: 12px 15px; border: 1px solid var(--line-strong); color: var(--accent-soft); font-size: .72rem; }
+
+@media (max-width: 720px) {
+  .project-page { width: calc(100% - 24px); padding-top: 38px; }
+  .project-hero { align-items: stretch; grid-template-columns: 1fr; }
+  .project-overview, .project-repositories > div { grid-template-columns: 1fr; }
+  .project-overview article + article { border-top: 1px solid var(--line); border-left: 0; }
+  .project-repositories a { min-height: 200px; }
+  .project-contact { align-items: stretch; flex-direction: column; }
+  .project-contact code { align-self: flex-start; }
+}
