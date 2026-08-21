@@ -351,6 +351,58 @@ describe("simulateEngagement", () => {
     expect(result.shots[39]).toMatchObject({ overheated: true, heatAfterShot: 40 });
     expect(result.timeToDeadSeconds).toBeCloseTo(5.4, 10);
   });
+
+  it("applies HT stacks before each hit and caps the universal damage bonus", () => {
+    const result = simulateEngagement({
+      effectiveDamage: { Piercing: 100 },
+      distance: 1,
+      falloffThresholds: [],
+      weaponFalloffMultiplier: 0,
+      baseArmorPiercing: 0,
+      baseDamageMultiplier: 1,
+      baseShotsPerSecond: 10,
+      weaponCategory: "bullet",
+      target: { kind: "marine", bullet: 0, melee: 0, bio: 0 },
+      holoTargeting: {
+        stacksPerHit: 10,
+        maxStacks: 100,
+        decayPerSecond: 5,
+        decayDelaySeconds: 5,
+        damageMultiplierPerStack: 0.001,
+      },
+    }, { critical: null, dead: 2_000 });
+
+    expect(result.shots[0]).toMatchObject({ totalDamage: 101, holoStacks: 10, holoDamageMultiplier: 1.01 });
+    expect(result.shots[1]).toMatchObject({ totalDamage: 102, holoStacks: 20, holoDamageMultiplier: 1.02 });
+    expect(result.shots[9]).toMatchObject({ holoStacks: 100, holoDamageMultiplier: 1.1 });
+    expect(result.shots[9].totalDamage).toBeCloseTo(110, 10);
+    expect(result.shots[10]).toMatchObject({ holoStacks: 100, holoDamageMultiplier: 1.1 });
+    expect(result.shots[10].totalDamage).toBeCloseTo(110, 10);
+  });
+
+  it("decays HT stacks after five seconds without another hit", () => {
+    const result = simulateEngagement({
+      effectiveDamage: { Piercing: 100 },
+      distance: 1,
+      falloffThresholds: [],
+      weaponFalloffMultiplier: 0,
+      baseArmorPiercing: 0,
+      baseDamageMultiplier: 1,
+      baseShotsPerSecond: 0.1,
+      weaponCategory: "bullet",
+      target: { kind: "marine", bullet: 0, melee: 0, bio: 0 },
+      holoTargeting: {
+        stacksPerHit: 10,
+        maxStacks: 100,
+        decayPerSecond: 5,
+        decayDelaySeconds: 5,
+        damageMultiplierPerStack: 0.001,
+      },
+    }, { critical: null, dead: 202 });
+
+    expect(result.shots[0]).toMatchObject({ totalDamage: 101, holoStacks: 10 });
+    expect(result.shots[1]).toMatchObject({ totalDamage: 101, holoStacks: 10 });
+  });
 });
 
 describe("hitsToKill", () => {

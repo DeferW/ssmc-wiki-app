@@ -6,6 +6,7 @@ import type {
   DamageTypeMap,
   GunStacksConfig,
   HitDirection,
+  HoloTargetingConfig,
   OverheatConfig,
   WeaponCategory,
 } from "../damageMath";
@@ -47,6 +48,7 @@ export function ResultPanel({
   magazineCapacity,
   gunStacks,
   overheat,
+  holoTargeting,
 }: {
   effectiveDamage: DamageTypeMap;
   distance: number;
@@ -62,6 +64,7 @@ export function ResultPanel({
   magazineCapacity: number | null;
   gunStacks?: GunStacksConfig;
   overheat?: OverheatConfig;
+  holoTargeting?: HoloTargetingConfig;
 }) {
   const engagement = simulateEngagement({
     effectiveDamage,
@@ -76,10 +79,13 @@ export function ResultPanel({
     hitDirection,
     gunStacks,
     overheat,
+    holoTargeting,
   }, thresholds);
 
   const ammoDead = ammoNeeded(engagement.hitsToDead, magazineCapacity);
   const firstShot = engagement.shots[0];
+  const lastShot = engagement.shots.at(-1);
+  const progressionColumnCount = 6 + (overheat ? 1 : 0) + (holoTargeting ? 1 : 0);
 
   return (
     <section className="result-panel">
@@ -99,9 +105,21 @@ export function ResultPanel({
           </dd>
         </div>
         {overheat && <div><dt>Перегревов за бой</dt><dd>{engagement.overheatCount}</dd></div>}
+        {holoTargeting && lastShot?.holoStacks != null && (
+          <div>
+            <dt>НТ-метка к последнему попаданию</dt>
+            <dd>{formatNumber(lastShot.holoStacks)} стаков · +{formatNumber((lastShot.holoDamageMultiplier! - 1) * 100)}%</dd>
+          </div>
+        )}
       </dl>
 
-      {(gunStacks || overheat) && engagement.shots.length > 1 && (
+      {holoTargeting && (
+        <p className="holo-targeting-note">
+          НТ-метка применяется до урона попадания и усиливает любой входящий урон по цели.
+        </p>
+      )}
+
+      {(gunStacks || overheat || holoTargeting) && engagement.shots.length > 1 && (
         <div className="shot-progression">
           <h4>Прогрессия по выстрелам</h4>
           <table>
@@ -113,6 +131,7 @@ export function ResultPanel({
                 <th>БП</th>
                 <th>Множитель</th>
                 <th>Темп</th>
+                {holoTargeting && <th>НТ-метка</th>}
                 {overheat && <th>Нагрев</th>}
               </tr>
             </thead>
@@ -120,7 +139,7 @@ export function ResultPanel({
               {visibleShotRows(engagement.shots).map((shot, index) => (
                 shot === "gap" ? (
                   <tr key="gap" className="shot-progression-gap">
-                    <td colSpan={overheat ? 7 : 6}>⋮ ещё {engagement.shots.length - MAX_DISPLAYED_SHOTS} выстрелов</td>
+                    <td colSpan={progressionColumnCount}>⋮ ещё {engagement.shots.length - MAX_DISPLAYED_SHOTS} выстрелов</td>
                   </tr>
                 ) : (
                   <tr key={`${shot.index}:${index}`}>
@@ -130,6 +149,9 @@ export function ResultPanel({
                     <td>{formatNumber(shot.armorPiercing)}</td>
                     <td>×{formatNumber(shot.damageMultiplier)}</td>
                     <td>{formatNumber(shot.shotsPerSecond)}/с</td>
+                    {holoTargeting && (
+                      <td>{formatNumber(shot.holoStacks ?? 0)} · +{formatNumber(((shot.holoDamageMultiplier ?? 1) - 1) * 100)}%</td>
+                    )}
                     {overheat && <td className={shot.overheated ? "is-overheated" : ""}>{formatNumber(shot.heatAfterShot ?? 0)}{shot.overheated ? " · ПЕРЕГРЕВ" : ""}</td>}
                   </tr>
                 )

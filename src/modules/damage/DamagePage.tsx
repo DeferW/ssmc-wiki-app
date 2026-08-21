@@ -12,7 +12,7 @@ import {
 import type { EquippedAttachment, StatDirection, WeaponModifiableStats } from "./attachmentModifiers";
 import { aimedShotAbilityFrom } from "./aimedShot";
 import type { AimedShotEffectConfig } from "./aimedShot";
-import type { DamageFalloffThreshold, DamageTypeMap, HitDirection, OverheatConfig } from "./damageMath";
+import type { DamageFalloffThreshold, DamageTypeMap, HitDirection, HoloTargetingConfig, OverheatConfig } from "./damageMath";
 import { useMobCatalog } from "./mobCatalogStore";
 import { targetArmorFrom, targetSizeFrom, targetThresholdsFrom } from "./target";
 import type { TargetSelection } from "./target";
@@ -85,6 +85,24 @@ function overheatConfigFrom(stats: JsonMap | undefined): OverheatConfig | undefi
     emergencyCooldownMultiplier: numberField(raw, "emergencyCooldownMultiplier") ?? 0,
     emergencyCooldownDelaySeconds: numberField(raw, "emergencyCooldownDelaySeconds") ?? 0,
   };
+}
+
+function holoTargetingConfigFrom(projectile: JsonMap | undefined): HoloTargetingConfig | undefined {
+  const raw = isMap(projectile?.holoTargeting) ? projectile.holoTargeting : undefined;
+  if (!raw) return undefined;
+  const stacksPerHit = numberField(raw, "stacksPerHit");
+  const maxStacks = numberField(raw, "maxStacks");
+  const decayPerSecond = numberField(raw, "decayPerSecond");
+  const decayDelaySeconds = numberField(raw, "decayDelaySeconds");
+  const damageMultiplierPerStack = numberField(raw, "damageMultiplierPerStack");
+  if (
+    stacksPerHit == null
+    || maxStacks == null
+    || decayPerSecond == null
+    || decayDelaySeconds == null
+    || damageMultiplierPerStack == null
+  ) return undefined;
+  return { stacksPerHit, maxStacks, decayPerSecond, decayDelaySeconds, damageMultiplierPerStack };
 }
 
 function sustainedShotsToOverheat(overheat: OverheatConfig | undefined, shotsPerSecond: number) {
@@ -229,6 +247,7 @@ export function DamagePage() {
     ? selectedAmmoMode.armorPiercing
     : typeof selectedProjectile?.armorPiercing === "number" ? selectedProjectile.armorPiercing : 0;
   const overheat = overheatConfigFrom(weaponStats);
+  const holoTargeting = holoTargetingConfigFrom(selectedProjectile);
   const estimatedShotsToOverheat = sustainedShotsToOverheat(overheat, modifiedStats?.shotsPerSecond ?? 0);
   // directFeed ammo (XM88's manually-chambered rounds, shotgun shells) loads
   // one round at a time or from a box, not a swappable magazine — "capacity"
@@ -325,6 +344,14 @@ export function DamagePage() {
             })}
           </div>
 
+          {!selectedWeapon && (
+            <div className="damage-panel-empty">
+              <span>WEAPON INPUT</span>
+              <strong>Оружие не выбрано</strong>
+              <p>Откройте слот выше и выберите оружие для расчёта.</p>
+            </div>
+          )}
+
           {selectedWeapon && baseStats && modifiedStats && (
             <dl className="stat-grid">
               <StatRow label="Точность" from={baseStats.accuracyWieldedMultiplier} to={modifiedStats.accuracyWieldedMultiplier} direction="higher-better" format={(value) => `×${formatNumber(value)}`} />
@@ -372,7 +399,36 @@ export function DamagePage() {
                         {(selectedAmmoMode?.armorPiercing != null || projectile.armorPiercing != null) && (
                           <div><dt>Бронепробитие</dt><dd>{formatNumber(selectedAmmoMode?.armorPiercing ?? projectile.armorPiercing)}</dd></div>
                         )}
+                        {isMap(projectile.holoTargeting) && (
+                          <>
+                            <div>
+                              <dt>НТ-метка за попадание</dt>
+                              <dd>
+                                +{formatNumber(projectile.holoTargeting.stacksPerHit)} стаков · +{formatNumber(
+                                  Number(projectile.holoTargeting.stacksPerHit)
+                                    * Number(projectile.holoTargeting.damageMultiplierPerStack)
+                                    * 100,
+                                )}% урона
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>Предел НТ-метки</dt>
+                              <dd>
+                                {formatNumber(projectile.holoTargeting.maxStacks)} стаков · +{formatNumber(
+                                  Number(projectile.holoTargeting.maxStacks)
+                                    * Number(projectile.holoTargeting.damageMultiplierPerStack)
+                                    * 100,
+                                )}% урона
+                              </dd>
+                            </div>
+                          </>
+                        )}
                       </dl>
+                      {isMap(projectile.holoTargeting) && (
+                        <p className="holo-targeting-note">
+                          Усиливает весь входящий урон, включая это же попадание. Через {formatNumber(projectile.holoTargeting.decayDelaySeconds)} с без попаданий теряет по {formatNumber(projectile.holoTargeting.decayPerSecond)} стаков в секунду.
+                        </p>
+                      )}
                     </article>
                   ))}
                 </div>
@@ -396,6 +452,14 @@ export function DamagePage() {
               onClear={target ? () => setTarget(null) : undefined}
             />
           </div>
+
+          {!target && !mobLoading && (
+            <div className="damage-panel-empty">
+              <span>TARGET INPUT</span>
+              <strong>Цель не выбрана</strong>
+              <p>Откройте слот выше и укажите цель, броню и пороги здоровья.</p>
+            </div>
+          )}
 
           {mobLoading && !mobCatalog && <p className="muted">Загружаю данные о мобах…</p>}
           {mobError && !mobCatalog && <p className="muted">Ошибка загрузки данных о мобах: {mobError}</p>}
@@ -490,6 +554,7 @@ export function DamagePage() {
                 magazineCapacity={magazineCapacity}
                 gunStacks={selectedWeapon ? WEAPON_GUN_STACKS[selectedWeapon.id] : undefined}
                 overheat={overheat}
+                holoTargeting={holoTargeting}
               />
               {hasAimedShot && aimedShotEffect && (
                 <AimedShotCard
@@ -510,7 +575,7 @@ export function DamagePage() {
               )}
             </>
           ) : (
-            <div className="damage-result-empty">
+            <div className="damage-panel-empty">
               <span>CALCULATION STANDBY</span>
               <strong>Результат расчёта</strong>
               <p>Выберите оружие с боеприпасом и цель.</p>

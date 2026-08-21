@@ -13,10 +13,10 @@
 .aimed-shot-card { display: grid; gap: 16px; margin-top: 4px; padding-top: 20px; border-top: 1px solid var(--line-strong); }
 .aimed-shot-card > h3 { color: var(--accent-soft); }
 .aimed-shot-card > .muted { margin: 0; line-height: 1.55; }
-.damage-result-empty { display: grid; min-height: 190px; align-content: center; justify-items: start; gap: 9px; }
-.damage-result-empty span { color: var(--muted); font-size: .58rem; letter-spacing: .1em; }
-.damage-result-empty strong { color: var(--text); font-size: 1rem; text-transform: uppercase; }
-.damage-result-empty p { max-width: 280px; margin: 0; color: var(--muted); font-size: .68rem; line-height: 1.6; }
+.damage-panel-empty { display: grid; min-height: 150px; align-content: center; justify-items: start; gap: 9px; padding: 18px; border: 1px dashed var(--line); background: color-mix(in srgb, var(--surface-raised) 58%, transparent); }
+.damage-panel-empty span { color: var(--muted); font-size: .58rem; letter-spacing: .1em; }
+.damage-panel-empty strong { color: var(--text); font-size: 1rem; text-transform: uppercase; }
+.damage-panel-empty p { max-width: 300px; margin: 0; color: var(--muted); font-size: .68rem; line-height: 1.6; }
 .loadout-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px; }
 
 .attachment-slot-wrap { display: grid; gap: 6px; justify-items: center; }
@@ -57,6 +57,7 @@
 .damage-overheat-summary { display: grid; gap: 10px; padding: 14px; border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--line)); background: color-mix(in srgb, var(--danger) 4%, var(--surface-raised)); }
 .damage-overheat-summary h3 { color: var(--danger); }
 .damage-overheat-summary .stat-grid { margin: 0; }
+.holo-targeting-note { margin: 10px 0 0; padding: 10px 12px; border-left: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 5%, transparent); color: var(--muted); font-size: .65rem; line-height: 1.55; }
 
 .weapon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 .weapon-card { display: flex; height: 168px; flex-direction: column; align-items: flex-start; overflow: hidden; padding: 10px; border: 1px solid var(--line); background: linear-gradient(160deg, var(--surface-raised), var(--surface)); color: inherit; text-align: left; cursor: pointer; }

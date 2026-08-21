@@ -252,6 +252,14 @@ export type OverheatConfig = {
   emergencyCooldownDelaySeconds: number;
 };
 
+export type HoloTargetingConfig = {
+  stacksPerHit: number;
+  maxStacks: number;
+  decayPerSecond: number;
+  decayDelaySeconds: number;
+  damageMultiplierPerStack: number;
+};
+
 export type SimulatedShot = {
   index: number;
   totalDamage: number;
@@ -262,6 +270,8 @@ export type SimulatedShot = {
   shotsPerSecond: number;
   heatAfterShot?: number;
   overheated?: boolean;
+  holoStacks?: number;
+  holoDamageMultiplier?: number;
 };
 
 export type EngagementSimulationInput = {
@@ -277,6 +287,7 @@ export type EngagementSimulationInput = {
   hitDirection?: HitDirection;
   gunStacks?: GunStacksConfig;
   overheat?: OverheatConfig;
+  holoTargeting?: HoloTargetingConfig;
 };
 
 export type EngagementResult = {
@@ -304,6 +315,7 @@ export function simulateEngagement(input: EngagementSimulationInput, thresholds:
   let timeToCriticalSeconds = Infinity;
   let timeToDeadSeconds = Infinity;
   let currentHeat = 0;
+  let currentHoloStacks = 0;
   let overheatCount = 0;
 
   for (let index = 1; index <= MAX_SIMULATED_SHOTS; index++) {
@@ -312,12 +324,29 @@ export function simulateEngagement(input: EngagementSimulationInput, thresholds:
       ? Math.min(input.gunStacks.maxArmorPiercingBonus, input.gunStacks.increaseArmorPiercing * consecutiveHits)
       : 0;
     const armorPiercing = input.baseArmorPiercing + armorPiercingBonus;
-    const damageMultiplier = input.baseDamageMultiplier + (stacksActive ? input.gunStacks!.damageMultiplierBonus : 0);
+    const weaponDamageMultiplier = input.baseDamageMultiplier + (stacksActive ? input.gunStacks!.damageMultiplierBonus : 0);
     const shotsPerSecond = stacksActive ? input.gunStacks!.activeFireRate : input.baseShotsPerSecond;
 
-    const ratio = input.baseDamageMultiplier > 0 ? damageMultiplier / input.baseDamageMultiplier : 1;
+    // ProjectileHitEvent is raised before the game applies projectile damage.
+    // HoloTargeting therefore adds this projectile's stacks first, so even the
+    // first HT round receives its own +damage bonus.
+    if (input.holoTargeting) {
+      currentHoloStacks = Math.min(
+        input.holoTargeting.maxStacks,
+        currentHoloStacks + input.holoTargeting.stacksPerHit,
+      );
+    }
+    const holoDamageMultiplier = input.holoTargeting
+      ? 1 + currentHoloStacks * input.holoTargeting.damageMultiplierPerStack
+      : 1;
+    const holoStacksForShot = input.holoTargeting ? currentHoloStacks : undefined;
+    const damageMultiplier = weaponDamageMultiplier * holoDamageMultiplier;
+
+    const weaponRatio = input.baseDamageMultiplier > 0 ? weaponDamageMultiplier / input.baseDamageMultiplier : 1;
     const scaledDamage: DamageTypeMap = {};
-    for (const [type, amount] of Object.entries(input.effectiveDamage)) scaledDamage[type] = amount * ratio;
+    for (const [type, amount] of Object.entries(input.effectiveDamage)) {
+      scaledDamage[type] = amount * weaponRatio * holoDamageMultiplier;
+    }
 
     const hit = computeHitDamage({
       effectiveDamage: scaledDamage,
@@ -347,6 +376,15 @@ export function simulateEngagement(input: EngagementSimulationInput, thresholds:
         currentHeat = Math.max(0, currentHeat - input.overheat.cooldownRate * firingPeriod);
       }
     }
+    if (input.holoTargeting && Number.isFinite(intervalAfterShot)) {
+      const decayTicks = Math.floor(
+        Math.max(0, intervalAfterShot - input.holoTargeting.decayDelaySeconds) + 1e-9,
+      );
+      currentHoloStacks = Math.max(
+        0,
+        currentHoloStacks - decayTicks * input.holoTargeting.decayPerSecond,
+      );
+    }
     cumulativeTimeSeconds += intervalAfterShot;
 
     shots.push({
@@ -359,6 +397,8 @@ export function simulateEngagement(input: EngagementSimulationInput, thresholds:
       shotsPerSecond,
       heatAfterShot,
       overheated,
+      holoStacks: holoStacksForShot,
+      holoDamageMultiplier: input.holoTargeting ? holoDamageMultiplier : undefined,
     });
 
     if (hitsToCritical === Infinity && thresholds.critical != null && cumulativeDamage >= thresholds.critical) {
