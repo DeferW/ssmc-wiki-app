@@ -13,7 +13,10 @@ export function ItemSlot({ label, item, onOpen, onClear, compact = false }: {
     return (
       <button type="button" className={`item-slot is-empty${compact ? " is-compact" : ""}`} onClick={onOpen}>
         <span className="item-slot-plus" aria-hidden="true">+</span>
-        <span>{label}</span>
+        <span className="item-slot-copy">
+          <strong>{label}</strong>
+          {!compact && <small>Открыть список</small>}
+        </span>
       </button>
     );
   }
@@ -22,7 +25,10 @@ export function ItemSlot({ label, item, onOpen, onClear, compact = false }: {
     <div className={`item-slot is-filled${compact ? " is-compact" : ""}`}>
       <button type="button" className="item-slot-main" onClick={onOpen}>
         <ItemSprite item={item} compact={compact} />
-        <strong>{capitalizeName(item.name)}</strong>
+        <span className="item-slot-copy">
+          <strong>{capitalizeName(item.name)}</strong>
+          {!compact && <small>{item.id}</small>}
+        </span>
       </button>
       {onClear && (
         <button type="button" className="item-slot-clear" onClick={onClear} aria-label={`Убрать ${item.name}`}>×</button>

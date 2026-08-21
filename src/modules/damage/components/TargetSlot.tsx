@@ -18,7 +18,10 @@ export function TargetSlot({ label, selection, catalog, mobCatalog, onOpen, onCl
     return (
       <button type="button" className="item-slot is-empty" onClick={onOpen}>
         <span className="item-slot-plus" aria-hidden="true">+</span>
-        <span>{label}</span>
+        <span className="item-slot-copy">
+          <strong>{label}</strong>
+          <small>Открыть список</small>
+        </span>
       </button>
     );
   }
@@ -33,7 +36,10 @@ export function TargetSlot({ label, selection, catalog, mobCatalog, onOpen, onCl
               catalog.items[id] ? <ItemSprite key={id} item={catalog.items[id]} compact /> : null
             ))}
           </div>
-          <strong>{preset?.name ?? selection.presetId}</strong>
+          <span className="item-slot-copy">
+            <strong>{preset?.name ?? selection.presetId}</strong>
+            <small>Комплект морпеха</small>
+          </span>
         </button>
         {onClear && <button type="button" className="item-slot-clear" onClick={onClear} aria-label="Убрать цель">×</button>}
       </div>
@@ -45,8 +51,10 @@ export function TargetSlot({ label, selection, catalog, mobCatalog, onOpen, onCl
     <div className="item-slot is-filled">
       <button type="button" className="item-slot-main" onClick={onOpen}>
         {caste && <XenoSprite caste={caste} compact />}
-        <strong>{caste ? xenoCasteLabel(caste) : selection.casteId}</strong>
-        <small>{selection.casteId}</small>
+        <span className="item-slot-copy">
+          <strong>{caste ? xenoCasteLabel(caste) : selection.casteId}</strong>
+          <small>{selection.casteId}</small>
+        </span>
       </button>
       {onClear && <button type="button" className="item-slot-clear" onClick={onClear} aria-label="Убрать цель">×</button>}
     </div>

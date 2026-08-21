@@ -135,6 +135,24 @@ function StatRow({ label, from, to, direction, format }: {
   );
 }
 
+function DamagePanelHeader({ index, eyebrow, title, description }: {
+  index: string;
+  eyebrow: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <header className="damage-panel-header">
+      <span className="damage-panel-index" aria-hidden="true">{index}</span>
+      <div>
+        <p>{eyebrow}</p>
+        <h2>{title}</h2>
+        <small>{description}</small>
+      </div>
+    </header>
+  );
+}
+
 export function DamagePage() {
   const { catalog, error, loading, retry } = useCatalog();
   const { mobCatalog, error: mobError, loading: mobLoading } = useMobCatalog();
@@ -309,48 +327,58 @@ export function DamagePage() {
       <div className="damage-workspace">
       {catalog && (
         <section className="damage-loadout damage-weapon-card">
-          {!selectedWeapon && (
-            <div className="damage-panel-empty">
-              <span>WEAPON INPUT</span>
-              <strong>Оружие не выбрано</strong>
-              <p>Откройте слот ниже и выберите оружие для расчёта.</p>
-            </div>
-          )}
+          <DamagePanelHeader
+            index="01"
+            eyebrow="WEAPON SYSTEM"
+            title="Оружие"
+            description="Основное оружие, совместимые обвесы и боеприпасы."
+          />
 
-          <div className="loadout-row">
+          <div className="primary-slot-row">
             <ItemSlot
-              label="Оружие"
+              label="Выбрать оружие"
               item={selectedWeapon}
               onOpen={() => setPicker({ type: "weapon" })}
               onClear={selectedWeapon ? clearWeapon : undefined}
             />
-            {selectedWeapon && attachmentSlots.map((slot) => {
-              const slotId = slot.id ?? slot.slotId ?? "";
-              const item: CatalogItem | null = attachmentBySlot[slotId] ? catalog.items[attachmentBySlot[slotId]] ?? null : null;
-              const toggleable = item ? isToggleableAttachment(item) && !isGunAttachment(item) : false;
-              const active = Boolean(attachmentActiveBySlot[slotId]);
-              return (
-                <div className="attachment-slot-wrap" key={slotId}>
-                  <ItemSlot
-                    label={slot.name ?? slot.slotName ?? "Обвес"}
-                    item={item}
-                    compact
-                    onOpen={() => setPicker({ type: "attachment", slotId })}
-                    onClear={item ? () => clearAttachment(slotId) : undefined}
-                  />
-                  {toggleable && (
-                    <button
-                      type="button"
-                      className={`attachment-toggle${active ? " is-active" : ""}`}
-                      onClick={() => toggleAttachmentActive(slotId)}
-                    >
-                      {active ? "Активен" : "Неактивен"}
-                    </button>
-                  )}
-                </div>
-              );
-            })}
           </div>
+
+          {selectedWeapon && attachmentSlots.length > 0 && (
+            <section className="damage-section attachment-section">
+              <header className="damage-section-header">
+                <h3>Обвесы</h3>
+                <span>{attachmentSlots.length} слота</span>
+              </header>
+              <div className="attachment-rack">
+                {attachmentSlots.map((slot) => {
+                  const slotId = slot.id ?? slot.slotId ?? "";
+                  const item: CatalogItem | null = attachmentBySlot[slotId] ? catalog.items[attachmentBySlot[slotId]] ?? null : null;
+                  const toggleable = item ? isToggleableAttachment(item) && !isGunAttachment(item) : false;
+                  const active = Boolean(attachmentActiveBySlot[slotId]);
+                  return (
+                    <div className="attachment-slot-wrap" key={slotId}>
+                      <ItemSlot
+                        label={slot.name ?? slot.slotName ?? "Обвес"}
+                        item={item}
+                        compact
+                        onOpen={() => setPicker({ type: "attachment", slotId })}
+                        onClear={item ? () => clearAttachment(slotId) : undefined}
+                      />
+                      {toggleable && (
+                        <button
+                          type="button"
+                          className={`attachment-toggle${active ? " is-active" : ""}`}
+                          onClick={() => toggleAttachmentActive(slotId)}
+                        >
+                          {active ? "Активен" : "Неактивен"}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           {selectedWeapon && baseStats && modifiedStats && (
             <dl className="stat-grid">
@@ -442,17 +470,16 @@ export function DamagePage() {
 
       {catalog && (
         <section className="damage-loadout damage-target-card">
-          {!target && !mobLoading && (
-            <div className="damage-panel-empty">
-              <span>TARGET INPUT</span>
-              <strong>Цель не выбрана</strong>
-              <p>Откройте слот ниже и укажите цель, броню и пороги здоровья.</p>
-            </div>
-          )}
+          <DamagePanelHeader
+            index="02"
+            eyebrow="TARGET PROFILE"
+            title="Цель"
+            description="Противник, броня, направление атаки и пороги здоровья."
+          />
 
-          <div className="loadout-row">
+          <div className="primary-slot-row">
             <TargetSlot
-              label="Цель"
+              label="Выбрать цель"
               selection={target}
               catalog={catalog}
               mobCatalog={mobCatalog}
@@ -535,6 +562,12 @@ export function DamagePage() {
 
       {catalog && (
         <section className="damage-loadout damage-result-card">
+          <DamagePanelHeader
+            index="03"
+            eyebrow="FIRE SOLUTION"
+            title="Расчёт"
+            description="Дистанция, урон, расход боеприпасов и время поражения."
+          />
           {selectedWeapon && selectedProjectile && target && targetArmor && targetThresholds ? (
             <>
               <h3>Дистанция</h3>
@@ -577,8 +610,8 @@ export function DamagePage() {
           ) : (
             <div className="damage-panel-empty">
               <span>CALCULATION STANDBY</span>
-              <strong>Результат расчёта</strong>
-              <p>Выберите оружие с боеприпасом и цель.</p>
+              <strong>Ожидание данных</strong>
+              <p>Заполните панели оружия и цели — результат появится здесь автоматически.</p>
             </div>
           )}
         </section>
