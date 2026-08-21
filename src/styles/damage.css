@@ -3,18 +3,20 @@
 .damage-hero h1 { margin: 10px 0 12px; color: var(--text-strong); font-size: clamp(2.2rem, 5vw, 4.6rem); line-height: .92; letter-spacing: -.045em; text-transform: uppercase; }
 .damage-hero > div:first-child > p:last-child { max-width: 760px; margin: 0; color: var(--muted); line-height: 1.6; }
 
-.damage-workspace { display: grid; align-items: start; gap: clamp(18px, 1.6vw, 30px); grid-template-columns: minmax(420px, .95fr) minmax(620px, 1.55fr); }
-.damage-weapon-column, .damage-side-grid, .damage-target-stack, .damage-result-stack { min-width: 0; }
-.damage-weapon-column, .damage-target-stack, .damage-result-stack { display: grid; align-content: start; gap: clamp(18px, 1.6vw, 30px); }
-.damage-side-grid { display: grid; align-items: start; gap: clamp(18px, 1.6vw, 30px); grid-template-columns: minmax(280px, .9fr) minmax(340px, 1.1fr); }
+.damage-workspace { display: grid; align-items: stretch; gap: clamp(18px, 1.6vw, 30px); grid-template-columns: minmax(400px, 1.15fr) minmax(280px, .82fr) minmax(360px, 1fr); }
 .damage-loadout { display: grid; min-width: 0; gap: 20px; padding: 22px; border: 1px solid var(--line); background: var(--surface); }
+.damage-workspace > .damage-loadout { height: 100%; align-content: start; }
 .damage-loadout h3 { margin: 4px 0 0; color: var(--text); font-size: .78rem; text-transform: uppercase; }
 .damage-loadout .stat-grid > div { display: grid; align-items: start; grid-template-columns: minmax(0, 1fr) minmax(90px, 55%); }
 .damage-loadout .stat-grid dd { align-self: start; overflow-wrap: anywhere; }
-.damage-result-stack .distance-control { max-width: none; }
-.damage-auxiliary { border-color: var(--line-strong); box-shadow: inset 2px 0 var(--accent); grid-column: 1; }
-.damage-auxiliary > h3 { color: var(--accent-soft); }
-.damage-auxiliary > .muted { margin: 0; line-height: 1.55; }
+.damage-result-card .distance-control { max-width: none; }
+.aimed-shot-card { display: grid; gap: 16px; margin-top: 4px; padding-top: 20px; border-top: 1px solid var(--line-strong); }
+.aimed-shot-card > h3 { color: var(--accent-soft); }
+.aimed-shot-card > .muted { margin: 0; line-height: 1.55; }
+.damage-result-empty { display: grid; min-height: 190px; align-content: center; justify-items: start; gap: 9px; }
+.damage-result-empty span { color: var(--muted); font-size: .58rem; letter-spacing: .1em; }
+.damage-result-empty strong { color: var(--text); font-size: 1rem; text-transform: uppercase; }
+.damage-result-empty p { max-width: 280px; margin: 0; color: var(--muted); font-size: .68rem; line-height: 1.6; }
 .loadout-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px; }
 
 .attachment-slot-wrap { display: grid; gap: 6px; justify-items: center; }
@@ -140,7 +142,8 @@
 .target-card-icons .sprite-frame img { width: 32px; height: 32px; }
 
 @media (max-width: 1120px) {
-  .damage-workspace { grid-template-columns: minmax(0, 1fr); }
+  .damage-workspace { grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr); }
+  .damage-result-card { height: auto; grid-column: 1 / -1; }
 }
 
 @media (max-width: 900px) {
@@ -151,8 +154,8 @@
 }
 
 @media (max-width: 760px) {
-  .damage-side-grid { grid-template-columns: minmax(0, 1fr); }
-  .damage-auxiliary { grid-column: auto; }
+  .damage-workspace { grid-template-columns: minmax(0, 1fr); }
+  .damage-result-card { grid-column: auto; }
 }
 
 @media (max-width: 600px) {
