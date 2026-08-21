@@ -82,7 +82,11 @@ export function MapPage() {
   const manifest = manifestResult?.url === manifestUrl ? manifestResult.value : undefined;
   const overlay = overlayResult?.url === overlayUrl ? overlayResult.value : undefined;
   const overlaysEnabled = LAYER_OPTIONS.some(({ key }) => layers[key]);
-  const coordinatesReady = manifest?.grids.every((grid) => Boolean(grid.worldMin)) ?? false;
+  const coordinatesReady = Boolean(
+    manifest
+    && manifest.schemaVersion >= 3
+    && manifest.grids.every((grid) => Boolean(grid.worldMin)),
+  );
 
   useEffect(() => {
     if (!entry) return;

@@ -7,7 +7,7 @@ export const MAP_DATA_ROOT = configuredRoot.endsWith("/")
 
 // Increment only when the published map contract changes. Besides documenting
 // compatibility this gives GitHub Raw metadata a new browser-cache key.
-export const MAP_DATA_CONTRACT = "2";
+export const MAP_DATA_CONTRACT = "3";
 
 export function mapDataUrl(relativePath: string): string {
   const url = new URL(relativePath, MAP_DATA_ROOT);

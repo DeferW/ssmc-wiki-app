@@ -29,8 +29,10 @@ const CATEGORY_COLOR: Record<OverlayPoint["category"], string> = {
   marker: "#b2bcb5",
 };
 
-function tileUrl(pattern: string, manifestUrl: string, z: number, x: number, y: number): string {
-  return new URL(pattern.replace("{z}", String(z)).replace("{x}", String(x)).replace("{y}", String(y)), manifestUrl).toString();
+function tileUrl(pattern: string, manifestUrl: string, revision: number, z: number, x: number, y: number): string {
+  const url = new URL(pattern.replace("{z}", String(z)).replace("{x}", String(x)).replace("{y}", String(y)), manifestUrl);
+  url.searchParams.set("v", String(revision));
+  return url.toString();
 }
 
 function eventPoint(event: { clientX: number; clientY: number }, element: HTMLElement): Point {
@@ -104,8 +106,8 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
     [level, manifest.tileSize, maximum.height, maximum.width, size, view],
   );
   const visibleUrls = useMemo(
-    () => visible.map(([x, y]) => tileUrl(grid.path, manifestUrl, level.z, x, y)),
-    [grid.path, level.z, manifestUrl, visible],
+    () => visible.map(([x, y]) => tileUrl(grid.path, manifestUrl, manifest.schemaVersion, level.z, x, y)),
+    [grid.path, level.z, manifest.schemaVersion, manifestUrl, visible],
   );
 
   useEffect(() => {
