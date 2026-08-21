@@ -309,6 +309,14 @@ export function DamagePage() {
       <div className="damage-workspace">
       {catalog && (
         <section className="damage-loadout damage-weapon-card">
+          {!selectedWeapon && (
+            <div className="damage-panel-empty">
+              <span>WEAPON INPUT</span>
+              <strong>Оружие не выбрано</strong>
+              <p>Откройте слот ниже и выберите оружие для расчёта.</p>
+            </div>
+          )}
+
           <div className="loadout-row">
             <ItemSlot
               label="Оружие"
@@ -343,14 +351,6 @@ export function DamagePage() {
               );
             })}
           </div>
-
-          {!selectedWeapon && (
-            <div className="damage-panel-empty">
-              <span>WEAPON INPUT</span>
-              <strong>Оружие не выбрано</strong>
-              <p>Откройте слот выше и выберите оружие для расчёта.</p>
-            </div>
-          )}
 
           {selectedWeapon && baseStats && modifiedStats && (
             <dl className="stat-grid">
@@ -442,6 +442,14 @@ export function DamagePage() {
 
       {catalog && (
         <section className="damage-loadout damage-target-card">
+          {!target && !mobLoading && (
+            <div className="damage-panel-empty">
+              <span>TARGET INPUT</span>
+              <strong>Цель не выбрана</strong>
+              <p>Откройте слот ниже и укажите цель, броню и пороги здоровья.</p>
+            </div>
+          )}
+
           <div className="loadout-row">
             <TargetSlot
               label="Цель"
@@ -452,14 +460,6 @@ export function DamagePage() {
               onClear={target ? () => setTarget(null) : undefined}
             />
           </div>
-
-          {!target && !mobLoading && (
-            <div className="damage-panel-empty">
-              <span>TARGET INPUT</span>
-              <strong>Цель не выбрана</strong>
-              <p>Откройте слот выше и укажите цель, броню и пороги здоровья.</p>
-            </div>
-          )}
 
           {mobLoading && !mobCatalog && <p className="muted">Загружаю данные о мобах…</p>}
           {mobError && !mobCatalog && <p className="muted">Ошибка загрузки данных о мобах: {mobError}</p>}
