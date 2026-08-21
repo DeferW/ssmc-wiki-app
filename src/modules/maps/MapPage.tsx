@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { loadMapCatalog, loadMapOverlay, loadTileManifest } from "./api";
-import { MAP_DATA_ROOT } from "./config";
+import { mapDataUrl } from "./config";
 import { MapCanvas, type MapCanvasHandle, type SelectionAnchor } from "./MapCanvas";
 import { describeComponents, flattenOverlay, spawnOptions } from "./overlay";
 import type { CanvasStats, LayerSettings, MapCatalog, MapOverlay, OverlayCategory, OverlayPoint, Point, TileManifest } from "./types";
@@ -77,8 +77,8 @@ export function MapPage() {
     () => catalog?.maps.find((map) => map.id === requestedMap) ?? catalog?.maps[0],
     [catalog, requestedMap],
   );
-  const manifestUrl = entry ? new URL(entry.tiles, MAP_DATA_ROOT).toString() : "";
-  const overlayUrl = entry ? new URL(entry.overlay, MAP_DATA_ROOT).toString() : "";
+  const manifestUrl = entry ? mapDataUrl(entry.tiles) : "";
+  const overlayUrl = entry ? mapDataUrl(entry.overlay) : "";
   const manifest = manifestResult?.url === manifestUrl ? manifestResult.value : undefined;
   const overlay = overlayResult?.url === overlayUrl ? overlayResult.value : undefined;
   const overlaysEnabled = LAYER_OPTIONS.some(({ key }) => layers[key]);

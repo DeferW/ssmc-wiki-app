@@ -4,7 +4,9 @@ import type { MapCatalog, MapOverlay, TileManifest } from "./types";
 let catalogPromise: Promise<MapCatalog> | undefined;
 
 async function fetchJson<T>(url: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(url, { signal, cache: "force-cache" });
+  // JSON files are tiny mutable pointers on the main branch. Revalidate them;
+  // only the much heavier immutable image tiles use force-cache in MapCanvas.
+  const response = await fetch(url, { signal, cache: "no-cache" });
   if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   return response.json() as Promise<T>;
 }

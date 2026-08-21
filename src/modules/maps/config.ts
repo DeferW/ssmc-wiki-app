@@ -5,4 +5,14 @@ export const MAP_DATA_ROOT = configuredRoot.endsWith("/")
   ? configuredRoot
   : `${configuredRoot}/`;
 
-export const MAP_CATALOG_URL = new URL("catalog.json", MAP_DATA_ROOT).toString();
+// Increment only when the published map contract changes. Besides documenting
+// compatibility this gives GitHub Raw metadata a new browser-cache key.
+export const MAP_DATA_CONTRACT = "2";
+
+export function mapDataUrl(relativePath: string): string {
+  const url = new URL(relativePath, MAP_DATA_ROOT);
+  url.searchParams.set("v", MAP_DATA_CONTRACT);
+  return url.toString();
+}
+
+export const MAP_CATALOG_URL = mapDataUrl("catalog.json");
