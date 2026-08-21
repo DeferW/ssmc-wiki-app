@@ -1,4 +1,4 @@
-import type { MapOverlay, OverlayCategory, OverlayOccurrence, OverlayPoint, OverlayPrototype } from "./types";
+import type { MapArea, MapOverlay, OverlayCategory, OverlayOccurrence, OverlayPoint, OverlayPrototype, Point } from "./types";
 
 const LOOT_COMPONENTS = new Set([
   "RandomSpawner",
@@ -11,6 +11,60 @@ const LOOT_COMPONENTS = new Set([
   "ProportionalSpawner",
   "RandomPatronFigurineSpawner",
 ]);
+
+const POINT_NAME_TRANSLATIONS: Record<string, string> = {
+  DecalSpawnerBloodSplatters: "Генератор пятен крови",
+  RMCAegisCorpseSpawner: "Генератор тела учёного AEGIS",
+  RMCAegisSpawner: "Генератор ящика AEGIS",
+  RMCBlockerVehicle: "Ограничитель транспорта",
+  RMCCrashLandBarrier: "Граница аварийной посадки",
+  RMCDecalSpawnerBloodSplatters: "Генератор пятен крови",
+  RMCDecalSpawnerGibsDrone: "Генератор останков дрона",
+  RMCDecalSpawnerGibsLesserDrone: "Генератор останков малого дрона",
+  RMCDecalSpawnerOilSplatters: "Генератор масляных пятен",
+  RMCDecalSpawnerXenoSplatters: "Генератор крови ксеноморфа",
+  RMCRequisitionsChairMarkerWest: "Маркер кресла отдела снабжения",
+  RMCSpawnerCommunicationsTowerOne: "Точка башни связи",
+  RMCSpawnerCommunicationsTowerTwo: "Точка башни связи",
+  RMCSpawnerEvacuationPodEast: "Точка эвакуационной капсулы",
+  RMCSpawnerEvacuationPodNorth: "Точка эвакуационной капсулы",
+  RMCSpawnerEvacuationPodSouth: "Точка эвакуационной капсулы",
+  RMCSpawnerEvacuationPodWest: "Точка эвакуационной капсулы",
+  RMCSpawnerLifeboat: "Точка спасательной шлюпки",
+  RMCTriggerTeleporter: "Телепорт",
+  RMCTriggerTeleporterViewer: "Обзор телепорта",
+  STHunterTeleportDestination: "Точка телепорта Охотника",
+  STHunterTeleportDestinationAlmayer: "Точка телепорта Охотника",
+  WarpPoint: "Точка перехода",
+};
+
+const CORPSE_ROLE_TRANSLATIONS: Record<string, string> = {
+  "Unknown": "неизвестный",
+  "Chef": "повар",
+  "CLF Soldier": "солдат ФОК",
+  "Colonist": "колонист",
+  "Colonist Kutjevo": "колонист Кутьево",
+  "TSEPA Constable": "констебль TSEPA",
+  "CMB Deputy": "помощник маршала КБМ",
+  "Doctor": "врач",
+  "Engineer": "инженер",
+  "UNMC Reconnaissance Spotter": "корректировщик разведки ККМП ООН",
+  "Corporate Liaison": "корпоративный связной",
+  "Shaft Miner": "шахтёр",
+  "Prisoner": "заключённый",
+  "Prison Guard": "тюремный охранник",
+  "Russian": "русский",
+  "Scientist": "учёный",
+  "Security Officer": "офицер охраны",
+  "SPP Soldier": "солдат СПН",
+  "CMB Riot Control Officer": "офицер подавления беспорядков КБМ",
+  "We-Ya Goon": "оперативник Вестон-Ямада",
+  "We-Ya Goon Hybrisa": "оперативник Вестон-Ямада на Гибрисе",
+  "We-Ya Goon Kutjevo": "оперативник Вестон-Ямада на Кутьево",
+  "We-Ya Goon Lead": "ведущий оперативник Вестон-Ямада",
+  "Corporate Supervisor": "корпоративный руководитель",
+  "We-Ya PMC Standard": "боец ЧВК Вестон-Ямада",
+};
 
 function categoryOf(id: string, prototype: OverlayPrototype, occurrence: OverlayOccurrence): OverlayCategory {
   if (typeof occurrence[4] === "string") return "label";
@@ -82,6 +136,32 @@ export function flattenOverlay(overlay: MapOverlay): OverlayPoint[] {
     });
   }
   return points;
+}
+
+export function pointDisplayName(point: OverlayPoint): string {
+  if (point.label) return point.label;
+  const translated = POINT_NAME_TRANSLATIONS[point.prototypeId];
+  if (translated) return translated;
+  const corpse = /^Corpse Spawner - (.+)$/.exec(point.name);
+  if (corpse) return `Генератор тела: ${CORPSE_ROLE_TRANSLATIONS[corpse[1]] ?? corpse[1]}`;
+  return point.name;
+}
+
+export function areaAt(overlay: MapOverlay | undefined, point: Point | undefined): MapArea | undefined {
+  if (!overlay?.areas || !point) return undefined;
+  const x = Math.floor(point.x);
+  const y = Math.floor(point.y);
+  const row = overlay.areas.rows.find((candidate) => candidate[0] === y);
+  if (!row) return undefined;
+  for (let index = 1; index + 2 < row.length; index += 3) {
+    const start = row[index];
+    const length = row[index + 1];
+    if (x < start || x >= start + length) continue;
+    const area = overlay.areas.types[row[index + 2]];
+    if (!area) return undefined;
+    return { prototypeId: area[0], name: area[1], supportMask: area[2] };
+  }
+  return undefined;
 }
 
 export function describeComponents(point: OverlayPoint): string[] {

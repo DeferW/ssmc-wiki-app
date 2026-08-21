@@ -10,12 +10,17 @@ type Props = {
   selectedKey?: string;
   onSelect: (point?: OverlayPoint) => void;
   onSelectedAnchor: (anchor?: SelectionAnchor) => void;
-  onCoordinate: (point?: Point) => void;
+  onCoordinate: (point?: Point, anchor?: SelectionAnchor) => void;
   onStats: (stats: CanvasStats) => void;
 };
 
 export type MapCanvasHandle = { reset: () => void; zoomBy: (factor: number) => void };
-export type SelectionAnchor = { x: number; y: number; align: "left" | "right" };
+export type SelectionAnchor = {
+  x: number;
+  y: number;
+  align: "left" | "right";
+  vertical?: "above" | "below";
+};
 
 type CachedTile = { image: ImageBitmap; bytes: number; used: number };
 type PointerDrag = { id: number; startX: number; startY: number; viewX: number; viewY: number; moved: boolean };
@@ -27,6 +32,12 @@ const CATEGORY_COLOR: Record<OverlayPoint["category"], string> = {
   label: "#8fe09e",
   spawn: "#ef7777",
   marker: "#b2bcb5",
+};
+
+const QUIET_MARKERS: Record<string, { glyph: string; color: string }> = {
+  RMCCrashLandBarrier: { glyph: "H", color: "#c4cba6" },
+  RMCBlockerVehicle: { glyph: "⊘", color: "#75a6a4" },
+  RMCDecalSpawnerBloodSplatters: { glyph: "✦", color: "#a96767" },
 };
 
 function tileUrl(pattern: string, manifestUrl: string, revision: number, z: number, x: number, y: number): string {
@@ -221,6 +232,45 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       const pixel = worldToMapPixel(grid, point);
       if (pixel.x < bounds.left || pixel.x > bounds.right || pixel.y < bounds.top || pixel.y > bounds.bottom) continue;
       const selected = point.key === selectedKey;
+
+      if (point.category === "label" && point.label) {
+        const fontSize = 17 / view.scale;
+        context.save();
+        context.globalAlpha = selected ? 1 : 0.88;
+        context.font = `700 ${fontSize}px IBM Plex Mono, monospace`;
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        context.lineJoin = "round";
+        context.lineWidth = (selected ? 5.5 : 4.5) / view.scale;
+        context.strokeStyle = "rgba(0, 0, 0, .9)";
+        context.strokeText(point.label, pixel.x, pixel.y);
+        context.fillStyle = selected ? "#ffffff" : CATEGORY_COLOR.label;
+        context.fillText(point.label, pixel.x, pixel.y);
+        context.restore();
+        continue;
+      }
+
+      const quiet = QUIET_MARKERS[point.prototypeId];
+      if (quiet) {
+        if (view.scale < 0.28 && !selected) continue;
+        context.save();
+        context.globalAlpha = selected ? 1 : 0.46;
+        context.font = `${point.prototypeId === "RMCCrashLandBarrier" ? 700 : 500} ${10 / view.scale}px IBM Plex Mono, monospace`;
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        context.fillStyle = quiet.color;
+        context.fillText(quiet.glyph, pixel.x, pixel.y);
+        if (selected) {
+          context.beginPath();
+          context.arc(pixel.x, pixel.y, 8 / view.scale, 0, Math.PI * 2);
+          context.lineWidth = 1.5 / view.scale;
+          context.strokeStyle = "#ffffff";
+          context.stroke();
+        }
+        context.restore();
+        continue;
+      }
+
       context.beginPath();
       context.arc(pixel.x, pixel.y, markerRadius * (selected ? 1.45 : 1), 0, Math.PI * 2);
       context.fillStyle = CATEGORY_COLOR[point.category];
@@ -230,15 +280,6 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       context.lineWidth = (selected ? 3 : 1) / view.scale;
       context.strokeStyle = selected ? "#ffffff" : "rgba(0, 0, 0, .78)";
       context.stroke();
-      if (point.label && view.scale >= 0.35) {
-        context.font = `${Math.max(10 / view.scale, 18)}px IBM Plex Mono, monospace`;
-        context.textBaseline = "middle";
-        context.lineWidth = 4 / view.scale;
-        context.strokeStyle = "rgba(0,0,0,.92)";
-        context.strokeText(point.label, pixel.x + markerRadius * 1.7, pixel.y);
-        context.fillStyle = CATEGORY_COLOR.label;
-        context.fillText(point.label, pixel.x + markerRadius * 1.7, pixel.y);
-      }
     }
     context.restore();
   }, [grid, layers, level, manifest.tileSize, maximum, selectedKey, size, tileRevision, view, visible, visiblePoints, visibleUrls]);
@@ -296,7 +337,11 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       onPointerMove={(event) => {
         const screen = eventPoint(event, event.currentTarget);
         const world = mapPixelToWorld(grid, mapPointAt(screen));
-        onCoordinate(world);
+        onCoordinate(world, {
+          ...screen,
+          align: screen.x > size.width * 0.64 ? "right" : "left",
+          vertical: screen.y > size.height * 0.45 ? "above" : "below",
+        });
         const drag = dragRef.current;
         if (!drag || drag.id !== event.pointerId) return;
         const dx = screen.x - drag.startX;
@@ -310,7 +355,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         dragRef.current = undefined;
         event.currentTarget.releasePointerCapture(event.pointerId);
       }}
-      onPointerLeave={() => onCoordinate(undefined)}
+      onPointerLeave={() => onCoordinate(undefined, undefined)}
       onKeyDown={(event) => {
         const amount = event.shiftKey ? 160 : 60;
         if (event.key === "+" || event.key === "=") zoomAround(1.25);

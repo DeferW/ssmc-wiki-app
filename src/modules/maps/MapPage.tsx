@@ -3,10 +3,10 @@ import { useSearchParams } from "react-router-dom";
 import { loadMapCatalog, loadMapOverlay, loadTileManifest } from "./api";
 import { mapDataUrl } from "./config";
 import { MapCanvas, type MapCanvasHandle, type SelectionAnchor } from "./MapCanvas";
-import { describeComponents, flattenOverlay, spawnOptions } from "./overlay";
+import { areaAt, describeComponents, flattenOverlay, pointDisplayName, spawnOptions } from "./overlay";
 import type { CanvasStats, LayerSettings, MapCatalog, MapOverlay, OverlayCategory, OverlayPoint, Point, TileManifest } from "./types";
 
-const SETTINGS_KEY = "ssmc-map-layers-v1";
+const SETTINGS_KEY = "ssmc-map-layers-v2";
 const DEFAULT_LAYERS: LayerSettings = {
   loot: true,
   insert: true,
@@ -24,6 +24,26 @@ const LAYER_OPTIONS: { key: OverlayCategory; label: string; detail: string }[] =
   { key: "spawn", label: "Точки появления", detail: "спавны ролей и отрядов" },
   { key: "marker", label: "Прочие маркеры", detail: "технические точки карты" },
 ];
+
+const CATEGORY_LABELS: Record<OverlayCategory, string> = {
+  loot: "Лут",
+  insert: "Инсерт",
+  label: "Надпись",
+  spawn: "Точка появления",
+  marker: "Технический маркер",
+};
+
+const AREA_SUPPORT = [
+  { bit: 0, label: "Авиаудар (CAS)" },
+  { bit: 1, label: "Эвакуация «Фултон»" },
+  { bit: 2, label: "Лазерное целеуказание" },
+  { bit: 3, label: "Установка миномёта" },
+  { bit: 4, label: "Огонь миномёта" },
+  { bit: 5, label: "Медэвак" },
+  { bit: 6, label: "Десантирование" },
+  { bit: 7, label: "Орбитальный удар" },
+  { bit: 8, label: "Сброс снабжения" },
+] as const;
 
 function initialLayers(): LayerSettings {
   try {
@@ -54,6 +74,7 @@ export function MapPage() {
   const [selected, setSelected] = useState<OverlayPoint>();
   const [selectionAnchor, setSelectionAnchor] = useState<SelectionAnchor>();
   const [coordinate, setCoordinate] = useState<Point>();
+  const [coordinateAnchor, setCoordinateAnchor] = useState<SelectionAnchor>();
   const [stats, setStats] = useState<CanvasStats>({ loadedTiles: 0, loadedBytes: 0, pendingTiles: 0, zoom: 0 });
   const [error, setError] = useState<string>();
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -81,7 +102,6 @@ export function MapPage() {
   const overlayUrl = entry ? mapDataUrl(entry.overlay) : "";
   const manifest = manifestResult?.url === manifestUrl ? manifestResult.value : undefined;
   const overlay = overlayResult?.url === overlayUrl ? overlayResult.value : undefined;
-  const overlaysEnabled = LAYER_OPTIONS.some(({ key }) => layers[key]);
   const coordinatesReady = Boolean(
     manifest
     && manifest.schemaVersion >= 3
@@ -105,7 +125,7 @@ export function MapPage() {
   }, [entry, manifestUrl]);
 
   useEffect(() => {
-    if (!entry || !overlaysEnabled || overlay) return;
+    if (!entry || overlay) return;
     const controller = new AbortController();
     loadMapOverlay(overlayUrl, controller.signal)
       .then((value) => setOverlayResult({ url: overlayUrl, value }))
@@ -115,7 +135,7 @@ export function MapPage() {
         }
       });
     return () => controller.abort();
-  }, [entry, overlay, overlayUrl, overlaysEnabled]);
+  }, [entry, overlay, overlayUrl]);
 
   useEffect(() => {
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(layers)); } catch { /* private storage may be unavailable */ }
@@ -125,17 +145,21 @@ export function MapPage() {
   const points = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("ru");
     if (!query) return allPoints;
-    return allPoints.filter((point) => `${point.name} ${point.prototypeId} ${point.label ?? ""}`.toLocaleLowerCase("ru").includes(query));
+    return allPoints.filter((point) => `${pointDisplayName(point)} ${point.name} ${point.prototypeId}`.toLocaleLowerCase("ru").includes(query));
   }, [allPoints, search]);
   const pointCounts = useMemo(() => allPoints.reduce<Record<string, number>>((counts, point) => {
     counts[point.category] = (counts[point.category] ?? 0) + 1;
     return counts;
   }, {}), [allPoints]);
   const selectedOptions = useMemo(() => selected ? spawnOptions(selected) : [], [selected]);
+  const hoveredArea = useMemo(() => areaAt(overlay, coordinate), [coordinate, overlay]);
 
   const toggleLayer = (key: OverlayCategory) => setLayers((current) => ({ ...current, [key]: !current[key] }));
   const onStats = useCallback((value: CanvasStats) => setStats(value), []);
-  const onCoordinate = useCallback((value?: Point) => setCoordinate(value), []);
+  const onCoordinate = useCallback((value?: Point, anchor?: SelectionAnchor) => {
+    setCoordinate(value);
+    setCoordinateAnchor(anchor);
+  }, []);
   const onSelect = useCallback((value?: OverlayPoint) => setSelected(value), []);
   const onSelectedAnchor = useCallback((value?: SelectionAnchor) => setSelectionAnchor(value), []);
 
@@ -160,6 +184,8 @@ export function MapPage() {
             disabled={!catalog}
             onChange={(event) => {
               setSelected(undefined);
+              setCoordinate(undefined);
+              setCoordinateAnchor(undefined);
               setError(undefined);
               setSearchParams({ map: event.target.value });
             }}
@@ -213,14 +239,37 @@ export function MapPage() {
           <div className="maps-coordinate">{formatCoordinate(coordinate)}</div>
           {search && <div className="maps-result-count">Найдено: {points.length}</div>}
 
+          {coordinate && coordinateAnchor && hoveredArea && (
+            <section
+              className={`maps-tile-info maps-tile-info--${coordinateAnchor.align} maps-tile-info--${coordinateAnchor.vertical ?? "above"}`}
+              style={{ left: coordinateAnchor.x, top: coordinateAnchor.y }}
+            >
+              <div className="maps-tile-info-heading">
+                <span>Поддержка тайла</span>
+                <code>X {Math.floor(coordinate.x)} · Y {Math.floor(coordinate.y)}</code>
+              </div>
+              <strong>{hoveredArea.name}</strong>
+              <div className="maps-support-grid">
+                {AREA_SUPPORT.map((support) => {
+                  const allowed = Boolean(hoveredArea.supportMask & (1 << support.bit));
+                  return (
+                    <span className={allowed ? "is-allowed" : "is-blocked"} key={support.bit}>
+                      <i aria-hidden="true">{allowed ? "✓" : "—"}</i>{support.label}
+                    </span>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
           {selected && selectionAnchor && (
             <section
               className={`maps-inspector maps-inspector--${selectionAnchor.align}`}
               style={{ left: selectionAnchor.x, top: selectionAnchor.y }}
             >
               <button className="maps-inspector-close" type="button" onClick={() => setSelected(undefined)} aria-label="Закрыть информацию">×</button>
-              <div className={`maps-point-badge maps-point-badge--${selected.category}`}>{selected.category}</div>
-              <h2>{selected.label || selected.name}</h2>
+              <div className={`maps-point-badge maps-point-badge--${selected.category}`}>{CATEGORY_LABELS[selected.category]}</div>
+              <h2>{pointDisplayName(selected)}</h2>
               <code>{selected.prototypeId}</code>
               <p>X {selected.x.toFixed(1)} · Y {selected.y.toFixed(1)}</p>
               {selected.probability !== undefined && <p>Вероятность инсерта: {Math.round(selected.probability * 100)}%</p>}

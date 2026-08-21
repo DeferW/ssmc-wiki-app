@@ -61,6 +61,16 @@ export type MapOverlay = {
   prototypes: Record<string, OverlayPrototype>;
   occurrences: Record<string, OverlayOccurrence[]>;
   insertMaps: Record<string, { occurrences: Record<string, OverlayOccurrence[]> }>;
+  areas?: {
+    types: [prototypeId: string, name: string, supportMask: number][];
+    rows: number[][];
+  } | null;
+};
+
+export type MapArea = {
+  prototypeId: string;
+  name: string;
+  supportMask: number;
 };
 
 export type OverlayCategory = "loot" | "insert" | "label" | "spawn" | "marker";
