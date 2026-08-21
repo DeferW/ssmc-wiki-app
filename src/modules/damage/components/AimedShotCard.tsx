@@ -66,7 +66,7 @@ export function AimedShotCard({
   if (result.bonus.fireStacksOnHit > 0) debuffs.push({ label: "Поджог", value: `${formatNumber(result.bonus.fireStacksOnHit)} стак.` });
 
   return (
-    <section className="aimed-shot-card damage-loadout damage-auxiliary">
+    <section className="aimed-shot-card">
       <h3>Прицельный выстрел</h3>
       <dl className="stat-grid">
         <div><dt>Время прицеливания</dt><dd>{formatNumber(aimDurationSeconds(ability, distance))} с</dd></div>

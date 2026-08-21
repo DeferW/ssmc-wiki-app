@@ -288,9 +288,8 @@ export function DamagePage() {
       )}
 
       <div className="damage-workspace">
-      <div className="damage-weapon-column">
       {catalog && (
-        <section className="damage-loadout">
+        <section className="damage-loadout damage-weapon-card">
           <div className="loadout-row">
             <ItemSlot
               label="Оружие"
@@ -384,12 +383,9 @@ export function DamagePage() {
           )}
         </section>
       )}
-      </div>
 
-      <div className="damage-side-grid">
-      <div className="damage-target-stack">
       {catalog && (
-        <section className="damage-loadout">
+        <section className="damage-loadout damage-target-card">
           <div className="loadout-row">
             <TargetSlot
               label="Цель"
@@ -472,51 +468,56 @@ export function DamagePage() {
           )}
         </section>
       )}
-      </div>
 
-      <div className="damage-result-stack">
-      {selectedWeapon && selectedProjectile && target && targetArmor && targetThresholds && (
-        <section className="damage-loadout">
-          <h3>Дистанция</h3>
-          <DistanceControl distance={distance} onChange={setDistance} />
-          <ResultPanel
-            effectiveDamage={adjustedEffectiveDamage}
-            distance={distance}
-            falloffThresholds={falloffThresholds}
-            weaponFalloffMultiplier={weaponFalloffMultiplier}
-            baseArmorPiercing={armorPiercing}
-            baseDamageMultiplier={modifiedStats?.damageMultiplier ?? 1}
-            baseShotsPerSecond={modifiedStats?.shotsPerSecond ?? 0}
-            weaponCategory="bullet"
-            target={targetArmor}
-            hitDirection={hitDirection}
-            thresholds={targetThresholds}
-            magazineCapacity={magazineCapacity}
-            gunStacks={selectedWeapon ? WEAPON_GUN_STACKS[selectedWeapon.id] : undefined}
-            overheat={overheat}
-          />
+      {catalog && (
+        <section className="damage-loadout damage-result-card">
+          {selectedWeapon && selectedProjectile && target && targetArmor && targetThresholds ? (
+            <>
+              <h3>Дистанция</h3>
+              <DistanceControl distance={distance} onChange={setDistance} />
+              <ResultPanel
+                effectiveDamage={adjustedEffectiveDamage}
+                distance={distance}
+                falloffThresholds={falloffThresholds}
+                weaponFalloffMultiplier={weaponFalloffMultiplier}
+                baseArmorPiercing={armorPiercing}
+                baseDamageMultiplier={modifiedStats?.damageMultiplier ?? 1}
+                baseShotsPerSecond={modifiedStats?.shotsPerSecond ?? 0}
+                weaponCategory="bullet"
+                target={targetArmor}
+                hitDirection={hitDirection}
+                thresholds={targetThresholds}
+                magazineCapacity={magazineCapacity}
+                gunStacks={selectedWeapon ? WEAPON_GUN_STACKS[selectedWeapon.id] : undefined}
+                overheat={overheat}
+              />
+              {hasAimedShot && aimedShotEffect && (
+                <AimedShotCard
+                  ability={aimedShotAbilityFrom(aimedShotAbilityRaw)}
+                  hasFocusedShooting={hasFocusedShooting}
+                  effect={aimedShotEffect}
+                  distance={distance}
+                  effectiveDamage={adjustedEffectiveDamage}
+                  falloffThresholds={falloffThresholds}
+                  weaponFalloffMultiplier={weaponFalloffMultiplier}
+                  armorPiercing={armorPiercing}
+                  weaponCategory="bullet"
+                  target={targetArmor}
+                  hitDirection={hitDirection}
+                  targetSize={targetSize}
+                  criticalThreshold={targetThresholds.critical ?? null}
+                />
+              )}
+            </>
+          ) : (
+            <div className="damage-result-empty">
+              <span>CALCULATION STANDBY</span>
+              <strong>Результат расчёта</strong>
+              <p>Выберите оружие с боеприпасом и цель.</p>
+            </div>
+          )}
         </section>
       )}
-      </div>
-
-      {selectedWeapon && selectedProjectile && target && targetArmor && hasAimedShot && aimedShotEffect && (
-        <AimedShotCard
-          ability={aimedShotAbilityFrom(aimedShotAbilityRaw)}
-          hasFocusedShooting={hasFocusedShooting}
-          effect={aimedShotEffect}
-          distance={distance}
-          effectiveDamage={adjustedEffectiveDamage}
-          falloffThresholds={falloffThresholds}
-          weaponFalloffMultiplier={weaponFalloffMultiplier}
-          armorPiercing={armorPiercing}
-          weaponCategory="bullet"
-          target={targetArmor}
-          hitDirection={hitDirection}
-          targetSize={targetSize}
-          criticalThreshold={targetThresholds?.critical ?? null}
-        />
-      )}
-      </div>
       </div>
 
       {picker?.type === "weapon" && catalog && (
