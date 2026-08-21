@@ -8,6 +8,7 @@ import "./styles/project.css";
 import "./styles/equipment.css";
 import "./styles/chemistry.css";
 import "./styles/damage.css";
+import "./styles/maps.css";
 import "./styles/responsive.css";
 
 createRoot(document.getElementById("root")!).render(

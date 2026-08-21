@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import { EquipmentPage } from "./equipment/EquipmentPage";
 import { ChemistryPage } from "./chemistry/ChemistryPage";
 import { DamagePage } from "./damage/DamagePage";
+import { MapPage } from "./maps/MapPage";
 
 export type ModuleDefinition = {
   id: string;
@@ -32,7 +33,8 @@ export const modules: ModuleDefinition[] = [
     shortTitle: "Карты",
     summary: "Тактические карты, зоны обстрела и расположение разного снаряжения",
     code: "MAP-02",
-    status: "planned",
+    status: "active",
+    Component: MapPage,
   },
   {
     id: "chemistry",
