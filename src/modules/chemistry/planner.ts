@@ -384,7 +384,8 @@ export function formatTransferModes(modes: TransferMode[]) {
     if (previous?.mode === mode) previous.count += 1;
     else groups.push({ mode, count: 1 });
   }
-  return groups.map(({ mode, count }) => (
-    count > 1 ? `${mode} × ${count}` : String(mode)
-  )).join(" → ");
+  return groups.flatMap(({ mode, count }) => {
+    if (mode === 1 && count > 1) return [String(count)];
+    return Array.from({ length: count }, () => String(mode));
+  }).join(" + ");
 }

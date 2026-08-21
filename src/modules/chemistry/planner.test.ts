@@ -66,8 +66,9 @@ describe("ChemMaster transfer modes", () => {
     expect(transferModes(75, 100)).toEqual([50, 25]);
   });
 
-  it("compresses repeated presses into one readable action", () => {
-    expect(formatTransferModes([30, 1, 1, 1])).toBe("30 → 1 × 3");
+  it("formats button presses as a readable sum", () => {
+    expect(formatTransferModes(fixedTransferModes(28))).toBe("25 + 3");
+    expect(formatTransferModes(fixedTransferModes(31))).toBe("30 + 1");
   });
 });
 
