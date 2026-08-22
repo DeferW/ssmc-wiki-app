@@ -33,7 +33,7 @@ export async function loadTileManifest(url: string, signal: AbortSignal): Promis
 
 export async function loadMapOverlay(url: string, signal: AbortSignal): Promise<MapOverlay> {
   const value = await fetchJson<MapOverlay>(url, signal);
-  if (![1, 2, 3].includes(value.schemaVersion) || !value.prototypes || !value.occurrences) {
+  if (![1, 2, 3, 4].includes(value.schemaVersion) || !value.prototypes || !value.occurrences) {
     throw new Error("Оверлей карты имеет неподдерживаемый формат.");
   }
   return value;
