@@ -4,9 +4,25 @@ import { loadMapCatalog, loadMapOverlay, loadTileManifest } from "./api";
 import { mapDataUrl } from "./config";
 import { MapCanvas, type MapCanvasHandle, type SelectionAnchor } from "./MapCanvas";
 import { activeInsertPlacements, areaAt, describeComponents, flattenOverlay, insertVariations, pointDisplayName, pointProbabilityDescriptions, spawnOptions } from "./overlay";
-import type { ActiveInsertRender, CanvasStats, LayerSettings, MapCatalog, MapOverlay, OverlayCategory, OverlayPoint, Point, TileManifest } from "./types";
+import type { ActiveInsertRender, CanvasStats, LayerSettings, MapCatalog, MapOverlay, OverlayCategory, OverlayGroup, OverlayPoint, Point, TileManifest } from "./types";
 
-const SETTINGS_KEY = "ssmc-map-layers-v2";
+const SETTINGS_KEY = "ssmc-map-layers-v3";
+const DEFAULT_GROUPS: Record<OverlayGroup, boolean> = {
+  "loot-intel": true,
+  "loot-weapons": true,
+  "loot-ammo": true,
+  "loot-tools": true,
+  "loot-medical": true,
+  "loot-equipment": true,
+  "loot-supplies": true,
+  "loot-other": true,
+  "misc-spawns": true,
+  "misc-creatures": true,
+  "misc-transport": true,
+  "misc-boundaries": true,
+  "misc-decor": true,
+  "misc-other": true,
+};
 const DEFAULT_LAYERS: LayerSettings = {
   loot: true,
   insert: true,
@@ -16,14 +32,27 @@ const DEFAULT_LAYERS: LayerSettings = {
   coordinateGrid: false,
   areaSupport: false,
   markerScale: 1,
+  groups: DEFAULT_GROUPS,
 };
 
-const LAYER_OPTIONS: { key: OverlayCategory; label: string; detail: string }[] = [
-  { key: "loot", label: "Возможный лут", detail: "случайные и условные спавнеры" },
-  { key: "insert", label: "Инсерты", detail: "вариативные части карты" },
-  { key: "label", label: "Надписи", detail: "именованные точки и переходы" },
-  { key: "spawn", label: "Точки появления", detail: "спавны ролей и отрядов" },
-  { key: "marker", label: "Прочие маркеры", detail: "технические точки карты" },
+const LOOT_GROUPS: { key: OverlayGroup; label: string }[] = [
+  { key: "loot-intel", label: "Разведданные и документы" },
+  { key: "loot-weapons", label: "Оружие" },
+  { key: "loot-ammo", label: "Боеприпасы" },
+  { key: "loot-tools", label: "Инструменты и техника" },
+  { key: "loot-medical", label: "Медицина" },
+  { key: "loot-equipment", label: "Экипировка" },
+  { key: "loot-supplies", label: "Ящики и снабжение" },
+  { key: "loot-other", label: "Прочий лут" },
+];
+
+const MISC_GROUPS: { key: OverlayGroup; label: string }[] = [
+  { key: "misc-spawns", label: "Точки появления" },
+  { key: "misc-creatures", label: "Тела, существа и следы" },
+  { key: "misc-transport", label: "Эвакуация и переходы" },
+  { key: "misc-boundaries", label: "Барьеры и ограничения" },
+  { key: "misc-decor", label: "Декор и случайное окружение" },
+  { key: "misc-other", label: "Прочие технические точки" },
 ];
 
 const CATEGORY_LABELS: Record<OverlayCategory, string> = {
@@ -52,7 +81,7 @@ const AREA_SUPPORT_COLUMNS = [
 function initialLayers(): LayerSettings {
   try {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "null") as Partial<LayerSettings> | null;
-    return saved ? { ...DEFAULT_LAYERS, ...saved } : DEFAULT_LAYERS;
+    return saved ? { ...DEFAULT_LAYERS, ...saved, groups: { ...DEFAULT_GROUPS, ...saved.groups } } : DEFAULT_LAYERS;
   } catch {
     return DEFAULT_LAYERS;
   }
@@ -119,7 +148,7 @@ function MapPicker({
           else choose(activeIndex);
         }}
       >
-        <strong>{selected?.name ?? "Загрузка карт…"}</strong><span aria-hidden="true">⌄</span>
+        <strong>{selected?.name ?? "Загрузка карт…"}</strong><span className="maps-picker-chevron" aria-hidden="true" />
       </button>
       {open && (
         <div className="maps-picker-options" id="maps-picker-options" role="listbox">
@@ -144,6 +173,62 @@ function MapPicker({
   );
 }
 
+function LayerGroupControl({
+  label,
+  detail,
+  checked,
+  count,
+  groups,
+  groupCounts,
+  settings,
+  onParentChange,
+  onGroupChange,
+  initiallyOpen = false,
+}: {
+  label: string;
+  detail: string;
+  checked: boolean;
+  count: number;
+  groups: { key: OverlayGroup; label: string }[];
+  groupCounts: Partial<Record<OverlayGroup, number>>;
+  settings: Record<OverlayGroup, boolean>;
+  onParentChange: () => void;
+  onGroupChange: (group: OverlayGroup) => void;
+  initiallyOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(initiallyOpen);
+  return (
+    <details className="maps-layer-group" open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <summary className="maps-layer maps-layer--group">
+        <input
+          type="checkbox"
+          checked={checked}
+          onClick={(event) => event.stopPropagation()}
+          onChange={onParentChange}
+          aria-label={`Показывать: ${label}`}
+        />
+        <span title={detail}><strong>{label}</strong></span>
+        <output>{count}</output>
+        <i className="maps-layer-chevron" aria-hidden="true" />
+      </summary>
+      <div className={checked ? "maps-layer-subgroups" : "maps-layer-subgroups is-disabled"}>
+        {groups.map((group) => (
+          <label className="maps-layer-subgroup" key={group.key}>
+            <input
+              type="checkbox"
+              checked={settings[group.key]}
+              disabled={!checked}
+              onChange={() => onGroupChange(group.key)}
+            />
+            <span>{group.label}</span>
+            <output>{groupCounts[group.key] ?? 0}</output>
+          </label>
+        ))}
+      </div>
+    </details>
+  );
+}
+
 export function MapPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const canvasRef = useRef<MapCanvasHandle>(null);
@@ -162,6 +247,21 @@ export function MapPage() {
   const [error, setError] = useState<string>();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const requestedMap = searchParams.get("map");
+  const requestedXValue = searchParams.get("x");
+  const requestedYValue = searchParams.get("y");
+  const requestedZoomValue = searchParams.get("zoom");
+  const requestedX = requestedXValue === null ? Number.NaN : Number(requestedXValue);
+  const requestedY = requestedYValue === null ? Number.NaN : Number(requestedYValue);
+  const requestedZoom = requestedZoomValue === null ? Number.NaN : Number(requestedZoomValue);
+  const sharedView = useMemo(() => (
+    Number.isFinite(requestedX) && Number.isFinite(requestedY)
+      ? {
+          world: { x: requestedX + 0.5, y: requestedY + 0.5 },
+          scale: Number.isFinite(requestedZoom) ? Math.min(8, Math.max(0.25, requestedZoom)) : 2.5,
+          key: `${requestedMap}:${requestedX}:${requestedY}:${requestedZoom}`,
+        }
+      : undefined
+  ), [requestedMap, requestedX, requestedY, requestedZoom]);
 
   useEffect(() => {
     let active = true;
@@ -237,6 +337,10 @@ export function MapPage() {
     counts[point.category] = (counts[point.category] ?? 0) + 1;
     return counts;
   }, {}), [allPoints]);
+  const groupCounts = useMemo(() => allPoints.reduce<Partial<Record<OverlayGroup, number>>>((counts, point) => {
+    counts[point.group] = (counts[point.group] ?? 0) + 1;
+    return counts;
+  }, {}), [allPoints]);
   const selectedOptions = useMemo(() => selected ? spawnOptions(selected) : [], [selected]);
   const insertPlacements = useMemo(
     () => overlay ? activeInsertPlacements(overlay, allPoints, activeInserts) : [],
@@ -277,6 +381,14 @@ export function MapPage() {
   }, [insertManifests, insertPlacements]);
 
   const toggleLayer = (key: OverlayCategory) => setLayers((current) => ({ ...current, [key]: !current[key] }));
+  const toggleGroup = (key: OverlayGroup) => setLayers((current) => ({
+    ...current,
+    groups: { ...current.groups, [key]: !current.groups[key] },
+  }));
+  const toggleMisc = () => setLayers((current) => {
+    const enabled = current.marker || current.spawn;
+    return { ...current, marker: !enabled, spawn: !enabled };
+  });
   const onStats = useCallback((value: CanvasStats) => setStats(value), []);
   const onCoordinate = useCallback((value?: Point, anchor?: SelectionAnchor) => {
     setCoordinate(value);
@@ -284,6 +396,14 @@ export function MapPage() {
   }, []);
   const onSelect = useCallback((value?: OverlayPoint) => setSelected(value), []);
   const onSelectedAnchor = useCallback((value?: SelectionAnchor) => setSelectionAnchor(value), []);
+  const onShareTile = useCallback((value: Point, zoom: number) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("map", entry?.id ?? requestedMap ?? "");
+    next.set("x", String(Math.floor(value.x)));
+    next.set("y", String(Math.floor(value.y)));
+    next.set("zoom", zoom.toFixed(2).replace(/0+$/, "").replace(/\.$/, ""));
+    setSearchParams(next);
+  }, [entry?.id, requestedMap, searchParams, setSearchParams]);
 
   return (
     <main className="maps-page">
@@ -321,7 +441,7 @@ export function MapPage() {
           <button type="button" onClick={() => canvasRef.current?.reset()}>Сбросить</button>
           <button type="button" onClick={() => canvasRef.current?.zoomBy(1.25)} aria-label="Увеличить">+</button>
         </div>
-        <div className="maps-network" title="В памяти находятся только тайлы вокруг видимой области">
+        <div className="maps-network" title="Обзор карты остаётся видимым, детальные тайлы подгружаются поверх">
           <span className={stats.pendingTiles ? "maps-network-dot is-loading" : "maps-network-dot"} />
           {stats.loadedTiles} тайлов · {formatBytes(stats.loadedBytes)} · Z{stats.zoom}
         </div>
@@ -337,10 +457,12 @@ export function MapPage() {
               points={coordinatesReady ? points : []}
               insertRenders={activeInsertRenders}
               layers={layers}
+              initialFocus={sharedView}
               selectedKey={selected?.key}
               onSelect={onSelect}
               onSelectedAnchor={onSelectedAnchor}
               onCoordinate={onCoordinate}
+              onShareTile={onShareTile}
               onStats={onStats}
             />
           ) : (
@@ -459,20 +581,46 @@ export function MapPage() {
           </label>
 
           <section className="maps-layer-list" aria-label="Слои данных">
-            {LAYER_OPTIONS.map((option) => (
-              <label className="maps-layer" key={option.key}>
-                <input type="checkbox" checked={layers[option.key]} onChange={() => toggleLayer(option.key)} />
-                <span title={option.detail}><strong>{option.label}</strong></span>
-                {overlay && <output>{pointCounts[option.key] ?? 0}</output>}
-              </label>
-            ))}
+            <LayerGroupControl
+              label="Лут маркеры"
+              detail="случайный лут, разведданные и снабжение"
+              checked={layers.loot}
+              count={pointCounts.loot ?? 0}
+              groups={LOOT_GROUPS}
+              groupCounts={groupCounts}
+              settings={layers.groups}
+              onParentChange={() => toggleLayer("loot")}
+              onGroupChange={toggleGroup}
+              initiallyOpen
+            />
+            <LayerGroupControl
+              label="Прочие маркеры"
+              detail="точки появления и технические маркеры карты"
+              checked={layers.marker || layers.spawn}
+              count={(pointCounts.marker ?? 0) + (pointCounts.spawn ?? 0)}
+              groups={MISC_GROUPS}
+              groupCounts={groupCounts}
+              settings={layers.groups}
+              onParentChange={toggleMisc}
+              onGroupChange={toggleGroup}
+            />
             <label className="maps-layer">
-              <input type="checkbox" checked={layers.coordinateGrid} onChange={() => setLayers((value) => ({ ...value, coordinateGrid: !value.coordinateGrid }))} />
-              <span title="Шаг 10 игровых метров"><strong>Сетка координат</strong></span>
+              <input type="checkbox" checked={layers.insert} onChange={() => toggleLayer("insert")} />
+              <span title="вариативные части карты"><strong>Инсерты</strong></span>
+              {overlay && <output>{pointCounts.insert ?? 0}</output>}
+            </label>
+            <label className="maps-layer">
+              <input type="checkbox" checked={layers.label} onChange={() => toggleLayer("label")} />
+              <span title="именованные точки и переходы"><strong>Надписи</strong></span>
+              {overlay && <output>{pointCounts.label ?? 0}</output>}
             </label>
             <label className="maps-layer">
               <input type="checkbox" checked={layers.areaSupport} onChange={() => setLayers((value) => ({ ...value, areaSupport: !value.areaSupport }))} />
-              <span title="Разрешения поддержки под курсором"><strong>Поддержка тайла</strong></span>
+              <span title="разрешения поддержки под курсором"><strong>Поддержка тайлов</strong></span>
+            </label>
+            <label className="maps-layer">
+              <input type="checkbox" checked={layers.coordinateGrid} onChange={() => setLayers((value) => ({ ...value, coordinateGrid: !value.coordinateGrid }))} />
+              <span title="шаг 10 игровых метров"><strong>Сетка координат</strong></span>
             </label>
           </section>
 

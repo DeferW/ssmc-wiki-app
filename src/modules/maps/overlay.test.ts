@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeInsertPlacements, areaAt, flattenOverlay, pointDisplayName, pointProbabilityDescriptions, spawnOptions } from "./overlay";
+import { activeInsertPlacements, areaAt, describeComponents, flattenOverlay, pointDisplayName, pointProbabilityDescriptions, spawnOptions } from "./overlay";
 import type { MapOverlay, OverlayPoint } from "./types";
 
 describe("map overlays", () => {
@@ -22,6 +22,7 @@ describe("map overlays", () => {
     expect(inserted?.y).toBe(18);
     expect(inserted?.probability).toBe(0.5);
     expect(spawnOptions(points.find((point) => point.key === "map:Loot:0")!)).toEqual(["Ammo", "Medkit"]);
+    expect(describeComponents(points.find((point) => point.key === "map:Loot:0")!)).toContain("Случайный спавнер · шанс 25% · 2 варианта");
     expect(activeInsertPlacements(overlay, points, { "map:Insert:0": "/Maps/room.yml" })).toEqual([{
       key: "map:Insert:0",
       path: "/Maps/room.yml",
@@ -60,6 +61,7 @@ describe("map overlays", () => {
       prototypeId: "RMCBlockerVehicle",
       name: "vehicle blocker",
       category: "marker",
+      group: "misc-boundaries",
       x: 0,
       y: 0,
       rotation: 0,
@@ -75,6 +77,7 @@ describe("map overlays", () => {
       prototypeId: "RMCSpawnerCommunicationsTowerOne",
       name: "static comms",
       category: "marker",
+      group: "misc-other",
       x: 0,
       y: 0,
       rotation: 0,
@@ -84,5 +87,25 @@ describe("map overlays", () => {
     expect(pointProbabilityDescriptions(tower, [tower, { ...tower, key: "tower:2" }])).toEqual([
       "Вероятность появления вышки: 50%",
     ]);
+  });
+
+  it("translates objective landmarks as intelligence markers", () => {
+    const overlay: MapOverlay = {
+      schemaVersion: 3,
+      mapPath: "/Maps/test.yml",
+      prototypes: {
+        RMCSpawnerIntelClose: {
+          name: "objective landmark close",
+          kind: "spawner",
+          components: { IntelSpawner: { chance: 0.35 } },
+        },
+      },
+      occurrences: { RMCSpawnerIntelClose: [[1, 2]] },
+      insertMaps: {},
+    };
+    const [point] = flattenOverlay(overlay);
+    expect(pointDisplayName(point)).toBe("Разведданные — ближняя точка");
+    expect(point.category).toBe("loot");
+    expect(point.group).toBe("loot-intel");
   });
 });

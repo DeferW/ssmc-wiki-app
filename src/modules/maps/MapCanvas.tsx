@@ -8,10 +8,12 @@ type Props = {
   points: OverlayPoint[];
   insertRenders: ActiveInsertRender[];
   layers: LayerSettings;
+  initialFocus?: { world: Point; scale: number; key: string };
   selectedKey?: string;
   onSelect: (point?: OverlayPoint) => void;
   onSelectedAnchor: (anchor?: SelectionAnchor) => void;
   onCoordinate: (point?: Point, anchor?: SelectionAnchor) => void;
+  onShareTile: (point: Point, zoom: number) => void;
   onStats: (stats: CanvasStats) => void;
 };
 
@@ -34,7 +36,8 @@ type InsertTileLayer = {
   urls: string[];
 };
 
-const TILE_CACHE_LIMIT = 80;
+const TILE_CACHE_LIMIT = 160;
+const SHARED_TILE_ZOOM = 2.5;
 const CATEGORY_COLOR: Record<OverlayPoint["category"], string> = {
   loot: "#f0c15d",
   insert: "#53c8e8",
@@ -79,10 +82,12 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
   points,
   insertRenders,
   layers,
+  initialFocus,
   selectedKey,
   onSelect,
   onSelectedAnchor,
   onCoordinate,
+  onShareTile,
   onStats,
 }, ref) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -94,6 +99,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
   const viewRef = useRef<ViewState>({ x: 0, y: 0, scale: 1 });
   const [size, setSize] = useState({ width: 1, height: 1 });
   const [view, setView] = useState<ViewState>({ x: 0, y: 0, scale: 1 });
+  const [hoverTile, setHoverTile] = useState<Point>();
   const [tileRevision, setTileRevision] = useState(0);
   const grid = manifest.grids[0];
   const maximum = grid.levels.at(-1)!;
@@ -127,7 +133,20 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => reset(), [manifestUrl, size.width, size.height, reset]);
+  useEffect(() => {
+    if (!initialFocus) {
+      reset();
+      return;
+    }
+    const pixel = worldToMapPixel(grid, initialFocus.world);
+    setView({
+      scale: initialFocus.scale,
+      x: size.width / 2 - pixel.x * initialFocus.scale,
+      y: size.height / 2 - pixel.y * initialFocus.scale,
+    });
+  }, [grid, initialFocus, manifestUrl, reset, size.height, size.width]);
+
+  useEffect(() => setHoverTile(undefined), [manifestUrl]);
 
   useEffect(() => () => {
     for (const controller of pendingRef.current.values()) controller.abort();
@@ -141,12 +160,17 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
     [grid.levels, view.scale],
   );
   const visible = useMemo(
-    () => visibleTiles(level, maximum.width, maximum.height, manifest.tileSize, view, size),
+    () => visibleTiles(level, maximum.width, maximum.height, manifest.tileSize, view, size, 2),
     [level, manifest.tileSize, maximum.height, maximum.width, size, view],
   );
   const visibleUrls = useMemo(
     () => visible.map(([x, y]) => tileUrl(grid.path, manifestUrl, manifest.schemaVersion, level.z, x, y)),
     [grid.path, level.z, manifest.schemaVersion, manifestUrl, visible],
+  );
+  const overview = grid.levels[0];
+  const overviewUrls = useMemo(
+    () => overview.tiles.map(([x, y]) => tileUrl(grid.path, manifestUrl, manifest.schemaVersion, overview.z, x, y)),
+    [grid.path, manifest.schemaVersion, manifestUrl, overview],
   );
   const insertLayers = useMemo<InsertTileLayer[]>(() => insertRenders.flatMap((render) => (
     render.manifest.grids.flatMap((insertGrid) => {
@@ -181,18 +205,12 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
     })
   )), [grid, insertRenders, size.height, size.width, view]);
   const neededUrls = useMemo(
-    () => [...visibleUrls, ...insertLayers.flatMap((layer) => layer.urls)],
-    [insertLayers, visibleUrls],
+    () => [...new Set([...overviewUrls, ...visibleUrls, ...insertLayers.flatMap((layer) => layer.urls)])],
+    [insertLayers, overviewUrls, visibleUrls],
   );
 
   useEffect(() => {
     const needed = new Set(neededUrls);
-    for (const [url, controller] of pendingRef.current) {
-      if (!needed.has(url)) {
-        controller.abort();
-        pendingRef.current.delete(url);
-      }
-    }
     for (const url of neededUrls) {
       const cached = cacheRef.current.get(url);
       if (cached) {
@@ -244,7 +262,10 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
     });
   }, [level.z, onStats, tileRevision]);
 
-  const visiblePoints = useMemo(() => points.filter((point) => layers[point.category]), [layers, points]);
+  const visiblePoints = useMemo(() => points.filter((point) => (
+    layers[point.category]
+    && (!["loot", "spawn", "marker"].includes(point.category) || layers.groups[point.group])
+  )), [layers, points]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -262,6 +283,24 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
     context.translate(view.x, view.y);
     context.scale(view.scale, view.scale);
     context.imageSmoothingEnabled = false;
+
+    const overviewRatioX = overview.width / maximum.width;
+    const overviewRatioY = overview.height / maximum.height;
+    overview.tiles.forEach(([x, y], index) => {
+      const tile = cacheRef.current.get(overviewUrls[index]);
+      if (!tile) return;
+      const sourceX = x * manifest.tileSize;
+      const sourceY = y * manifest.tileSize;
+      const sourceWidth = Math.min(manifest.tileSize, overview.width - sourceX);
+      const sourceHeight = Math.min(manifest.tileSize, overview.height - sourceY);
+      context.drawImage(
+        tile.image,
+        sourceX / overviewRatioX,
+        sourceY / overviewRatioY,
+        sourceWidth / overviewRatioX,
+        sourceHeight / overviewRatioY,
+      );
+    });
 
     const ratioX = level.width / maximum.width;
     const ratioY = level.height / maximum.height;
@@ -306,6 +345,23 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         );
       });
       context.restore();
+    }
+
+    if (hoverTile) {
+      const topLeft = worldToMapPixel(grid, { x: hoverTile.x, y: hoverTile.y + 1 });
+      const bottomRight = worldToMapPixel(grid, { x: hoverTile.x + 1, y: hoverTile.y });
+      const width = bottomRight.x - topLeft.x;
+      const height = bottomRight.y - topLeft.y;
+      if (topLeft.x < maximum.width && topLeft.y < maximum.height && bottomRight.x > 0 && bottomRight.y > 0) {
+        context.save();
+        context.fillStyle = "rgba(139, 92, 181, .25)";
+        context.strokeStyle = "rgba(222, 194, 244, .88)";
+        context.lineWidth = 1.25 / view.scale;
+        context.setLineDash([4 / view.scale, 3 / view.scale]);
+        context.fillRect(topLeft.x, topLeft.y, width, height);
+        context.strokeRect(topLeft.x, topLeft.y, width, height);
+        context.restore();
+      }
     }
 
     if (layers.coordinateGrid && view.scale * grid.pixelsPerMeter >= 18) {
@@ -379,7 +435,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       context.stroke();
     }
     context.restore();
-  }, [grid, insertLayers, layers, level, manifest.tileSize, maximum, selectedKey, size, tileRevision, view, visible, visiblePoints, visibleUrls]);
+  }, [grid, hoverTile, insertLayers, layers, level, manifest.tileSize, maximum, overview, overviewUrls, selectedKey, size, tileRevision, view, visible, visiblePoints, visibleUrls]);
 
   const mapPointAt = useCallback((screen: Point) => ({
     x: (screen.x - view.x) / view.scale,
@@ -426,6 +482,12 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       tabIndex={0}
       aria-label="Интерактивная карта. Перетаскивайте мышью, изменяйте масштаб колесом."
       onContextMenu={(event) => event.preventDefault()}
+      onDoubleClick={(event) => {
+        event.preventDefault();
+        const screen = eventPoint(event, event.currentTarget);
+        const world = mapPixelToWorld(grid, mapPointAt(screen));
+        onShareTile(world, SHARED_TILE_ZOOM);
+      }}
       onWheel={(event) => {
         event.preventDefault();
         zoomAround(Math.exp(-event.deltaY * 0.0015), eventPoint(event, event.currentTarget));
@@ -450,6 +512,8 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       onPointerMove={(event) => {
         const screen = eventPoint(event, event.currentTarget);
         const world = mapPixelToWorld(grid, mapPointAt(screen));
+        const tile = { x: Math.floor(world.x), y: Math.floor(world.y) };
+        setHoverTile((current) => current?.x === tile.x && current.y === tile.y ? current : tile);
         onCoordinate(world, {
           ...screen,
           align: screen.x > size.width * 0.64 ? "right" : "left",
@@ -495,7 +559,10 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         dragRef.current = undefined;
         if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
       }}
-      onPointerLeave={() => onCoordinate(undefined, undefined)}
+      onPointerLeave={() => {
+        setHoverTile(undefined);
+        onCoordinate(undefined, undefined);
+      }}
       onKeyDown={(event) => {
         const amount = event.shiftKey ? 160 : 60;
         if (event.key === "+" || event.key === "=") zoomAround(1.25);

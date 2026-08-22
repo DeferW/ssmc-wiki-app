@@ -81,11 +81,28 @@ export type MapArea = {
 
 export type OverlayCategory = "loot" | "insert" | "label" | "spawn" | "marker";
 
+export type OverlayGroup =
+  | "loot-intel"
+  | "loot-weapons"
+  | "loot-ammo"
+  | "loot-tools"
+  | "loot-medical"
+  | "loot-equipment"
+  | "loot-supplies"
+  | "loot-other"
+  | "misc-spawns"
+  | "misc-creatures"
+  | "misc-transport"
+  | "misc-boundaries"
+  | "misc-decor"
+  | "misc-other";
+
 export type OverlayPoint = {
   key: string;
   prototypeId: string;
   name: string;
   category: OverlayCategory;
+  group: OverlayGroup;
   x: number;
   y: number;
   rotation: number;
@@ -114,6 +131,7 @@ export type LayerSettings = Record<OverlayCategory, boolean> & {
   coordinateGrid: boolean;
   areaSupport: boolean;
   markerScale: number;
+  groups: Record<OverlayGroup, boolean>;
 };
 
 export type ViewState = { x: number; y: number; scale: number };

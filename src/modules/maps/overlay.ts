@@ -1,7 +1,6 @@
-import type { InsertPlacement, MapArea, MapAreaGrid, MapOverlay, OverlayCategory, OverlayOccurrence, OverlayPoint, OverlayPrototype, Point } from "./types";
+import type { InsertPlacement, MapArea, MapAreaGrid, MapOverlay, OverlayCategory, OverlayGroup, OverlayOccurrence, OverlayPoint, OverlayPrototype, Point } from "./types";
 
 const LOOT_COMPONENTS = new Set([
-  "RandomSpawner",
   "UniqueRandomSpawner",
   "ConditionalSpawner",
   "GunSpawner",
@@ -13,6 +12,19 @@ const LOOT_COMPONENTS = new Set([
 ]);
 
 const POINT_NAME_TRANSLATIONS: Record<string, string> = {
+  CMRandomPosterAny: "Случайный постер",
+  CMRandomPosterSPP: "Случайный постер СПН",
+  CMRandomPosterUN: "Случайный постер ООН",
+  CMSpawnMobJones: "Точка появления Джонса",
+  CMSpawnMobMonkey: "Точка появления обезьяны",
+  CMSpawnMobMouse: "Точка появления мыши",
+  CMSpawnMobOrion: "Точка появления Ориона",
+  CMSpawnMobWiggles: "Точка появления мистера Вигглса",
+  CMPottedPlantRandom: "Случайное комнатное растение",
+  PottedPlantRandom: "Случайное комнатное растение",
+  RandomArcade: "Случайный аркадный автомат",
+  RandomSoakedCigarette: "Случайная размокшая сигарета",
+  RandomSpawner100: "Случайный мусор",
   DecalSpawnerBloodSplatters: "Генератор пятен крови",
   RMCAegisCorpseSpawner: "Генератор тела учёного AEGIS",
   RMCAegisSpawner: "Генератор ящика AEGIS",
@@ -24,6 +36,10 @@ const POINT_NAME_TRANSLATIONS: Record<string, string> = {
   RMCDecalSpawnerOilSplatters: "Генератор масляных пятен",
   RMCDecalSpawnerXenoSplatters: "Генератор крови ксеноморфа",
   RMCRequisitionsChairMarkerWest: "Маркер кресла отдела снабжения",
+  RMCSpawnerIntelClose: "Разведданные — ближняя точка",
+  RMCSpawnerIntelMedium: "Разведданные — средняя точка",
+  RMCSpawnerIntelFar: "Разведданные — дальняя точка",
+  RMCSpawnerIntelScience: "Разведданные — научная точка",
   RMCSpawnerCommunicationsTowerOne: "Точка башни связи",
   RMCSpawnerCommunicationsTowerTwo: "Точка башни связи",
   RMCSpawnerEvacuationPodEast: "Точка эвакуационной капсулы",
@@ -31,6 +47,36 @@ const POINT_NAME_TRANSLATIONS: Record<string, string> = {
   RMCSpawnerEvacuationPodSouth: "Точка эвакуационной капсулы",
   RMCSpawnerEvacuationPodWest: "Точка эвакуационной капсулы",
   RMCSpawnerLifeboat: "Точка спасательной шлюпки",
+  RMCSpawnerRandomAttachment: "Случайный оружейный модуль",
+  RMCSpawnerRandomCrateLoot: "Случайный лут в ящике",
+  RMCSpawnerRandomFolder: "Случайная папка с документами",
+  RMCSpawnerRandomGoggles: "Случайные очки",
+  RMCSpawnerRandomGogglesHighChance: "Случайные очки — высокий шанс",
+  RMCSpawnerRandomGogglesMidChance: "Случайные очки — средний шанс",
+  RMCSpawnerRandomGogglesLowChance: "Случайные очки — низкий шанс",
+  RMCSpawnerRandomPillBottle: "Случайная банка таблеток",
+  RMCSpawnerRandomPillBottleHighChance: "Случайная банка таблеток — высокий шанс",
+  RMCSpawnerRandomPillBottleMidChance: "Случайная банка таблеток — средний шанс",
+  RMCSpawnerRandomPillBottleLowChance: "Случайная банка таблеток — низкий шанс",
+  RMCSpawnerRandomPowercell: "Случайная батарея",
+  RMCSpawnerRandomSentry: "Случайная турель",
+  RMCSpawnerRandomSentryHighChance: "Случайная турель — высокий шанс",
+  RMCSpawnerRandomSentryMidChance: "Случайная турель — средний шанс",
+  RMCSpawnerRandomSentryLowChance: "Случайная турель — низкий шанс",
+  RMCSpawnerRandomSupplyKit: "Случайный комплект снабжения",
+  RMCSpawnerRandomTechSupply: "Случайное техническое снабжение",
+  RMCSpawnerRandomToolbox: "Случайный ящик с инструментами",
+  RMCSpawnerRandomTools: "Случайные инструменты",
+  RMCSpawnMobBernard: "Точка появления Бернарда",
+  RMCSpawnMobButtons: "Точка появления Баттонса",
+  RMCSpawnMobGarry: "Точка появления Гарри",
+  RMCSpawnRatBlack: "Точка появления чёрной крысы",
+  RMCSpawnRatBrown: "Точка появления коричневой крысы",
+  RMCSpawnRatBrownTimmyHybrisa: "Точка появления Тимми",
+  RMCSpawnRatGray: "Точка появления серой крысы",
+  RMCSpawnRatWhite: "Точка появления белой крысы",
+  RMCSpawnRatWhiteMilkyHybrisa: "Точка появления Милки",
+  SpawnMobCarp: "Точка появления космического карпа",
   RMCTriggerTeleporter: "Телепорт",
   RMCTriggerTeleporterViewer: "Обзор телепорта",
   STHunterTeleportDestination: "Точка телепорта Охотника",
@@ -80,6 +126,31 @@ const COMPONENT_TRANSLATIONS: Record<string, string> = {
   UniqueRandomSpawner: "Уникальный случайный спавнер",
 };
 
+const CERTAIN_SPAWNER_COMPONENTS = new Set([
+  "ConditionalSpawner",
+  "EntityTableSpawner",
+  "GunSpawner",
+  "RandomSpawner",
+  "UniqueRandomSpawner",
+]);
+
+const ROLE_TRANSLATIONS: Record<string, string> = {
+  CombatTech: "боевого техника",
+  FireteamLeader: "командира огневой группы",
+  HospitalCorpsman: "санитара",
+  Rifleman: "стрелка",
+  SmartGunOperator: "оператора смартгана",
+  SquadLeader: "командира отряда",
+  WeaponsSpecialist: "оружейного специалиста",
+};
+
+const SQUAD_TRANSLATIONS: Record<string, string> = {
+  Alpha: "Альфа",
+  Bravo: "Браво",
+  Charlie: "Чарли",
+  Delta: "Дельта",
+};
+
 export type InsertVariationOption = {
   path: string;
   probability: number;
@@ -93,12 +164,39 @@ function categoryOf(id: string, prototype: OverlayPrototype, occurrence: Overlay
   if (prototype.kind === "insert" || components.includes("MapInsert")) return "insert";
   if (components.includes("SquadSpawner") || /spawn.?point/i.test(id)) return "spawn";
   if (components.some((component) => LOOT_COMPONENTS.has(component))) return "loot";
-  if (prototype.kind === "spawner" && /loot|toolbox|power.?cell|equipment|gear/i.test(`${id} ${prototype.name}`)) return "loot";
+  if (prototype.kind === "spawner" && /intel|objective|loot|gun|ammo|buckshot|attachment|goggles|pill|sentry|tool|power.?cell|supply|equipment|gear|warhead/i.test(`${id} ${prototype.name}`)) return "loot";
   return "marker";
+}
+
+function groupOf(category: OverlayCategory, id: string, name: string): OverlayGroup {
+  const source = `${id} ${name}`;
+  if (category === "loot") {
+    if (/intel|objective|folder/i.test(source)) return "loot-intel";
+    if (/ammo|buckshot/i.test(source)) return "loot-ammo";
+    if (/gun|rifle|pistol|shotgun|smg|sentry|attachment|warhead|bomb/i.test(source)) return "loot-weapons";
+    if (/tool|power.?cell|tech/i.test(source)) return "loot-tools";
+    if (/pill|medical|medkit/i.test(source)) return "loot-medical";
+    if (/goggles|equipment|gear|armor/i.test(source)) return "loot-equipment";
+    if (/crate|supply|aegis/i.test(source)) return "loot-supplies";
+    return "loot-other";
+  }
+  if (category === "spawn" || /spawn.?point|latejoin|observer/i.test(source)) return "misc-spawns";
+  if (/corpse|mob|rat|mouse|monkey|carp|blood|gib|oil/i.test(source)) return "misc-creatures";
+  if (/evac|lifeboat|teleport|warp|dropship/i.test(source)) return "misc-transport";
+  if (/blocker|barrier|fog/i.test(source)) return "misc-boundaries";
+  if (/poster|plant|arcade|cigarette|bedsheet|decal|chair/i.test(source)) return "misc-decor";
+  return "misc-other";
 }
 
 function probabilityValue(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function russianCount(value: number, one: string, few: string, many: string): string {
+  const tens = value % 100;
+  const units = value % 10;
+  const form = tens >= 11 && tens <= 14 ? many : units === 1 ? one : units >= 2 && units <= 4 ? few : many;
+  return `${value} ${form}`;
 }
 
 function pointsFor(
@@ -111,11 +209,13 @@ function pointsFor(
     const prototype = prototypes[prototypeId];
     if (!prototype) continue;
     entries.forEach((entry, index) => {
+      const category = categoryOf(prototypeId, prototype, entry);
       points.push({
         key: `${prefix}:${prototypeId}:${index}`,
         prototypeId,
         name: prototype.name || prototypeId,
-        category: categoryOf(prototypeId, prototype, entry),
+        category,
+        group: groupOf(category, prototypeId, prototype.name),
         x: entry[0],
         y: entry[1],
         rotation: entry[2] ?? 0,
@@ -226,6 +326,44 @@ export function pointDisplayName(point: OverlayPoint): string {
   if (translated) return translated;
   const corpse = /^Corpse Spawner - (.+)$/.exec(point.name);
   if (corpse) return `Генератор тела: ${CORPSE_ROLE_TRANSLATIONS[corpse[1]] ?? corpse[1]}`;
+  const squadSpawn = /^CMSpawnPoint(.+?)(Alpha|Bravo|Charlie|Delta)$/.exec(point.prototypeId);
+  if (squadSpawn) {
+    const role = ROLE_TRANSLATIONS[squadSpawn[1]] ?? squadSpawn[1];
+    return `Точка появления ${role}, отряд ${SQUAD_TRANSLATIONS[squadSpawn[2]]}`;
+  }
+  const randomGun = /^RMCSpawnerRandomGun(Civ|CMB|Corp|Pistol|Rifle|Shotgun|SMG|Special)/.exec(point.prototypeId);
+  if (randomGun) {
+    const kind: Record<string, string> = {
+      Civ: "гражданского оружия",
+      CMB: "оружия КБМ",
+      Corp: "корпоративного оружия",
+      Pistol: "пистолета",
+      Rifle: "винтовки",
+      Shotgun: "дробовика",
+      SMG: "пистолета-пулемёта",
+      Special: "особого оружия",
+    };
+    return `Случайная точка ${kind[randomGun[1]]}`;
+  }
+  const exactNameTranslations: Record<string, string> = {
+    "objective landmark close": "Разведданные — ближняя точка",
+    "objective landmark medium": "Разведданные — средняя точка",
+    "objective landmark far": "Разведданные — дальняя точка",
+    "objective landmark science": "Разведданные — научная точка",
+    "random orbital warhead": "Случайная орбитальная боеголовка",
+    "bomb supply": "Боеприпасы для взрывчатки",
+    "random potted plant spawner": "Случайное комнатное растение",
+    "random poster spawner": "Случайный постер",
+    "random arcade spawner": "Случайный аркадный автомат",
+    "random sheet spawner": "Случайная простыня",
+    "patron figurine spawner": "Случайная фигурка покровителя",
+    "escape pod spawner": "Точка эвакуационной капсулы",
+    "lifeboat spawner": "Точка спасательной шлюпки",
+    "latejoin spawn point": "Точка позднего подключения",
+    "observer spawn point": "Точка появления наблюдателя",
+  };
+  const byName = exactNameTranslations[point.name.toLocaleLowerCase("en")];
+  if (byName) return byName;
   return point.name;
 }
 
@@ -266,13 +404,17 @@ export function areaAt(
 export function describeComponents(point: OverlayPoint): string[] {
   const result: string[] = [];
   for (const [name, component] of Object.entries(point.components ?? {})) {
-    const chance = probabilityValue(component.chance);
+    const chance = probabilityValue(component.chance)
+      ?? probabilityValue(component.chanceToSpawn)
+      ?? (CERTAIN_SPAWNER_COMPONENTS.has(name) ? 1 : undefined);
+    const rareChance = probabilityValue(component.rareChance);
     const prototypes = Array.isArray(component.prototypes) ? component.prototypes : [];
     const groups = Array.isArray(component.groups) ? component.groups : [];
     const bits = [COMPONENT_TRANSLATIONS[name] ?? name];
     if (chance !== undefined) bits.push(`шанс ${Math.round(chance * 100)}%`);
-    if (prototypes.length) bits.push(`${prototypes.length} вариантов`);
-    if (groups.length) bits.push(`${groups.length} групп`);
+    if (rareChance !== undefined) bits.push(`редкий вариант ${Math.round(rareChance * 100)}%`);
+    if (prototypes.length) bits.push(russianCount(prototypes.length, "вариант", "варианта", "вариантов"));
+    if (groups.length) bits.push(russianCount(groups.length, "группа", "группы", "групп"));
     result.push(bits.join(" · "));
   }
   return result;
