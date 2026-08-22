@@ -377,8 +377,8 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
 
     if (layers.coordinateGrid && view.scale * grid.pixelsPerMeter >= 18) {
       const step = grid.pixelsPerMeter * 10;
-      context.lineWidth = 1 / view.scale;
-      context.strokeStyle = "rgba(114, 216, 149, .22)";
+      context.lineWidth = 1.35 / view.scale;
+      context.strokeStyle = "rgba(114, 216, 149, .5)";
       context.beginPath();
       for (let x = 0; x <= maximum.width; x += step) { context.moveTo(x, 0); context.lineTo(x, maximum.height); }
       for (let y = 0; y <= maximum.height; y += step) { context.moveTo(0, y); context.lineTo(maximum.width, y); }

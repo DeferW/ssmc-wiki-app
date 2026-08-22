@@ -497,11 +497,20 @@ export function MapPage() {
             <div className="maps-loading"><span className="maps-loader" />{error ? "Карта недоступна" : "Загрузка манифеста карты…"}</div>
           )}
 
-          <nav className="maps-mode-dock" aria-label="Режим работы карты">
-            <button className="is-active" type="button" aria-current="page" aria-label="Просмотр карты" data-tooltip="Просмотр карты">⌖</button>
-            <button type="button" disabled aria-label="Редактор разметки" data-tooltip="Редактор разметки">✎</button>
-            <button type="button" disabled aria-label="Расчёт зон огня" data-tooltip="Расчёт зон огня">◎</button>
-          </nav>
+          <div className="maps-corner-tools">
+            <div className="maps-coordinate">{formatCoordinate(coordinate)}</div>
+            <nav className="maps-mode-dock" aria-label="Режим работы карты">
+              <button className="is-active" type="button" aria-current="page">
+                <span aria-hidden="true">⌖</span><strong>Просмотр карты</strong>
+              </button>
+              <button type="button" disabled>
+                <span aria-hidden="true">✎</span><strong>Редактор</strong>
+              </button>
+              <button type="button" disabled>
+                <span aria-hidden="true">◎</span><strong>Зоны огня</strong>
+              </button>
+            </nav>
+          </div>
 
           {!coordinatesReady && manifest && (
             <div className="maps-data-warning" role="status">
@@ -509,7 +518,6 @@ export function MapPage() {
             </div>
           )}
           {error && <div className="maps-error" role="alert"><strong>Ошибка данных</strong><span>{error}</span><button type="button" onClick={() => window.location.reload()}>Повторить</button></div>}
-          <div className="maps-coordinate">{formatCoordinate(coordinate)}</div>
           {search && <div className="maps-result-count">Найдено: {points.length}</div>}
 
           {layers.areaSupport && coordinate && coordinateAnchor && hoveredArea && (
@@ -566,10 +574,12 @@ export function MapPage() {
             </section>
           )}
 
-          {selected && selectionAnchor && (
+          {selected && (selected.category === "insert" || selectionAnchor) && (
             <section
-              className={`maps-inspector maps-inspector--${selectionAnchor.align} maps-inspector--${selectionAnchor.vertical ?? "below"}`}
-              style={{ left: selectionAnchor.x, top: selectionAnchor.y }}
+              className={selected.category === "insert"
+                ? "maps-inspector maps-inspector--insert"
+                : `maps-inspector maps-inspector--${selectionAnchor!.align} maps-inspector--${selectionAnchor!.vertical ?? "below"}`}
+              style={selected.category === "insert" ? undefined : { left: selectionAnchor!.x, top: selectionAnchor!.y }}
             >
               <button className="maps-inspector-close" type="button" onClick={() => setSelected(undefined)} aria-label="Закрыть информацию">×</button>
               <div className={`maps-point-badge maps-point-badge--${selected.category}`}>{CATEGORY_LABELS[selected.category]}</div>
