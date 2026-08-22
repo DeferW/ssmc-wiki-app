@@ -104,7 +104,7 @@ describe("map overlays", () => {
       insertMaps: {},
     };
     const [point] = flattenOverlay(overlay);
-    expect(pointDisplayName(point)).toBe("Разведданные — ближняя точка");
+    expect(pointDisplayName(point)).toBe("Случайные разведданные — ближняя зона");
     expect(point.category).toBe("loot");
     expect(point.group).toBe("loot-intel");
   });
