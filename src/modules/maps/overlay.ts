@@ -1,4 +1,4 @@
-import type { InsertPlacement, MapArea, MapAreaGrid, MapOverlay, OverlayCategory, OverlayGroup, OverlayOccurrence, OverlayPoint, OverlayPrototype, Point } from "./types";
+import type { InsertPlacement, MapArea, MapAreaGrid, MapOverlay, MapTileFootprint, OverlayCategory, OverlayGroup, OverlayOccurrence, OverlayPoint, OverlayPrototype, Point } from "./types";
 
 const LOOT_COMPONENTS = new Set([
   "UniqueRandomSpawner",
@@ -263,6 +263,17 @@ export function insertOrigin(anchor: OverlayPoint, variation: InsertVariationOpt
   };
 }
 
+function pointInFootprint(footprint: MapTileFootprint, origin: Point, point: Point): boolean {
+  const x = Math.floor(point.x - origin.x);
+  const y = Math.floor(point.y - origin.y);
+  const row = footprint.rows.find((candidate) => candidate[0] === y);
+  if (!row) return false;
+  for (let index = 1; index + 1 < row.length; index += 2) {
+    if (x >= row[index] && x < row[index] + row[index + 1]) return true;
+  }
+  return false;
+}
+
 export function flattenOverlay(
   overlay: MapOverlay,
   activeInserts: Record<string, string> = {},
@@ -276,6 +287,14 @@ export function flattenOverlay(
       const insertMap = overlay.insertMaps[variation.path];
       if (!insertMap) continue;
       const origin = insertOrigin(anchor, variation);
+      if (anchor.components?.MapInsert?.clearEntities === true && insertMap.footprint) {
+        for (let index = points.length - 1; index >= 0; index -= 1) {
+          const point = points[index];
+          if (point.category !== "insert" && pointInFootprint(insertMap.footprint, origin, point)) {
+            points.splice(index, 1);
+          }
+        }
+      }
       const inserted = pointsFor(
         insertMap.occurrences,
         overlay.prototypes,
@@ -365,6 +384,14 @@ export function pointDisplayName(point: OverlayPoint): string {
   const byName = exactNameTranslations[point.name.toLocaleLowerCase("en")];
   if (byName) return byName;
   return point.name;
+}
+
+export function pointsOnSameTile(points: OverlayPoint[], target: OverlayPoint): OverlayPoint[] {
+  const tileX = Math.floor(target.x);
+  const tileY = Math.floor(target.y);
+  return points.filter((point) => (
+    Math.floor(point.x) === tileX && Math.floor(point.y) === tileY
+  ));
 }
 
 function areaInGrid(grid: MapAreaGrid | null | undefined, point: Point): MapArea | undefined {

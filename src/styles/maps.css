@@ -154,6 +154,19 @@
 .maps-inspector > code { display: block; overflow: hidden; color: var(--muted); font-size: .56rem; text-overflow: ellipsis; }
 .maps-inspector p { margin: 8px 0 0; color: var(--muted-strong); font-size: .59rem; line-height: 1.45; }
 .maps-inspector .maps-path { overflow-wrap: anywhere; }
+.maps-marker-picker { padding-right: 13px; }
+.maps-marker-picker > h2 { padding-right: 26px; }
+.maps-marker-picker-list { display: grid; gap: 1px; margin-top: 10px; border: 1px solid var(--line); background: var(--line); }
+.maps-marker-picker-list > button { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 9px; align-items: center; width: 100%; padding: 8px 9px; border: 0; background: rgba(4, 10, 6, .98); color: var(--text); text-align: left; cursor: pointer; }
+.maps-marker-picker-list > button:hover, .maps-marker-picker-list > button:focus-visible { background: rgba(14, 37, 23, .98); outline: 1px solid var(--accent); outline-offset: -1px; }
+.maps-marker-picker-list strong, .maps-marker-picker-list code { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.maps-marker-picker-list strong { color: var(--text-strong); font-size: .62rem; line-height: 1.35; }
+.maps-marker-picker-list code { margin-top: 2px; color: var(--muted); font-size: .5rem; }
+.maps-marker-picker-dot { width: 7px; height: 7px; border-radius: 50%; background: #b2bcb5; box-shadow: 0 0 0 1px rgba(0, 0, 0, .8); }
+.maps-marker-picker-dot--loot { background: #f0c15d; }
+.maps-marker-picker-dot--insert { background: #53c8e8; }
+.maps-marker-picker-dot--label { background: #8fe09e; }
+.maps-marker-picker-dot--spawn { background: #ef7777; }
 .maps-point-badge { display: inline-block; padding: 2px 4px; border: 1px solid currentColor; font-size: .5rem; letter-spacing: .08em; text-transform: uppercase; }
 .maps-point-badge--loot { color: #f0c15d; }
 .maps-point-badge--insert { color: #53c8e8; }

@@ -64,8 +64,13 @@ export type MapOverlay = {
     occurrences: Record<string, OverlayOccurrence[]>;
     tiles?: string;
     areas?: MapAreaGrid | null;
+    footprint?: MapTileFootprint | null;
   }>;
   areas?: MapAreaGrid | null;
+};
+
+export type MapTileFootprint = {
+  rows: number[][];
 };
 
 export type MapAreaGrid = {

@@ -1,8 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { activeInsertPlacements, areaAt, describeComponents, flattenOverlay, pointDisplayName, pointProbabilityDescriptions, spawnOptions } from "./overlay";
+import { activeInsertPlacements, areaAt, describeComponents, flattenOverlay, pointDisplayName, pointProbabilityDescriptions, pointsOnSameTile, spawnOptions } from "./overlay";
 import type { MapOverlay, OverlayPoint } from "./types";
 
 describe("map overlays", () => {
+  it("returns every marker occupying the same game tile", () => {
+    const marker = (key: string, x: number, y: number): OverlayPoint => ({
+      key,
+      prototypeId: key,
+      name: key,
+      category: "insert",
+      group: "misc-other",
+      x,
+      y,
+      rotation: 0,
+    });
+    const points = [marker("raid", 95.5, 63.5), marker("panic", 95.5, 63.5), marker("south", 3.5, 110.5)];
+
+    expect(pointsOnSameTile(points, points[0]).map((point) => point.key)).toEqual(["raid", "panic"]);
+  });
+
   it("shows only the selected insert and mirrors the game's integer offset", () => {
     const overlay: MapOverlay = {
       schemaVersion: 1,
@@ -32,6 +48,31 @@ describe("map overlays", () => {
       clearDecals: false,
       replaceAreas: false,
     }]);
+  });
+
+  it("replaces markers only on occupied tiles of an active insert", () => {
+    const overlay: MapOverlay = {
+      schemaVersion: 4,
+      mapPath: "/Maps/test.yml",
+      prototypes: {
+        Insert: { name: "room", kind: "insert", components: { MapInsert: { clearEntities: true, variations: [{ spawn: "/Maps/room.yml" }] } } },
+        Base: { name: "base", kind: "spawner", components: { RandomSpawner: {} } },
+        Added: { name: "added", kind: "spawner", components: { RandomSpawner: {} } },
+      },
+      occurrences: { Insert: [[10.5, 20.5]], Base: [[10.5, 20.5], [11.5, 20.5]] },
+      insertMaps: {
+        "/Maps/room.yml": {
+          occurrences: { Added: [[0.5, 0.5]] },
+          footprint: { rows: [[0, 0, 1]] },
+        },
+      },
+    };
+
+    const points = flattenOverlay(overlay, { "map:Insert:0": "/Maps/room.yml" });
+
+    expect(points.filter((point) => point.prototypeId === "Base").map((point) => point.x)).toEqual([11.5]);
+    expect(points.some((point) => point.prototypeId === "Added" && point.x === 10.5)).toBe(true);
+    expect(points.some((point) => point.prototypeId === "Insert")).toBe(true);
   });
 
   it("reads compact area runs at tile coordinates", () => {

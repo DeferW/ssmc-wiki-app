@@ -240,6 +240,7 @@ export function MapPage() {
   const [layers, setLayers] = useState<LayerSettings>(initialLayers);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<OverlayPoint>();
+  const [selectionChoices, setSelectionChoices] = useState<OverlayPoint[]>([]);
   const [selectionAnchor, setSelectionAnchor] = useState<SelectionAnchor>();
   const [coordinate, setCoordinate] = useState<Point>();
   const [coordinateAnchor, setCoordinateAnchor] = useState<SelectionAnchor>();
@@ -394,7 +395,15 @@ export function MapPage() {
     setCoordinate(value);
     setCoordinateAnchor(anchor);
   }, []);
-  const onSelect = useCallback((value?: OverlayPoint) => setSelected(value), []);
+  const onSelect = useCallback((values: OverlayPoint[]) => {
+    if (values.length === 1) {
+      setSelected(values[0]);
+      setSelectionChoices([]);
+      return;
+    }
+    setSelected(undefined);
+    setSelectionChoices(values);
+  }, []);
   const onSelectedAnchor = useCallback((value?: SelectionAnchor) => setSelectionAnchor(value), []);
   const onShareTile = useCallback((value: Point, zoom: number) => {
     const next = new URLSearchParams(searchParams);
@@ -404,6 +413,23 @@ export function MapPage() {
     next.set("zoom", zoom.toFixed(2).replace(/0+$/, "").replace(/\.$/, ""));
     setSearchParams(next);
   }, [entry?.id, requestedMap, searchParams, setSearchParams]);
+  const setInsertAtSelectedTile = (path?: string) => {
+    if (!selected) return;
+    setActiveInserts((current) => {
+      const next = { ...current };
+      for (const point of allPoints) {
+        if (
+          point.category === "insert"
+          && Math.floor(point.x) === Math.floor(selected.x)
+          && Math.floor(point.y) === Math.floor(selected.y)
+        ) {
+          delete next[point.key];
+        }
+      }
+      if (path) next[selected.key] = path;
+      return next;
+    });
+  };
 
   return (
     <main className="maps-page">
@@ -425,6 +451,7 @@ export function MapPage() {
               value={entry?.id ?? ""}
               onChange={(mapId) => {
               setSelected(undefined);
+              setSelectionChoices([]);
               setActiveInserts({});
               setInsertManifests({});
               setCoordinate(undefined);
@@ -459,6 +486,7 @@ export function MapPage() {
               layers={layers}
               initialFocus={sharedView}
               selectedKey={selected?.key}
+              anchorKey={selected?.key ?? selectionChoices[0]?.key}
               onSelect={onSelect}
               onSelectedAnchor={onSelectedAnchor}
               onCoordinate={onCoordinate}
@@ -511,6 +539,33 @@ export function MapPage() {
             </section>
           )}
 
+          {selectionChoices.length > 1 && selectionAnchor && (
+            <section
+              className={`maps-inspector maps-marker-picker maps-inspector--${selectionAnchor.align} maps-inspector--${selectionAnchor.vertical ?? "below"}`}
+              style={{ left: selectionAnchor.x, top: selectionAnchor.y }}
+            >
+              <button className="maps-inspector-close" type="button" onClick={() => setSelectionChoices([])} aria-label="Закрыть выбор">×</button>
+              <div className="maps-point-badge">Один тайл</div>
+              <h2>Выберите маркер</h2>
+              <p>Маркеров в этой точке: {selectionChoices.length}.</p>
+              <div className="maps-marker-picker-list">
+                {selectionChoices.map((point) => (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelected(point);
+                      setSelectionChoices([]);
+                    }}
+                    key={point.key}
+                  >
+                    <span className={`maps-marker-picker-dot maps-marker-picker-dot--${point.category}`} aria-hidden="true" />
+                    <span><strong>{pointDisplayName(point)}</strong><code>{point.prototypeId}</code></span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
           {selected && selectionAnchor && (
             <section
               className={`maps-inspector maps-inspector--${selectionAnchor.align} maps-inspector--${selectionAnchor.vertical ?? "below"}`}
@@ -532,11 +587,7 @@ export function MapPage() {
                   <button
                     type="button"
                     className={!activeInserts[selected.key] ? "is-active" : ""}
-                    onClick={() => setActiveInserts((current) => {
-                      const next = { ...current };
-                      delete next[selected.key];
-                      return next;
-                    })}
+                    onClick={() => setInsertAtSelectedTile()}
                   >
                     <span>Обычная карта</span><output>База</output>
                   </button>
@@ -547,7 +598,7 @@ export function MapPage() {
                         type="button"
                         className={activeInserts[selected.key] === variation.path ? "is-active" : ""}
                         disabled={!available}
-                        onClick={() => setActiveInserts((current) => ({ ...current, [selected.key]: variation.path }))}
+                        onClick={() => setInsertAtSelectedTile(variation.path)}
                         key={`${variation.path}:${index}`}
                       >
                         <span>{variation.path.split("/").at(-1)?.replace(/\.yml$/i, "") ?? `Вариант ${index + 1}`}</span>

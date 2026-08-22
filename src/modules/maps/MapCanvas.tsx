@@ -1,5 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { chooseLevel, fitView, mapPixelToWorld, visibleTiles, worldToMapPixel } from "./tileMath";
+import { chooseLevel, fitView, gridWorldMin, mapPixelToWorld, visibleTiles, worldToMapPixel } from "./tileMath";
+import { pointsOnSameTile } from "./overlay";
 import type { ActiveInsertRender, CanvasStats, GridManifest, LayerSettings, OverlayPoint, Point, TileLevel, TileManifest, ViewState } from "./types";
 
 type Props = {
@@ -10,7 +11,8 @@ type Props = {
   layers: LayerSettings;
   initialFocus?: { world: Point; scale: number; key: string };
   selectedKey?: string;
-  onSelect: (point?: OverlayPoint) => void;
+  anchorKey?: string;
+  onSelect: (points: OverlayPoint[]) => void;
   onSelectedAnchor: (anchor?: SelectionAnchor) => void;
   onCoordinate: (point?: Point, anchor?: SelectionAnchor) => void;
   onShareTile: (point: Point, zoom: number) => void;
@@ -69,7 +71,15 @@ function insertPixelToMapPixel(
   insertGrid: GridManifest,
   pixel: Point,
 ): Point {
-  const local = mapPixelToWorld(insertGrid, pixel);
+  const maximum = insertGrid.levels.at(-1)!;
+  const minimum = gridWorldMin(insertGrid);
+  // MapInsertSystem replaces the saved grid transform with the target tile offset.
+  // Only the insert's local bounds belong here; applying manifest offset a second
+  // time shifts the render by the editor-time fractional grid position.
+  const local = {
+    x: pixel.x / insertGrid.pixelsPerMeter + minimum.x,
+    y: (maximum.height - pixel.y) / insertGrid.pixelsPerMeter + minimum.y,
+  };
   return worldToMapPixel(mainGrid, {
     x: render.origin.x + local.x,
     y: render.origin.y + local.y,
@@ -84,6 +94,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
   layers,
   initialFocus,
   selectedKey,
+  anchorKey,
   onSelect,
   onSelectedAnchor,
   onCoordinate,
@@ -456,11 +467,11 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
   }, [grid, mapPointAt, view.scale, visiblePoints]);
 
   useEffect(() => {
-    if (!selectedKey) {
+    if (!anchorKey) {
       onSelectedAnchor(undefined);
       return;
     }
-    const point = visiblePoints.find((candidate) => candidate.key === selectedKey);
+    const point = visiblePoints.find((candidate) => candidate.key === anchorKey);
     if (!point) {
       onSelectedAnchor(undefined);
       return;
@@ -473,7 +484,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       align: screen.x > size.width * 0.64 ? "right" : "left",
       vertical: screen.y > size.height * 0.55 ? "above" : "below",
     } : undefined);
-  }, [grid, onSelectedAnchor, selectedKey, size.height, size.width, view, visiblePoints]);
+  }, [anchorKey, grid, onSelectedAnchor, size.height, size.width, view, visiblePoints]);
 
   return (
     <canvas
@@ -543,7 +554,10 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       onPointerUp={(event) => {
         const drag = dragRef.current;
         const wasPinching = Boolean(pinchRef.current);
-        if (!wasPinching && drag && !drag.moved) onSelect(nearestPoint(eventPoint(event, event.currentTarget)));
+        if (!wasPinching && drag && !drag.moved) {
+          const nearest = nearestPoint(eventPoint(event, event.currentTarget));
+          onSelect(nearest ? pointsOnSameTile(visiblePoints, nearest) : []);
+        }
         pointersRef.current.delete(event.pointerId);
         pinchRef.current = undefined;
         const remaining = [...pointersRef.current.entries()][0];
