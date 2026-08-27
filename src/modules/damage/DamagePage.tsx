@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useCatalog } from "../equipment/catalogStore";
 import { formatDamage, formatNumber, isMap } from "../equipment/format";
 import type { CatalogItem, JsonMap } from "../equipment/types";
@@ -18,6 +19,7 @@ import { targetArmorFrom, targetSizeFrom, targetThresholdsFrom } from "./target"
 import type { TargetSelection } from "./target";
 import { applyXenoAbilityBonuses, toggleXenoAbility, XENO_DEFENSIVE_ABILITIES } from "./xenoAbilities";
 import { WEAPON_GUN_STACKS } from "./weaponGunStacks";
+import { readDamageUrlState, writeDamageUrlState } from "./urlState";
 import { AimedShotCard } from "./components/AimedShotCard";
 import { AmmoModePicker, AmmoPicker, ammoProjectiles } from "./components/AmmoPicker";
 import { AttachmentPicker } from "./components/AttachmentPicker";
@@ -156,16 +158,43 @@ function DamagePanelHeader({ index, eyebrow, title, description }: {
 export function DamagePage() {
   const { catalog, error, loading, retry } = useCatalog();
   const { mobCatalog, error: mobError, loading: mobLoading } = useMobCatalog();
-  const [selectedWeaponId, setSelectedWeaponId] = useState<string | null>(null);
-  const [selectedAmmoIndex, setSelectedAmmoIndex] = useState(0);
-  const [selectedAmmoModeIndex, setSelectedAmmoModeIndex] = useState(0);
-  const [attachmentBySlot, setAttachmentBySlot] = useState<Record<string, string>>({});
-  const [attachmentActiveBySlot, setAttachmentActiveBySlot] = useState<Record<string, boolean>>({});
-  const [target, setTarget] = useState<TargetSelection | null>(null);
-  const [hitDirection, setHitDirection] = useState<HitDirection>("front");
-  const [activeAbilities, setActiveAbilities] = useState<Set<string>>(new Set());
-  const [distance, setDistance] = useState(5);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [initialUrlState] = useState(() => readDamageUrlState(searchParams));
+  const [selectedWeaponId, setSelectedWeaponId] = useState<string | null>(initialUrlState.weaponId);
+  const [selectedAmmoIndex, setSelectedAmmoIndex] = useState(initialUrlState.ammoIndex);
+  const [selectedAmmoModeIndex, setSelectedAmmoModeIndex] = useState(initialUrlState.ammoModeIndex);
+  const [attachmentBySlot, setAttachmentBySlot] = useState<Record<string, string>>(initialUrlState.attachmentBySlot);
+  const [attachmentActiveBySlot, setAttachmentActiveBySlot] = useState<Record<string, boolean>>(initialUrlState.attachmentActiveBySlot);
+  const [target, setTarget] = useState<TargetSelection | null>(initialUrlState.target);
+  const [hitDirection, setHitDirection] = useState<HitDirection>(initialUrlState.hitDirection);
+  const [activeAbilities, setActiveAbilities] = useState<Set<string>>(initialUrlState.activeAbilities);
+  const [distance, setDistance] = useState(initialUrlState.distance);
   const [picker, setPicker] = useState<PickerState>(null);
+
+  useEffect(() => {
+    setSearchParams(writeDamageUrlState({
+      weaponId: selectedWeaponId,
+      ammoIndex: selectedAmmoIndex,
+      ammoModeIndex: selectedAmmoModeIndex,
+      attachmentBySlot,
+      attachmentActiveBySlot,
+      target,
+      hitDirection,
+      activeAbilities,
+      distance,
+    }), { replace: true });
+  }, [
+    activeAbilities,
+    attachmentActiveBySlot,
+    attachmentBySlot,
+    distance,
+    hitDirection,
+    selectedAmmoIndex,
+    selectedAmmoModeIndex,
+    selectedWeaponId,
+    setSearchParams,
+    target,
+  ]);
 
   const selectedWeapon = selectedWeaponId && catalog ? catalog.items[selectedWeaponId] : null;
   const attachmentSlots = useMemo(() => selectedWeapon?.attachmentSlots ?? [], [selectedWeapon]);

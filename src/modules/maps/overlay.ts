@@ -1,4 +1,4 @@
-import type { InsertPlacement, MapArea, MapAreaGrid, MapOverlay, MapTileFootprint, OverlayCategory, OverlayGroup, OverlayOccurrence, OverlayPoint, OverlayPrototype, Point } from "./types";
+import type { InsertPlacement, MapArea, MapAreaGrid, MapEntry, MapOverlay, MapTileFootprint, OverlayCategory, OverlayGroup, OverlayOccurrence, OverlayPoint, OverlayPrototype, Point } from "./types";
 
 const LOOT_COMPONENTS = new Set([
   "UniqueRandomSpawner",
@@ -122,6 +122,7 @@ const COMPONENT_TRANSLATIONS: Record<string, string> = {
   MapInsert: "Вариативная часть карты",
   ProportionalSpawner: "Пропорциональный спавнер",
   RandomSpawner: "Случайный спавнер",
+  SpawnPoint: "Точка появления роли",
   SquadSpawner: "Спавнер отряда",
   UniqueRandomSpawner: "Уникальный случайный спавнер",
 };
@@ -154,6 +155,7 @@ const SQUAD_TRANSLATIONS: Record<string, string> = {
 export type InsertVariationOption = {
   path: string;
   probability: number;
+  nightmareScenario?: string;
   offset: Point;
   index: number;
 };
@@ -162,7 +164,7 @@ function categoryOf(id: string, prototype: OverlayPrototype, occurrence: Overlay
   if (typeof occurrence[4] === "string") return "label";
   const components = Object.keys(prototype.components ?? {});
   if (prototype.kind === "insert" || components.includes("MapInsert")) return "insert";
-  if (components.includes("SquadSpawner") || /spawn.?point/i.test(id)) return "spawn";
+  if (components.includes("SpawnPoint") || components.includes("SquadSpawner") || /spawn.?point/i.test(id)) return "spawn";
   if (components.some((component) => LOOT_COMPONENTS.has(component))) return "loot";
   if (prototype.kind === "spawner" && /intel|objective|loot|gun|ammo|buckshot|attachment|goggles|pill|sentry|tool|power.?cell|supply|equipment|gear|warhead/i.test(`${id} ${prototype.name}`)) return "loot";
   return "marker";
@@ -248,6 +250,7 @@ export function insertVariations(point: OverlayPoint): InsertVariationOption[] {
     return [{
       path: variation.spawn,
       probability: probabilityValue(variation.probability) ?? 1,
+      nightmareScenario: typeof variation.nightmareScenario === "string" ? variation.nightmareScenario : undefined,
       offset: vector(variation.offset),
       index,
     }];
@@ -306,6 +309,7 @@ export function flattenOverlay(
         y: origin.y + local.y,
         insertPath: variation.path,
         probability: variation.probability,
+        nightmareScenario: variation.nightmareScenario,
       }));
       points.push(...inserted);
       expand(inserted);
@@ -313,6 +317,59 @@ export function flattenOverlay(
   };
   expand(points);
   return points;
+}
+
+export function effectiveInsertProbability(
+  probability: number,
+  nightmareScenario: string | undefined,
+  map: Pick<MapEntry, "nightmareScenarios">,
+): number {
+  if (!nightmareScenario) return probability;
+  const scenario = map.nightmareScenarios?.find((candidate) => candidate.scenarioName === nightmareScenario);
+  return probability * (scenario?.scenarioProbability ?? 0);
+}
+
+export function serializeInsertSelections(
+  points: OverlayPoint[],
+  activeInserts: Record<string, string>,
+): string[] {
+  return points.flatMap((point) => {
+    if (point.category !== "insert") return [];
+    const selectedPath = activeInserts[point.key];
+    const variation = insertVariations(point).find((candidate) => candidate.path === selectedPath);
+    return variation ? [`${point.key}|${variation.index}`] : [];
+  });
+}
+
+export function restoreInsertSelections(
+  overlay: MapOverlay,
+  tokens: string[],
+): Record<string, string> {
+  const requested = new Map<string, number>();
+  for (const token of tokens) {
+    const separator = token.lastIndexOf("|");
+    const index = Number(token.slice(separator + 1));
+    if (separator > 0 && Number.isInteger(index) && index >= 0) {
+      requested.set(token.slice(0, separator), index);
+    }
+  }
+
+  const restored: Record<string, string> = {};
+  for (let pass = 0; pass <= requested.size; pass += 1) {
+    let changed = false;
+    for (const point of flattenOverlay(overlay, restored)) {
+      if (point.category !== "insert" || restored[point.key]) continue;
+      const index = requested.get(point.key);
+      const variation = index === undefined
+        ? undefined
+        : insertVariations(point).find((candidate) => candidate.index === index);
+      if (!variation || !overlay.insertMaps[variation.path]) continue;
+      restored[point.key] = variation.path;
+      changed = true;
+    }
+    if (!changed) break;
+  }
+  return restored;
 }
 
 export function activeInsertPlacements(
@@ -350,6 +407,7 @@ export function pointDisplayName(point: OverlayPoint): string {
     const role = ROLE_TRANSLATIONS[squadSpawn[1]] ?? squadSpawn[1];
     return `Точка появления ${role}, отряд ${SQUAD_TRANSLATIONS[squadSpawn[2]]}`;
   }
+  if (/spawnpointsurvivor/i.test(point.prototypeId)) return "Точка появления выжившего";
   const randomGun = /^RMCSpawnerRandomGun(Civ|CMB|Corp|Pistol|Rifle|Shotgun|SMG|Special)/.exec(point.prototypeId);
   if (randomGun) {
     const kind: Record<string, string> = {
@@ -449,9 +507,6 @@ export function describeComponents(point: OverlayPoint): string[] {
 
 export function pointProbabilityDescriptions(point: OverlayPoint, points: OverlayPoint[]): string[] {
   const result: string[] = [];
-  if (point.insertPath && point.probability !== undefined) {
-    result.push(`Вероятность активного варианта: ${Math.round(point.probability * 100)}%`);
-  }
   const tower = point.components?.CommunicationsTowerSpawner;
   if (typeof tower?.group === "string") {
     const candidates = points.filter((candidate) => (

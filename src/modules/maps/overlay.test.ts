@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeInsertPlacements, areaAt, describeComponents, flattenOverlay, pointDisplayName, pointProbabilityDescriptions, pointsOnSameTile, spawnOptions } from "./overlay";
+import { activeInsertPlacements, areaAt, describeComponents, effectiveInsertProbability, flattenOverlay, pointDisplayName, pointProbabilityDescriptions, pointsOnSameTile, restoreInsertSelections, serializeInsertSelections, spawnOptions } from "./overlay";
 import type { MapOverlay, OverlayPoint } from "./types";
 
 describe("map overlays", () => {
@@ -148,5 +148,61 @@ describe("map overlays", () => {
     expect(pointDisplayName(point)).toBe("Случайные разведданные — ближняя зона");
     expect(point.category).toBe("loot");
     expect(point.group).toBe("loot-intel");
+  });
+
+  it("classifies survivor SpawnPoint prototypes as spawn markers", () => {
+    const overlay: MapOverlay = {
+      schemaVersion: 4,
+      mapPath: "/Maps/test.yml",
+      prototypes: {
+        RMCSpawnPointSurvivor: {
+          name: "survivor",
+          kind: "spawner",
+          components: { SpawnPoint: { job_id: "CMSurvivor" } },
+        },
+      },
+      occurrences: { RMCSpawnPointSurvivor: [[1.5, 2.5]] },
+      insertMaps: {},
+    };
+
+    const [point] = flattenOverlay(overlay);
+    expect(point.category).toBe("spawn");
+    expect(pointDisplayName(point)).toBe("Точка появления выжившего");
+  });
+
+  it("uses the map scenario chance for conditional inserts", () => {
+    expect(effectiveInsertProbability(1, "clfsmugglers", {
+      nightmareScenarios: [{ scenarioName: "none", scenarioProbability: 1 }],
+    })).toBe(0);
+    expect(effectiveInsertProbability(1, "clfsmugglers", {
+      nightmareScenarios: [
+        { scenarioName: "clfsmugglers", scenarioProbability: 0.1 },
+        { scenarioName: "none", scenarioProbability: 0.9 },
+      ],
+    })).toBe(0.1);
+  });
+
+  it("round-trips selected inserts through share URL tokens", () => {
+    const overlay: MapOverlay = {
+      schemaVersion: 4,
+      mapPath: "/Maps/test.yml",
+      prototypes: {
+        Insert: {
+          name: "room",
+          kind: "insert",
+          components: { MapInsert: { variations: [{ spawn: "/Maps/base.yml" }, { spawn: "/Maps/alt.yml" }] } },
+        },
+      },
+      occurrences: { Insert: [[10.5, 20.5]] },
+      insertMaps: {
+        "/Maps/base.yml": { occurrences: {} },
+        "/Maps/alt.yml": { occurrences: {} },
+      },
+    };
+    const active = { "map:Insert:0": "/Maps/alt.yml" };
+    const tokens = serializeInsertSelections(flattenOverlay(overlay, active), active);
+
+    expect(tokens).toEqual(["map:Insert:0|1"]);
+    expect(restoreInsertSelections(overlay, tokens)).toEqual(active);
   });
 });

@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { loadMapCatalog, loadMapOverlay, loadTileManifest } from "./api";
 import { mapDataUrl } from "./config";
 import { MapCanvas, type MapCanvasHandle, type SelectionAnchor } from "./MapCanvas";
-import { activeInsertPlacements, areaAt, describeComponents, flattenOverlay, insertVariations, pointDisplayName, pointProbabilityDescriptions, spawnOptions } from "./overlay";
+import { activeInsertPlacements, areaAt, describeComponents, effectiveInsertProbability, flattenOverlay, insertVariations, pointDisplayName, pointProbabilityDescriptions, restoreInsertSelections, serializeInsertSelections, spawnOptions } from "./overlay";
 import type { ActiveInsertRender, CanvasStats, LayerSettings, MapCatalog, MapOverlay, OverlayCategory, OverlayGroup, OverlayPoint, Point, TileManifest } from "./types";
 
 const SETTINGS_KEY = "ssmc-map-layers-v3";
@@ -236,7 +236,7 @@ export function MapPage() {
   const [manifestResult, setManifestResult] = useState<{ url: string; value: TileManifest }>();
   const [overlayResult, setOverlayResult] = useState<{ url: string; value: MapOverlay }>();
   const [insertManifests, setInsertManifests] = useState<Record<string, TileManifest>>({});
-  const [activeInserts, setActiveInserts] = useState<Record<string, string>>({});
+  const [insertSelection, setInsertSelection] = useState<{ scope: string; value: Record<string, string> }>({ scope: "", value: {} });
   const [layers, setLayers] = useState<LayerSettings>(initialLayers);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<OverlayPoint>();
@@ -251,6 +251,11 @@ export function MapPage() {
   const requestedXValue = searchParams.get("x");
   const requestedYValue = searchParams.get("y");
   const requestedZoomValue = searchParams.get("zoom");
+  const requestedInsertKey = searchParams.getAll("insert").join("\0");
+  const requestedInsertTokens = useMemo(
+    () => requestedInsertKey ? requestedInsertKey.split("\0") : [],
+    [requestedInsertKey],
+  );
   const requestedX = requestedXValue === null ? Number.NaN : Number(requestedXValue);
   const requestedY = requestedYValue === null ? Number.NaN : Number(requestedYValue);
   const requestedZoom = requestedZoomValue === null ? Number.NaN : Number(requestedZoomValue);
@@ -286,6 +291,14 @@ export function MapPage() {
   const overlayUrl = entry ? mapDataUrl(entry.overlay) : "";
   const manifest = manifestResult?.url === manifestUrl ? manifestResult.value : undefined;
   const overlay = overlayResult?.url === overlayUrl ? overlayResult.value : undefined;
+  const insertSelectionScope = `${overlayUrl}\0${requestedInsertTokens.join("\0")}`;
+  const urlActiveInserts = useMemo(
+    () => overlay ? restoreInsertSelections(overlay, requestedInsertTokens) : {},
+    [overlay, requestedInsertTokens],
+  );
+  const activeInserts = insertSelection.scope === insertSelectionScope
+    ? insertSelection.value
+    : urlActiveInserts;
   const coordinatesReady = Boolean(
     manifest
     && manifest.schemaVersion >= 3
@@ -411,11 +424,16 @@ export function MapPage() {
     next.set("x", String(Math.floor(value.x)));
     next.set("y", String(Math.floor(value.y)));
     next.set("zoom", zoom.toFixed(2).replace(/0+$/, "").replace(/\.$/, ""));
+    next.delete("insert");
+    for (const token of serializeInsertSelections(allPoints, activeInserts)) {
+      next.append("insert", token);
+    }
     setSearchParams(next);
-  }, [entry?.id, requestedMap, searchParams, setSearchParams]);
+  }, [activeInserts, allPoints, entry?.id, requestedMap, searchParams, setSearchParams]);
   const setInsertAtSelectedTile = (path?: string) => {
     if (!selected) return;
-    setActiveInserts((current) => {
+    setInsertSelection(() => {
+      const current = activeInserts;
       const next = { ...current };
       for (const point of allPoints) {
         if (
@@ -427,7 +445,7 @@ export function MapPage() {
         }
       }
       if (path) next[selected.key] = path;
-      return next;
+      return { scope: insertSelectionScope, value: next };
     });
   };
 
@@ -452,7 +470,7 @@ export function MapPage() {
               onChange={(mapId) => {
               setSelected(undefined);
               setSelectionChoices([]);
-              setActiveInserts({});
+              setInsertSelection({ scope: "", value: {} });
               setInsertManifests({});
               setCoordinate(undefined);
               setCoordinateAnchor(undefined);
@@ -586,7 +604,9 @@ export function MapPage() {
               <h2>{pointDisplayName(selected)}</h2>
               <code>{selected.prototypeId}</code>
               <p>X {selected.x.toFixed(1)} · Y {selected.y.toFixed(1)}</p>
-              {selected.probability !== undefined && <p>Вероятность инсерта: {Math.round(selected.probability * 100)}%</p>}
+              {selected.probability !== undefined && entry && (
+                <p>Вероятность инсерта: {Math.round(effectiveInsertProbability(selected.probability, selected.nightmareScenario, entry) * 100)}%</p>
+              )}
               {selected.insertPath && <p className="maps-path">Вариант: {selected.insertPath}</p>}
               {selectedProbabilityDescriptions.map((description) => <p key={description}>{description}</p>)}
               {describeComponents(selected).map((description) => <p key={description}>{description}</p>)}
@@ -603,6 +623,9 @@ export function MapPage() {
                   </button>
                   {selectedInsertVariants.map((variation, index) => {
                     const available = Boolean(overlay?.insertMaps[variation.path]?.tiles);
+                    const probability = entry
+                      ? effectiveInsertProbability(variation.probability, variation.nightmareScenario, entry)
+                      : variation.probability;
                     return (
                       <button
                         type="button"
@@ -612,7 +635,9 @@ export function MapPage() {
                         key={`${variation.path}:${index}`}
                       >
                         <span>{variation.path.split("/").at(-1)?.replace(/\.yml$/i, "") ?? `Вариант ${index + 1}`}</span>
-                        <output>{Math.round(variation.probability * 100)}%</output>
+                        <output title={probability === 0 && variation.nightmareScenario ? "Сценарий отключён в текущем пуле карты" : undefined}>
+                          {Math.round(probability * 100)}%{probability === 0 && variation.nightmareScenario ? " · отключён" : ""}
+                        </output>
                       </button>
                     );
                   })}

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
+import { useSearchParams } from "react-router-dom";
 import { CHEMISTRY_CATALOG_URL, CHEMISTRY_SECTIONS } from "./config";
 import { describeEffect, describePlantEffect, type EffectDescription, type EffectTier } from "./effects";
 import { formatReagentName } from "./format";
@@ -18,6 +19,7 @@ import type {
   PlannedPreparation,
   PreparationPlan,
 } from "./types";
+import { readChemistryUrlState, updateChemistryUrl } from "./urlState";
 
 const numberFormat = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 3 });
 const metabolismLabels: Record<string, string> = {
@@ -127,11 +129,13 @@ function ReagentCard({
   reagent,
   reactions,
   onNavigate,
+  onOpenChange,
 }: {
   entry: ChemistryCatalogEntry;
   reagent?: ChemistryReagent;
   reactions: ChemistryReaction[];
   onNavigate: (id: string) => void;
+  onOpenChange: (id: string, open: boolean) => void;
 }) {
   const properties = reagent?.properties;
   const metabolisms = Object.entries(properties?.metabolisms ?? {});
@@ -142,8 +146,15 @@ function ReagentCard({
   });
   const plantEffects = (properties?.plantMetabolism ?? []).map(describePlantEffect).filter((effect): effect is EffectDescription => Boolean(effect));
   return (
-    <details className="chem-reagent-card" style={style} data-reagent-id={entry.id}>
-      <summary>
+    <details
+      className="chem-reagent-card"
+      style={style}
+      data-reagent-id={entry.id}
+    >
+      <summary onClick={(event) => {
+        const details = event.currentTarget.closest("details") as HTMLDetailsElement | null;
+        onOpenChange(entry.id, !details?.open);
+      }}>
         <span className="chem-reagent-color" aria-hidden="true" />
         <span className="chem-reagent-heading">
           <strong>{formatReagentName(entry.name || reagent?.name, entry.id)}</strong>
@@ -439,28 +450,45 @@ function ReagentCombobox({
   );
 }
 
-function Planner({ catalog }: { catalog: ChemistryCatalog }) {
+function Planner({
+  catalog,
+  reagentId,
+  requestedAmount,
+  shouldBuild,
+  onReagentChange,
+  onAmountChange,
+  onBuild,
+}: {
+  catalog: ChemistryCatalog;
+  reagentId: string;
+  requestedAmount: string;
+  shouldBuild: boolean;
+  onReagentChange: (id: string) => void;
+  onAmountChange: (value: string) => void;
+  onBuild: () => void;
+}) {
   const craftableIds = useMemo(() => craftableReagentIds(catalog), [catalog]);
   const reagents = useMemo(() => ({ ...catalog.dependencies, ...catalog.reagents }), [catalog]);
-  const [reagentId, setReagentId] = useState("");
-  const [requestedAmount, setRequestedAmount] = useState("100");
-  const [plan, setPlan] = useState<PreparationPlan | null>(null);
-  const [error, setError] = useState("");
+  const [submitError, setSubmitError] = useState("");
+  const calculation = useMemo<{ plan: PreparationPlan | null; error: string }>(() => {
+    if (!shouldBuild) return { plan: null, error: "" };
+    try {
+      return { plan: buildPreparationPlan(catalog, reagentId, Number(requestedAmount)), error: "" };
+    } catch (caught) {
+      return { plan: null, error: caught instanceof Error ? caught.message : "Не удалось построить план." };
+    }
+  }, [catalog, reagentId, requestedAmount, shouldBuild]);
+  const { plan } = calculation;
+  const error = submitError || calculation.error;
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!reagentId) {
-      setPlan(null);
-      setError("Выберите вещество из списка рекомендаций.");
+      setSubmitError("Выберите вещество из списка рекомендаций.");
       return;
     }
-    try {
-      setPlan(buildPreparationPlan(catalog, reagentId, Number(requestedAmount)));
-      setError("");
-    } catch (caught) {
-      setPlan(null);
-      setError(caught instanceof Error ? caught.message : "Не удалось построить план.");
-    }
+    setSubmitError("");
+    onBuild();
   };
 
   return (
@@ -468,7 +496,13 @@ function Planner({ catalog }: { catalog: ChemistryCatalog }) {
       <form className="chem-planner-form" onSubmit={submit}>
         <label>
           <span>Вещество</span>
-          <ReagentCombobox ids={craftableIds} reagents={reagents} value={reagentId} onChange={setReagentId} />
+          <ReagentCombobox
+            key={reagentId || "empty"}
+            ids={craftableIds}
+            reagents={reagents}
+            value={reagentId}
+            onChange={(id) => { setSubmitError(""); onReagentChange(id); }}
+          />
         </label>
         <label>
           <span>Требуемый объём</span>
@@ -481,7 +515,8 @@ function Planner({ catalog }: { catalog: ChemistryCatalog }) {
               onChange={(event) => {
                 const next = event.target.value;
                 if (!/^\d*$/u.test(next)) return;
-                setRequestedAmount(next.replace(/^0+(?=\d)/u, ""));
+                setSubmitError("");
+                onAmountChange(next.replace(/^0+(?=\d)/u, ""));
               }}
             />
             <b>u</b>
@@ -522,11 +557,23 @@ function Planner({ catalog }: { catalog: ChemistryCatalog }) {
   );
 }
 
-function Catalog({ catalog }: { catalog: ChemistryCatalog }) {
-  const [sectionId, setSectionId] = useState<ChemistrySectionId>("ordnance");
-  const [query, setQuery] = useState("");
-  const [spotlightEntry, setSpotlightEntry] = useState<ChemistryCatalogEntry | null>(null);
-  const [pendingNavigation, setPendingNavigation] = useState<{ id: string } | null>(null);
+function Catalog({
+  catalog,
+  sectionId,
+  query,
+  openReagentId,
+  onSectionChange,
+  onQueryChange,
+  onReagentChange,
+}: {
+  catalog: ChemistryCatalog;
+  sectionId: ChemistrySectionId;
+  query: string;
+  openReagentId: string | null;
+  onSectionChange: (id: ChemistrySectionId) => void;
+  onQueryChange: (value: string) => void;
+  onReagentChange: (id: string | null) => void;
+}) {
   const reagents = useMemo(() => ({ ...catalog.dependencies, ...catalog.reagents }), [catalog]);
   const sectionByReagent = useMemo(() => {
     const index = new Map<string, ChemistrySectionId>();
@@ -535,6 +582,18 @@ function Catalog({ catalog }: { catalog: ChemistryCatalog }) {
     }
     return index;
   }, [catalog]);
+  const openSectionId = openReagentId ? sectionByReagent.get(openReagentId) : undefined;
+  const activeSectionId = openSectionId ?? sectionId;
+  const spotlightEntry = useMemo<ChemistryCatalogEntry | null>(() => {
+    if (!openReagentId || openSectionId) return null;
+    const reagent = reagents[openReagentId];
+    return reagent ? {
+      id: openReagentId,
+      name: formatReagentName(reagent.name, openReagentId),
+      origin: reagent.origin,
+      sectionPath: ["Компонент рецепта"],
+    } : null;
+  }, [openReagentId, openSectionId, reagents]);
   const reactionIndex = useMemo(() => {
     const index = new Map<string, ChemistryReaction[]>();
     for (const reaction of Object.values(catalog.reactions)) {
@@ -547,7 +606,7 @@ function Catalog({ catalog }: { catalog: ChemistryCatalog }) {
     return index;
   }, [catalog]);
   const normalizedQuery = query.trim().toLocaleLowerCase("ru-RU");
-  const entries = spotlightEntry ? [spotlightEntry] : catalog.catalogSections[sectionId].filter((entry) => {
+  const entries = spotlightEntry ? [spotlightEntry] : catalog.catalogSections[activeSectionId].filter((entry) => {
     if (!normalizedQuery) return true;
     const reagent = reagents[entry.id];
     return [entry.id, entry.name, reagent?.name, reagent?.description, ...entry.sectionPath]
@@ -565,53 +624,45 @@ function Catalog({ catalog }: { catalog: ChemistryCatalog }) {
   }, new Map<string, ChemistryCatalogEntry[]>());
 
   useEffect(() => {
-    if (!pendingNavigation) return;
+    if (!openReagentId) return;
     const card = [...document.querySelectorAll<HTMLElement>("[data-reagent-id]")]
-      .find((element) => element.dataset.reagentId === pendingNavigation.id);
+      .find((element) => element.dataset.reagentId === openReagentId);
     if (!card) return;
     if (card instanceof HTMLDetailsElement) card.open = true;
     card.scrollIntoView({ behavior: "smooth", block: "center" });
     card.querySelector<HTMLElement>("summary")?.focus({ preventScroll: true });
-  }, [pendingNavigation, sectionId, spotlightEntry]);
+  }, [activeSectionId, openReagentId, spotlightEntry]);
 
   const navigateToReagent = (id: string) => {
     const section = sectionByReagent.get(id);
-    setQuery("");
+    onQueryChange("");
     if (section) {
-      setSpotlightEntry(null);
-      setSectionId(section);
+      onSectionChange(section);
     } else {
       const reagent = reagents[id];
       if (!reagent) return;
-      setSpotlightEntry({
-        id,
-        name: formatReagentName(reagent.name, id),
-        origin: reagent.origin,
-        sectionPath: ["Компонент рецепта"],
-      });
     }
-    setPendingNavigation({ id });
+    onReagentChange(id);
   };
 
   const selectSection = (id: ChemistrySectionId) => {
-    setSpotlightEntry(null);
-    setPendingNavigation(null);
-    setSectionId(id);
+    onSectionChange(id);
+    onReagentChange(null);
   };
 
   return (
     <div className="chem-catalog">
       <label className="chem-search">
         <span aria-hidden="true">⌕</span>
-        <input type="search" value={query} onChange={(event) => { setSpotlightEntry(null); setQuery(event.target.value); }} placeholder="Название, описание или ID реагента…" />
-        <small>{entries.length} из {spotlightEntry ? 1 : catalog.catalogSections[sectionId].length}</small>
+        <input type="search" value={query} onChange={(event) => { onQueryChange(event.target.value); onReagentChange(null); }} placeholder="Название, описание или ID реагента…" />
+        <small>{entries.length} из {spotlightEntry ? 1 : catalog.catalogSections[activeSectionId].length}</small>
       </label>
       <div className="chem-section-tabs" role="tablist" aria-label="Разделы химии">
         {CHEMISTRY_SECTIONS.map((section) => (
           <button
             type="button"
             role="tab"
-            aria-selected={section.id === sectionId}
+            aria-selected={section.id === activeSectionId}
             onClick={() => selectSection(section.id)}
             key={section.id}
           >
@@ -630,6 +681,13 @@ function Catalog({ catalog }: { catalog: ChemistryCatalog }) {
                   reagent={reagents[entry.id]}
                   reactions={reactionIndex.get(entry.id) ?? []}
                   onNavigate={navigateToReagent}
+                  onOpenChange={(id, open) => {
+                    if (open) {
+                      if (openReagentId !== id) onReagentChange(id);
+                    } else if (openReagentId === id) {
+                      onReagentChange(null);
+                    }
+                  }}
                   key={entry.id}
                 />
               ))}
@@ -643,9 +701,13 @@ function Catalog({ catalog }: { catalog: ChemistryCatalog }) {
 }
 
 export function ChemistryPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlState = readChemistryUrlState(searchParams);
   const [catalog, setCatalog] = useState<ChemistryCatalog | null>(null);
   const [error, setError] = useState("");
-  const [view, setView] = useState<"catalog" | "planner">("catalog");
+  const setUrlFields = useCallback((changes: Parameters<typeof updateChemistryUrl>[1]) => {
+    setSearchParams(updateChemistryUrl(searchParams, changes), { replace: true });
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -680,13 +742,33 @@ export function ChemistryPage() {
         )}
       </header>
       <nav className="chemistry-view-tabs" aria-label="Режим химического модуля">
-        <button type="button" className={view === "catalog" ? "is-active" : ""} onClick={() => setView("catalog")}>Каталог реагентов</button>
-        <button type="button" className={view === "planner" ? "is-active" : ""} onClick={() => setView("planner")}>Планировщик приготовления</button>
+        <button type="button" className={urlState.view === "catalog" ? "is-active" : ""} onClick={() => setUrlFields({ view: null })}>Каталог реагентов</button>
+        <button type="button" className={urlState.view === "planner" ? "is-active" : ""} onClick={() => setUrlFields({ view: "planner" })}>Планировщик приготовления</button>
       </nav>
       {!catalog && !error && <div className="chem-status">Подключение к химической базе данных…</div>}
       {error && <div className="chem-status is-error">Каталог не загрузился: {error}</div>}
-      {catalog && view === "catalog" && <Catalog catalog={catalog} />}
-      {catalog && view === "planner" && <Planner catalog={catalog} />}
+      {catalog && urlState.view === "catalog" && (
+        <Catalog
+          catalog={catalog}
+          sectionId={urlState.sectionId}
+          query={urlState.query}
+          openReagentId={urlState.openReagentId}
+          onSectionChange={(section) => setUrlFields({ section: section === "ordnance" ? null : section })}
+          onQueryChange={(query) => setUrlFields({ q: query || null })}
+          onReagentChange={(id) => setUrlFields({ item: id })}
+        />
+      )}
+      {catalog && urlState.view === "planner" && (
+        <Planner
+          catalog={catalog}
+          reagentId={urlState.plannerReagentId}
+          requestedAmount={urlState.requestedAmount}
+          shouldBuild={urlState.shouldBuild}
+          onReagentChange={(id) => setUrlFields({ reagent: id || null, run: null })}
+          onAmountChange={(value) => setUrlFields({ amount: value === "100" ? null : value, run: null })}
+          onBuild={() => setUrlFields({ run: "1" })}
+        />
+      )}
     </main>
   );
 }

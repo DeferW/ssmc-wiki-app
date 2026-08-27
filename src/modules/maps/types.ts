@@ -8,6 +8,10 @@ export type MapEntry = {
   origin: "stories" | "rmc14";
   overlay: string;
   tiles: string;
+  nightmareScenarios?: {
+    scenarioName: string;
+    scenarioProbability: number;
+  }[];
 };
 
 export type MapCatalog = {
@@ -115,6 +119,7 @@ export type OverlayPoint = {
   components?: OverlayPrototype["components"];
   insertPath?: string;
   probability?: number;
+  nightmareScenario?: string;
 };
 
 export type InsertPlacement = {
