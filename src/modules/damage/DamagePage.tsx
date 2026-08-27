@@ -348,7 +348,7 @@ export function DamagePage() {
       {loading && !catalog && <div className="status-panel" role="status"><span>DATABASE MESSAGE</span><strong>Синхронизация</strong><p>Загружаю каталог снаряжения…</p></div>}
       {error && !catalog && (
         <div className="status-panel" role="status">
-          <span>DATABASE MESSAGE</span><strong>Ошибка загрузки</strong><p>{error}</p>
+          <span>DATABASE MESSAGE</span><strong>GitHub не отвечает</strong><p>{error}</p>
           <button type="button" onClick={retry}>Повторить</button>
         </div>
       )}

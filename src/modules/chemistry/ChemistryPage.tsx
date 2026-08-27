@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
+import { fetchRemoteJson } from "../../data/remoteJson";
 import { CHEMISTRY_CATALOG_URL, CHEMISTRY_SECTIONS } from "./config";
 import { describeEffect, describePlantEffect, type EffectDescription, type EffectTier } from "./effects";
 import { formatReagentName } from "./format";
@@ -705,16 +706,15 @@ export function ChemistryPage() {
   const urlState = readChemistryUrlState(searchParams);
   const [catalog, setCatalog] = useState<ChemistryCatalog | null>(null);
   const [error, setError] = useState("");
+  const [requestKey, setRequestKey] = useState(0);
   const setUrlFields = useCallback((changes: Parameters<typeof updateChemistryUrl>[1]) => {
     setSearchParams(updateChemistryUrl(searchParams, changes), { replace: true });
   }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch(CHEMISTRY_CATALOG_URL, { signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("HTTP " + response.status);
-        const value: unknown = await response.json();
+    fetchRemoteJson(CHEMISTRY_CATALOG_URL, { signal: controller.signal, cache: requestKey > 0 ? "reload" : "default" })
+      .then((value) => {
         if (!validCatalog(value)) throw new Error("Неизвестная схема chemistry catalog");
         setCatalog(value);
       })
@@ -723,7 +723,7 @@ export function ChemistryPage() {
         setError(caught instanceof Error ? caught.message : "Не удалось загрузить данные.");
       });
     return () => controller.abort();
-  }, []);
+  }, [requestKey]);
 
   return (
     <main className="chemistry-page">
@@ -746,7 +746,13 @@ export function ChemistryPage() {
         <button type="button" className={urlState.view === "planner" ? "is-active" : ""} onClick={() => setUrlFields({ view: "planner" })}>Планировщик приготовления</button>
       </nav>
       {!catalog && !error && <div className="chem-status">Подключение к химической базе данных…</div>}
-      {error && <div className="chem-status is-error">Каталог не загрузился: {error}</div>}
+      {error && (
+        <div className="chem-status is-error">
+          <strong>GitHub не отвечает</strong>
+          <p>{error}</p>
+          <button type="button" onClick={() => { setError(""); setRequestKey((value) => value + 1); }}>Повторить</button>
+        </div>
+      )}
       {catalog && urlState.view === "catalog" && (
         <Catalog
           catalog={catalog}

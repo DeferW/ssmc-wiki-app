@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { fetchRemoteJson } from "../../data/remoteJson";
 import { MOBS_CATALOG_URL } from "./mobConfig";
 import type { MobCatalog } from "./mobTypes";
 
@@ -22,11 +23,7 @@ function validateMobCatalog(value: unknown): MobCatalog {
 function loadMobCatalog(force = false): Promise<MobCatalog> {
   if (catalogCache && !force) return Promise.resolve(catalogCache);
   if (inflight && !force) return inflight;
-  inflight = fetch(MOBS_CATALOG_URL, { cache: force ? "reload" : "default" })
-    .then((response) => {
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return response.json() as Promise<unknown>;
-    })
+  inflight = fetchRemoteJson(MOBS_CATALOG_URL, { cache: force ? "reload" : "default" })
     .then(validateMobCatalog)
     .then((catalog) => {
       catalogCache = catalog;

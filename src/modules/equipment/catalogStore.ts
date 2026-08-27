@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { fetchRemoteJson } from "../../data/remoteJson";
 import { CATALOG_URL } from "./config";
 import type { Catalog } from "./types";
 
@@ -37,11 +38,7 @@ function validateCatalog(value: unknown): Catalog {
 function loadCatalog(force = false): Promise<Catalog> {
   if (catalogCache && !force) return Promise.resolve(catalogCache);
   if (inflight && !force) return inflight;
-  inflight = fetch(CATALOG_URL, { cache: force ? "reload" : "default" })
-    .then((response) => {
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return response.json() as Promise<unknown>;
-    })
+  inflight = fetchRemoteJson(CATALOG_URL, { cache: force ? "reload" : "default" })
     .then(validateCatalog)
     .then((catalog) => {
       catalogCache = catalog;

@@ -223,7 +223,7 @@
 .maps-loading { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 12px; color: var(--muted); font-size: .68rem; }
 .maps-loader { width: 22px; height: 22px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: maps-spin .8s linear infinite; }
 @keyframes maps-spin { to { transform: rotate(360deg); } }
-.maps-error { position: absolute; top: 10px; left: 50%; z-index: 15; display: grid; width: min(420px, calc(100% - 30px)); grid-template-columns: 1fr auto; gap: 4px 12px; padding: 11px; border: 1px solid var(--danger-line); background: rgba(28, 9, 9, .96); color: var(--danger); transform: translateX(-50%); }
+.maps-error { position: absolute; top: 10px; left: 50%; z-index: 15; display: grid; width: min(560px, calc(100% - 30px)); grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 11px; border: 1px solid var(--danger-line); background: rgba(28, 9, 9, .96); color: var(--danger); transform: translateX(-50%); }
 .maps-error strong { font-size: .66rem; text-transform: uppercase; }
 .maps-error span { grid-column: 1; color: #cdaaaa; font-size: .58rem; line-height: 1.4; }
 .maps-error button { grid-row: 1 / 3; grid-column: 2; padding: 0 9px; }

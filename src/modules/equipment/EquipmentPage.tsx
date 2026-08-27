@@ -233,7 +233,7 @@ export function EquipmentPage({ adminMode = false }: { adminMode?: boolean }) {
       )}
 
       {loading && !catalog && <StatusPanel title="Синхронизация" text="Загружаю актуальный каталог снаряжения…" />}
-      {error && !catalog && <StatusPanel title="Ошибка загрузки" text={error} action={retry} />}
+      {error && !catalog && <StatusPanel title="GitHub не отвечает" text={error} action={retry} />}
 
       {catalog && (
         <div className="catalog-layout">

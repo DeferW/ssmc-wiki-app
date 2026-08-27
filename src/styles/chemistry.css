@@ -14,6 +14,9 @@
 .chemistry-view-tabs button.is-active { background: var(--surface-highlight); box-shadow: inset 0 -2px var(--accent); }
 .chem-status { margin: 30px 0; padding: 18px; border: 1px solid var(--line); background: var(--surface); color: var(--muted-strong); }
 .chem-status.is-error { border-color: var(--danger-line); color: var(--danger); }
+.chem-status.is-error { display: grid; gap: 10px; }
+.chem-status.is-error p { margin: 0; color: var(--muted-strong); }
+.chem-status.is-error button { justify-self: start; padding: 8px 10px; border: 1px solid var(--danger-line); background: transparent; color: var(--text); cursor: pointer; }
 .chem-search { display: grid; align-items: center; border: 1px solid var(--line); background: var(--surface); grid-template-columns: 50px minmax(0, 1fr) auto; }
 .chem-search > span { color: var(--accent); text-align: center; }
 .chem-search input { min-width: 0; padding: 14px 0; border: 0; outline: 0; background: transparent; color: var(--text); }

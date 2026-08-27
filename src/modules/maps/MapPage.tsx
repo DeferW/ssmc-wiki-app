@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { REMOTE_DATA_UNAVAILABLE_MESSAGE } from "../../data/remoteJson";
 import { loadMapCatalog, loadMapOverlay, loadTileManifest } from "./api";
 import { mapDataUrl } from "./config";
 import { MapCanvas, type MapCanvasHandle, type SelectionAnchor } from "./MapCanvas";
@@ -535,7 +536,13 @@ export function MapPage() {
               Координаты слоёв ожидают обновления данных карт. Сам рендер доступен, маркеры временно скрыты.
             </div>
           )}
-          {error && <div className="maps-error" role="alert"><strong>Ошибка данных</strong><span>{error}</span><button type="button" onClick={() => window.location.reload()}>Повторить</button></div>}
+          {error && (
+            <div className="maps-error" role="alert">
+              <strong>{error === REMOTE_DATA_UNAVAILABLE_MESSAGE ? "GitHub не отвечает" : "Ошибка данных"}</strong>
+              <span>{error}</span>
+              <button type="button" onClick={() => window.location.reload()}>Повторить</button>
+            </div>
+          )}
           {search && <div className="maps-result-count">Найдено: {points.length}</div>}
 
           {layers.areaSupport && coordinate && coordinateAnchor && hoveredArea && (
