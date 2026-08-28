@@ -17,6 +17,13 @@ describe("chemistry URL state", () => {
     expect(next.toString()).toBe("section=medicine&q=acid&item=SulfuricAcid");
   });
 
+  it("keeps an intentionally empty amount while the user edits the field", () => {
+    const next = updateChemistryUrl(new URLSearchParams("view=planner"), { amount: "" });
+
+    expect(next.toString()).toBe("view=planner&amount=_");
+    expect(readChemistryUrlState(next).requestedAmount).toBe("");
+  });
+
   it("falls back safely for malformed values", () => {
     expect(readChemistryUrlState(new URLSearchParams("view=nope&section=nope&amount=abc"))).toMatchObject({
       view: "catalog",

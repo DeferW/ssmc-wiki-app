@@ -13,6 +13,7 @@ export type ChemistryUrlState = {
 
 const DEFAULT_SECTION: ChemistrySectionId = "ordnance";
 const DEFAULT_AMOUNT = "100";
+const EMPTY_AMOUNT = "_";
 const sectionIds = new Set<ChemistrySectionId>(CHEMISTRY_SECTIONS.map((section) => section.id));
 
 export function readChemistryUrlState(params: URLSearchParams): ChemistryUrlState {
@@ -24,7 +25,9 @@ export function readChemistryUrlState(params: URLSearchParams): ChemistryUrlStat
     query: params.get("q") ?? "",
     openReagentId: params.get("item"),
     plannerReagentId: params.get("reagent") ?? "",
-    requestedAmount: rawAmount !== null && /^\d*$/u.test(rawAmount) ? rawAmount : DEFAULT_AMOUNT,
+    requestedAmount: rawAmount === EMPTY_AMOUNT
+      ? ""
+      : rawAmount !== null && /^\d+$/u.test(rawAmount) ? rawAmount : DEFAULT_AMOUNT,
     shouldBuild: params.get("run") === "1",
   };
 }
@@ -35,7 +38,8 @@ export function updateChemistryUrl(
 ): URLSearchParams {
   const next = new URLSearchParams(current);
   for (const [key, value] of Object.entries(changes)) {
-    if (value === null || value === "") next.delete(key);
+    if (key === "amount" && value === "") next.set(key, EMPTY_AMOUNT);
+    else if (value === null || value === "") next.delete(key);
     else next.set(key, value);
   }
   return next;
