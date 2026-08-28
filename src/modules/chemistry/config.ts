@@ -1,6 +1,9 @@
-export const CHEMISTRY_DATA_ROOT =
-  import.meta.env.VITE_CHEMISTRY_DATA_ROOT
-  ?? "https://raw.githubusercontent.com/DeferW/ssmc-wiki-data/main/data/chemistry/";
+import { dataRoot } from "../../data/paths";
+
+export const CHEMISTRY_DATA_ROOT = dataRoot(
+  "chemistry",
+  import.meta.env.VITE_CHEMISTRY_DATA_ROOT,
+);
 
 export const CHEMISTRY_CATALOG_URL = new URL(
   "catalog.json",

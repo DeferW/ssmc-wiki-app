@@ -19,6 +19,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download generated data
+        uses: actions/checkout@v4
+        with:
+          repository: DeferW/ssmc-wiki-data
+          ref: main
+          path: .generated-data
+          sparse-checkout: data
+          sparse-checkout-cone-mode: true
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Replace published data
+        shell: bash
+        run: |
+          rm -rf public/data
+          mkdir -p public/data
+          cp -a .generated-data/data/. public/data/
+          test -f public/data/catalog/catalog.json
+          test -f public/data/chemistry/catalog.json
+          test -f public/data/maps/catalog.json
+          test -f public/data/mobs/catalog.json
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22

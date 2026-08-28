@@ -7,11 +7,6 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      "/catalog-data": {
-        target: "http://127.0.0.1:4174",
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/catalog-data/, ""),
-      },
       "/admin-api": {
         target: "https://ssmc-wiki-admin-api.24dfffer.workers.dev",
         changeOrigin: true,

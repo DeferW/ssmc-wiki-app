@@ -1,6 +1,7 @@
 import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { automaticCategory, useAdminOverrides } from "../../admin/equipment/useAdminOverrides";
+import { EQUIPMENT_ADMIN_PATH, modulePath } from "../../routes";
 import { CATEGORY_ORDER, HIDDEN_CATEGORY } from "./config";
 import { useCatalog } from "./catalogStore";
 import { capitalizeName, categoryIndex, isCatalogItemVisible, itemMatches } from "./format";
@@ -167,7 +168,7 @@ export function EquipmentPage({ adminMode = false }: { adminMode?: boolean }) {
           <p>{adminMode
             ? "Публичный черновик категорий. Запись в GitHub доступна только по паролю."
             : "Полевые характеристики, состав комплектов, совместимость и источники получения."}</p>
-          <Link className="admin-mode-link" to={adminMode ? "/equipment" : "/equipment/admin"}>
+          <Link className="admin-mode-link" to={adminMode ? modulePath("equipment") : EQUIPMENT_ADMIN_PATH}>
             {adminMode ? "Обычный каталог" : "Admin-режим"}
           </Link>
         </div>

@@ -1,4 +1,6 @@
 node_modules/
 dist/
+.generated-data/
+public/data/
 *.tsbuildinfo
 .DS_Store

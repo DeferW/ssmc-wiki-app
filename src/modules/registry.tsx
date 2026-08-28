@@ -3,12 +3,12 @@ import { EquipmentPage } from "./equipment/EquipmentPage";
 import { ChemistryPage } from "./chemistry/ChemistryPage";
 import { DamagePage } from "./damage/DamagePage";
 import { MapPage } from "./maps/MapPage";
+import { modulePath } from "../routes";
 
 export type ModuleDefinition = {
   id: string;
   path: string;
   title: string;
-  shortTitle: string;
   summary: string;
   code: string;
   status: "active" | "planned";
@@ -18,9 +18,8 @@ export type ModuleDefinition = {
 export const modules: ModuleDefinition[] = [
   {
     id: "equipment",
-    path: "/equipment",
+    path: modulePath("equipment"),
     title: "Каталог снаряжения",
-    shortTitle: "Снаряжение",
     summary: "Оружие, боезапас, броня, медицина и полевое оснащение морпехов.",
     code: "EQP-01",
     status: "active",
@@ -28,9 +27,8 @@ export const modules: ModuleDefinition[] = [
   },
   {
     id: "maps",
-    path: "/maps",
+    path: modulePath("maps"),
     title: "Игровые карты",
-    shortTitle: "Карты",
     summary: "Тактические карты, зоны обстрела и расположение разного снаряжения",
     code: "MAP-02",
     status: "active",
@@ -38,9 +36,8 @@ export const modules: ModuleDefinition[] = [
   },
   {
     id: "chemistry",
-    path: "/chemistry",
+    path: modulePath("chemistry"),
     title: "Химический планировщик",
-    shortTitle: "Химия",
     summary: "Реагенты, реакции и пошаговый маршрут приготовления состава.",
     code: "CHM-03",
     status: "active",
@@ -48,9 +45,8 @@ export const modules: ModuleDefinition[] = [
   },
   {
     id: "damage",
-    path: "/damage",
+    path: modulePath("damage"),
     title: "Калькулятор урона",
-    shortTitle: "Урон",
     summary: "Расчёт урона с учётом дистанции, брони и бронепробития.",
     code: "DMG-04",
     status: "active",
@@ -58,18 +54,16 @@ export const modules: ModuleDefinition[] = [
   },
   {
     id: "weapon-builder",
-    path: "/weapon-builder",
+    path: modulePath("weapon-builder"),
     title: "Конструктор оружия",
-    shortTitle: "Конструктор",
     summary: "Совместимые обвесы и итоговые параметры оружейной сборки.",
     code: "WPN-05",
     status: "planned",
   },
   {
     id: "loadout",
-    path: "/loadout",
+    path: modulePath("loadout"),
     title: "Комплект бойца",
-    shortTitle: "Комплект",
     summary: "Оружие, броня, пояс, подсумки и расходники в одной сборке.",
     code: "LDT-06",
     status: "planned",

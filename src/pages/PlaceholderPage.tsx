@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import type { ModuleDefinition } from "../modules/registry";
+import { MAIN_PATH } from "../routes";
 
 export function PlaceholderPage({ module }: { module: ModuleDefinition }) {
   return (
@@ -11,7 +12,7 @@ export function PlaceholderPage({ module }: { module: ModuleDefinition }) {
         <strong>Слот модуля зарезервирован</strong>
         <span>Его интерфейс и данные будут подключены независимо от каталога снаряжения.</span>
       </div>
-      <Link className="button-link" to="/">← Вернуться на главную</Link>
+      <Link className="button-link" to={MAIN_PATH}>← Вернуться на главную</Link>
     </main>
   );
 }

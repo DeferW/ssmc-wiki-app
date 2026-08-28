@@ -1,5 +1,8 @@
-export const MOBS_DATA_ROOT =
-  import.meta.env.VITE_MOBS_DATA_ROOT
-  ?? "https://raw.githubusercontent.com/DeferW/ssmc-wiki-data/main/data/mobs/";
+import { dataRoot } from "../../data/paths";
+
+export const MOBS_DATA_ROOT = dataRoot(
+  "mobs",
+  import.meta.env.VITE_MOBS_DATA_ROOT,
+);
 
 export const MOBS_CATALOG_URL = new URL("catalog.json", MOBS_DATA_ROOT).toString();
