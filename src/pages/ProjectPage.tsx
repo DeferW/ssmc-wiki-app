@@ -28,7 +28,7 @@ export function ProjectPage() {
         <div className="project-status" aria-label="Статус проекта">
           <span>STATUS</span>
           <strong>WORK IN PROGRESS</strong>
-          <small>Система активно развивается</small>
+          <small>Проект активно развивается</small>
         </div>
       </section>
 

@@ -11,8 +11,8 @@ export function HomePage() {
       <div className="home-content">
         <section className="home-intro">
           <p className="eyebrow">USCM // SECURE DATABASE NODE</p>
-          <h1>Система полевой справки</h1>
-          <p>Каталоги, расчёты и конструкторы для личного состава Space Stories Marine Corps.</p>
+          <h1>База данных ARMAT Tactical</h1>
+          <p>Справочник для игроков Space Stories Marine Corps.</p>
         </section>
 
         <section className="module-grid" aria-label="Модули базы данных">

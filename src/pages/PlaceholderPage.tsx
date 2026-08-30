@@ -10,7 +10,7 @@ export function PlaceholderPage({ module }: { module: ModuleDefinition }) {
       <p>{module.summary}</p>
       <div className="placeholder-box">
         <strong>Слот модуля зарезервирован</strong>
-        <span>Его интерфейс и данные будут подключены независимо от каталога снаряжения.</span>
+        <span>Данный модуль находится в разработке.</span>
       </div>
       <Link className="button-link" to={MAIN_PATH}>← Вернуться на главную</Link>
     </main>
