@@ -6,8 +6,8 @@
 .home-intro { position: relative; max-width: 760px; margin: 0 0 42px auto; padding: 22px 24px 24px; border: 1px solid var(--line-strong); background: rgba(5, 12, 7, .9); box-shadow: 0 24px 80px rgba(0, 0, 0, .42); backdrop-filter: blur(7px); }
 .home-intro::before { display: block; margin-bottom: 16px; color: var(--muted); font-size: .62rem; letter-spacing: .12em; content: "AUTH NODE 06  //  UPLINK ESTABLISHED  //  READ ONLY"; }
 .home-intro::after { position: absolute; top: -1px; right: 18px; width: 92px; height: 2px; background: var(--accent); box-shadow: 0 0 16px rgba(114, 216, 149, .38); content: ""; }
-.home-intro h1 { margin: 12px 0 16px; color: var(--text-strong); font-size: clamp(2.2rem, 5.1vw, 4.9rem); line-height: .92; letter-spacing: -.045em; text-transform: uppercase; }
-.home-intro p:last-child { max-width: 650px; margin: 0; color: var(--text); line-height: 1.65; }
+.home-intro h1 { margin: 12px 0 16px; color: var(--text-strong); font-size: clamp(2.2rem, 3.6vw, 3.25rem); line-height: .96; letter-spacing: -.04em; text-transform: uppercase; white-space: nowrap; }
+.home-intro p:last-child { max-width: none; margin: 0; color: var(--text); line-height: 1.65; }
 .module-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-left: auto; }
 .module-card { position: relative; display: flex; min-height: 238px; flex-direction: column; overflow: hidden; padding: 20px; border: 1px solid var(--line); background: linear-gradient(145deg, rgba(9, 17, 11, .97), rgba(3, 7, 4, .99)); text-decoration: none; transition: transform 150ms ease, border-color 150ms ease, background 150ms ease; }
 .module-card::before { position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(114, 216, 149, .32), transparent); content: ""; }

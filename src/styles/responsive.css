@@ -70,7 +70,7 @@
   .home-content { width: calc(100% - 28px); padding: 28px 0 54px; }
   .home-intro { margin-bottom: 22px; padding: 16px; }
   .home-intro::before { font-size: .52rem; line-height: 1.45; }
-  .home-intro h1 { font-size: clamp(1.8rem, 10vw, 3rem); }
+  .home-intro h1 { font-size: clamp(1.8rem, 10vw, 3rem); white-space: normal; }
   .module-grid { grid-template-columns: 1fr; }
   .module-card { min-height: 170px; padding: 16px; }
   .catalog-page { width: calc(100% - 24px); padding: 28px 0 54px; }
