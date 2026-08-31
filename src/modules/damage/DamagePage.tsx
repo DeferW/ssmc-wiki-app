@@ -166,6 +166,7 @@ export function DamagePage() {
   const [attachmentBySlot, setAttachmentBySlot] = useState<Record<string, string>>(initialUrlState.attachmentBySlot);
   const [attachmentActiveBySlot, setAttachmentActiveBySlot] = useState<Record<string, boolean>>(initialUrlState.attachmentActiveBySlot);
   const [target, setTarget] = useState<TargetSelection | null>(initialUrlState.target);
+  const [targetMatured, setTargetMatured] = useState(initialUrlState.targetMatured);
   const [hitDirection, setHitDirection] = useState<HitDirection>(initialUrlState.hitDirection);
   const [activeAbilities, setActiveAbilities] = useState<Set<string>>(initialUrlState.activeAbilities);
   const [distance, setDistance] = useState(initialUrlState.distance);
@@ -179,6 +180,7 @@ export function DamagePage() {
       attachmentBySlot,
       attachmentActiveBySlot,
       target,
+      targetMatured,
       hitDirection,
       activeAbilities,
       distance,
@@ -194,6 +196,7 @@ export function DamagePage() {
     selectedWeaponId,
     setSearchParams,
     target,
+    targetMatured,
   ]);
 
   const selectedWeapon = selectedWeaponId && catalog ? catalog.items[selectedWeaponId] : null;
@@ -281,6 +284,9 @@ export function DamagePage() {
     ? modifiedStats.damageMultiplier / baseStats.damageMultiplier
     : 1;
   const selectedProjectile = projectiles[0] as JsonMap | undefined;
+  const projectilesPerShot = typeof selectedProjectile?.projectilesPerShot === "number"
+    ? Math.max(1, Math.floor(selectedProjectile.projectilesPerShot))
+    : 1;
   const adjustedEffectiveDamage = scaleDamage(
     damageTypeMapFrom(selectedAmmoMode?.damage ?? selectedProjectile?.effectiveDamage ?? selectedProjectile?.damage),
     damageRatio,
@@ -309,8 +315,15 @@ export function DamagePage() {
 
   const selectTarget = (selection: TargetSelection) => {
     setTarget(selection);
+    setTargetMatured(false);
     setActiveAbilities(new Set());
     setPicker(null);
+  };
+
+  const clearTarget = () => {
+    setTarget(null);
+    setTargetMatured(false);
+    setActiveAbilities(new Set());
   };
 
   const toggleAbility = (name: string) => {
@@ -320,7 +333,13 @@ export function DamagePage() {
   };
 
   const baseTargetArmor = useMemo(() => targetArmorFrom(target, catalog, mobCatalog), [target, catalog, mobCatalog]);
-  const targetThresholds = useMemo(() => targetThresholdsFrom(target, mobCatalog), [target, mobCatalog]);
+  const selectedXenoCaste = target?.kind === "xeno" ? mobCatalog?.xenoCastes[target.casteId] : undefined;
+  const canMature = selectedXenoCaste?.maturedThresholds != null;
+  const effectiveTargetMatured = canMature && targetMatured;
+  const targetThresholds = useMemo(
+    () => targetThresholdsFrom(target, mobCatalog, effectiveTargetMatured),
+    [effectiveTargetMatured, target, mobCatalog],
+  );
   const targetSize = useMemo(() => targetSizeFrom(target, mobCatalog), [target, mobCatalog]);
   const xenoAbilities = target?.kind === "xeno" ? XENO_DEFENSIVE_ABILITIES[target.casteId] : undefined;
   const targetArmor = target?.kind === "xeno" && baseTargetArmor?.kind === "xeno"
@@ -453,6 +472,21 @@ export function DamagePage() {
                           <dt>Урон</dt>
                           <dd>{formatDamage(scaleDamage(damageTypeMapFrom(selectedAmmoMode?.damage ?? projectile.effectiveDamage ?? projectile.damage), damageRatio)) ?? "—"}</dd>
                         </div>
+                        {typeof projectile.projectilesPerShot === "number" && projectile.projectilesPerShot > 1 && (
+                          <>
+                            <div><dt>Снарядов за выстрел</dt><dd>{formatNumber(projectile.projectilesPerShot)}</dd></div>
+                            <div>
+                              <dt>Полный урон выстрела</dt>
+                              <dd>{formatDamage(scaleDamage(
+                                damageTypeMapFrom(selectedAmmoMode?.damage ?? projectile.effectiveDamage ?? projectile.damage),
+                                damageRatio * projectile.projectilesPerShot,
+                              )) ?? "—"}</dd>
+                            </div>
+                            {typeof projectile.spreadDegrees === "number" && (
+                              <div><dt>Разброс снарядов</dt><dd>{formatNumber(projectile.spreadDegrees)}°</dd></div>
+                            )}
+                          </>
+                        )}
                         {(selectedAmmoMode?.armorPiercing != null || projectile.armorPiercing != null) && (
                           <div><dt>Бронепробитие</dt><dd>{formatNumber(selectedAmmoMode?.armorPiercing ?? projectile.armorPiercing)}</dd></div>
                         )}
@@ -512,13 +546,43 @@ export function DamagePage() {
               selection={target}
               catalog={catalog}
               mobCatalog={mobCatalog}
+              matured={effectiveTargetMatured}
               onOpen={() => setPicker({ type: "target" })}
-              onClear={target ? () => setTarget(null) : undefined}
+              onClear={target ? clearTarget : undefined}
             />
           </div>
 
           {mobLoading && !mobCatalog && <p className="muted">Загружаю данные о мобах…</p>}
           {mobError && !mobCatalog && <p className="muted">Ошибка загрузки данных о мобах: {mobError}</p>}
+
+          {canMature && (
+            <div className="target-stage-control">
+              <header>
+                <span>Стадия развития</span>
+                <small>Королева созревает через 10 минут после появления</small>
+              </header>
+              <div className="direction-control maturity-control" role="radiogroup" aria-label="Стадия развития королевы">
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={!effectiveTargetMatured}
+                  className={!effectiveTargetMatured ? "is-active" : ""}
+                  onClick={() => setTargetMatured(false)}
+                >
+                  Незрелая
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={effectiveTargetMatured}
+                  className={effectiveTargetMatured ? "is-active" : ""}
+                  onClick={() => setTargetMatured(true)}
+                >
+                  Зрелая
+                </button>
+              </div>
+            </div>
+          )}
 
           {target && targetArmor?.kind === "xeno" && (
             <div className="direction-control" role="radiogroup" aria-label="Направление попадания">
@@ -603,6 +667,7 @@ export function DamagePage() {
               <DistanceControl distance={distance} onChange={setDistance} />
               <ResultPanel
                 effectiveDamage={adjustedEffectiveDamage}
+                projectilesPerShot={projectilesPerShot}
                 distance={distance}
                 falloffThresholds={falloffThresholds}
                 weaponFalloffMultiplier={weaponFalloffMultiplier}

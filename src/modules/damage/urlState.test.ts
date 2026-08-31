@@ -6,6 +6,7 @@ describe("damage URL state", () => {
     expect(readDamageUrlState(new URLSearchParams())).toMatchObject({
       ammoIndex: 0,
       ammoModeIndex: 0,
+      targetMatured: false,
       hitDirection: "front",
       distance: 5,
     });
@@ -13,7 +14,7 @@ describe("damage URL state", () => {
 
   it("round-trips a complete calculator setup", () => {
     const state = readDamageUrlState(new URLSearchParams(
-      "weapon=Rifle&ammo=2&mode=1&attachment=muzzle~Brake~1&attachment=rail~Light~0&target=xeno%3ADrone&direction=side&ability=Fortify&distance=17",
+      "weapon=Rifle&ammo=2&mode=1&attachment=muzzle~Brake~1&attachment=rail~Light~0&target=xeno%3AQueen&maturity=mature&direction=side&ability=Fortify&distance=17",
     ));
     expect(readDamageUrlState(writeDamageUrlState(state))).toEqual(state);
   });
@@ -24,6 +25,7 @@ describe("damage URL state", () => {
       ammoIndex: 0,
       ammoModeIndex: 0,
       target: null,
+      targetMatured: false,
       hitDirection: "front",
       distance: 40,
     });

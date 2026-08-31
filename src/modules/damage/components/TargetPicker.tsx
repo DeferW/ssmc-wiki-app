@@ -112,7 +112,13 @@ export function TargetPicker({ catalog, mobCatalog, selected, onSelect }: {
                 <strong>{xenoCasteLabel(caste)}</strong>
                 <small>{caste.id}</small>
                 <dl className="stat-grid">
-                  <div><dt>ХП (смерть)</dt><dd>{formatNumber(caste.thresholds.dead)}</dd></div>
+                  <div>
+                    <dt>ХП (смерть)</dt>
+                    <dd>
+                      {formatNumber(caste.thresholds.dead)}
+                      {caste.maturedThresholds && ` → ${formatNumber(caste.maturedThresholds.dead)}`}
+                    </dd>
+                  </div>
                   <div><dt>Броня</dt><dd>{formatNumber(caste.armor.xenoArmor)}</dd></div>
                 </dl>
               </button>

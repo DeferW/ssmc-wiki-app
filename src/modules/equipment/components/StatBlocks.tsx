@@ -121,6 +121,9 @@ function WeaponBlock({ stats }: { stats: JsonMap }) {
                   <p key={`${String(projectile.projectileId)}:${projectileIndex}`}>
                     {formatDamage(projectile.effectiveDamage ?? projectile.damage) ?? "Урон не указан"}
                     {projectile.armorPiercing != null && <small> · БП {formatNumber(projectile.armorPiercing)}</small>}
+                    {Number(projectile.projectilesPerShot) > 1 && (
+                      <small> · снарядов: {formatNumber(projectile.projectilesPerShot)} · полный урон {formatDamage(scaleDamageMap(projectile.effectiveDamage ?? projectile.damage, Number(projectile.projectilesPerShot)))}</small>
+                    )}
                   </p>
                 ))}
               </article>
@@ -144,11 +147,16 @@ function ProjectileBlock({ item, catalog }: { item: CatalogItem; catalog: Catalo
           const damage = isMap(component.damage) && isMap(component.damage.types) ? component.damage.types : null;
           const piercing = isMap(properties.CMArmorPiercing) ? properties.CMArmorPiercing.amount : null;
           const accuracy = isMap(properties.RMCProjectileAccuracy) ? properties.RMCProjectileAccuracy.accuracy : null;
+          const spread = isMap(properties.ProjectileSpread) ? properties.ProjectileSpread : null;
+          const projectilesPerShot = spread && Number(spread.count) > 1 ? Number(spread.count) : 1;
           return (
             <article key={projectile.id}>
               <strong>{projectile.name === "BaseBullet" ? "Пуля" : projectile.name}</strong>
               <StatGrid rows={[
                 ["Урон", formatDamage(damage)],
+                ["Снарядов за выстрел", projectilesPerShot > 1 ? projectilesPerShot : null],
+                ["Полный урон выстрела", projectilesPerShot > 1 ? formatDamage(scaleDamageMap(damage, projectilesPerShot)) : null],
+                ["Разброс снарядов", projectilesPerShot > 1 && spread?.spread != null ? `${formatNumber(spread.spread)}°` : null],
                 ["Бронепробитие", piercing],
                 ["Точность", accuracy != null ? `${formatNumber(accuracy)}%` : null],
               ]} />
@@ -297,6 +305,15 @@ function conditionsText(value: unknown) {
   if (whitelist.length && whitelistFilter) labels.push(filterConditionText(whitelist, true, whitelistFilter));
   if (blacklist.length && blacklistFilter) labels.push(filterConditionText(blacklist, false, blacklistFilter));
   return labels.join(" · ") || undefined;
+}
+
+function scaleDamageMap(value: unknown, multiplier: number): JsonMap | null {
+  if (!isMap(value)) return null;
+  const scaled: JsonMap = {};
+  for (const [type, amount] of Object.entries(value)) {
+    if (typeof amount === "number") scaled[type] = amount * multiplier;
+  }
+  return Object.keys(scaled).length ? scaled : null;
 }
 
 function filterConditionText(tags: string[], allowed: boolean, filter: JsonMap) {

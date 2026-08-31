@@ -32,10 +32,13 @@ export function targetArmorFrom(
 export function targetThresholdsFrom(
   selection: TargetSelection | null,
   mobCatalog: MobCatalog | null,
+  matured = false,
 ): MobThresholdPair | null {
   if (!selection || !mobCatalog) return null;
   if (selection.kind === "marine") return mobCatalog.marine.thresholds;
-  return mobCatalog.xenoCastes[selection.casteId]?.thresholds ?? null;
+  const caste = mobCatalog.xenoCastes[selection.casteId];
+  if (!caste) return null;
+  return matured && caste.maturedThresholds ? caste.maturedThresholds : caste.thresholds;
 }
 
 // RMCFocusedShootingSystem only ever grants a bonus against xeno-sized

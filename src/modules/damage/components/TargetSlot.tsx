@@ -6,11 +6,12 @@ import type { MobCatalog } from "../mobTypes";
 import type { TargetSelection } from "../target";
 import { XenoSprite } from "./XenoSprite";
 
-export function TargetSlot({ label, selection, catalog, mobCatalog, onOpen, onClear }: {
+export function TargetSlot({ label, selection, catalog, mobCatalog, matured = false, onOpen, onClear }: {
   label: string;
   selection: TargetSelection | null;
   catalog: Catalog;
   mobCatalog: MobCatalog | null;
+  matured?: boolean;
   onOpen: () => void;
   onClear?: () => void;
 }) {
@@ -53,7 +54,10 @@ export function TargetSlot({ label, selection, catalog, mobCatalog, onOpen, onCl
         {caste && <XenoSprite caste={caste} compact />}
         <span className="item-slot-copy">
           <strong>{caste ? xenoCasteLabel(caste) : selection.casteId}</strong>
-          <small>{selection.casteId}</small>
+          <small>
+            {selection.casteId}
+            {caste?.maturedThresholds ? ` · ${matured ? "Зрелая" : "Незрелая"}` : ""}
+          </small>
         </span>
       </button>
       {onClear && <button type="button" className="item-slot-clear" onClick={onClear} aria-label="Убрать цель">×</button>}

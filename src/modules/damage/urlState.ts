@@ -8,6 +8,7 @@ export type DamageUrlState = {
   attachmentBySlot: Record<string, string>;
   attachmentActiveBySlot: Record<string, boolean>;
   target: TargetSelection | null;
+  targetMatured: boolean;
   hitDirection: HitDirection;
   activeAbilities: Set<string>;
   distance: number;
@@ -52,13 +53,15 @@ export function readDamageUrlState(params: URLSearchParams): DamageUrlState {
     if (active === "1") attachmentActiveBySlot[slotId] = true;
   }
   const direction = params.get("direction") as HitDirection | null;
+  const target = targetFrom(params.get("target"));
   return {
     weaponId: params.get("weapon"),
     ammoIndex: nonNegativeInteger(params.get("ammo")),
     ammoModeIndex: nonNegativeInteger(params.get("mode")),
     attachmentBySlot,
     attachmentActiveBySlot,
-    target: targetFrom(params.get("target")),
+    target,
+    targetMatured: target?.kind === "xeno" && params.get("maturity") === "mature",
     hitDirection: direction && DIRECTIONS.has(direction) ? direction : "front",
     activeAbilities: new Set(params.getAll("ability").filter(Boolean)),
     distance: distanceFrom(params.get("distance")),
@@ -80,6 +83,7 @@ export function writeDamageUrlState(state: DamageUrlState): URLSearchParams {
     params.set("target", state.target.kind === "marine"
       ? `marine:${state.target.presetId}`
       : `xeno:${state.target.casteId}`);
+    if (state.target.kind === "xeno" && state.targetMatured) params.set("maturity", "mature");
   }
   if (state.hitDirection !== "front") params.set("direction", state.hitDirection);
   for (const ability of [...state.activeAbilities].sort()) params.append("ability", ability);

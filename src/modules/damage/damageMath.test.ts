@@ -213,6 +213,34 @@ const XM88_STACKS: GunStacksConfig = {
 const NO_FALLOFF_AT_DISTANCE_1: never[] = [];
 
 describe("simulateEngagement", () => {
+  it("combines every projectile in a shotgun shell after per-projectile armor mitigation", () => {
+    const perProjectile = computeHitDamage({
+      effectiveDamage: { Piercing: 65 },
+      distance: 1,
+      falloffThresholds: NO_FALLOFF_AT_DISTANCE_1,
+      weaponFalloffMultiplier: 0,
+      armorPiercing: 5,
+      weaponCategory: "bullet",
+      target: WARRIOR_ARMOR,
+    }).totalDamage;
+
+    const result = simulateEngagement({
+      effectiveDamage: { Piercing: 65 },
+      projectilesPerShot: 4,
+      distance: 1,
+      falloffThresholds: NO_FALLOFF_AT_DISTANCE_1,
+      weaponFalloffMultiplier: 0,
+      baseArmorPiercing: 5,
+      baseDamageMultiplier: 1,
+      baseShotsPerSecond: 1,
+      weaponCategory: "bullet",
+      target: WARRIOR_ARMOR,
+    }, { critical: 500, dead: 600 });
+
+    expect(result.shots[0].totalDamage).toBeCloseTo(perProjectile * 4, 10);
+    expect(result.hitsToDead).toBe(Math.ceil(600 / (perProjectile * 4)));
+  });
+
   it("matches hitsToKill/timeToKillSeconds exactly when there is no gunStacks config (constant rate)", () => {
     // Real data: RMCWeaponRifleM54C (M41A MK2) vs. a base Warrior, no
     // attachments — effectiveDamage.Piercing=44, armorPiercing=5,

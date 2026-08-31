@@ -35,6 +35,7 @@ function visibleShotRows(shots: SimulatedShot[]): (SimulatedShot | "gap")[] {
 
 export function ResultPanel({
   effectiveDamage,
+  projectilesPerShot,
   distance,
   falloffThresholds,
   weaponFalloffMultiplier,
@@ -51,6 +52,7 @@ export function ResultPanel({
   holoTargeting,
 }: {
   effectiveDamage: DamageTypeMap;
+  projectilesPerShot?: number;
   distance: number;
   falloffThresholds: DamageFalloffThreshold[];
   weaponFalloffMultiplier: number;
@@ -68,6 +70,7 @@ export function ResultPanel({
 }) {
   const engagement = simulateEngagement({
     effectiveDamage,
+    projectilesPerShot,
     distance,
     falloffThresholds,
     weaponFalloffMultiplier,
@@ -91,7 +94,7 @@ export function ResultPanel({
     <section className="result-panel">
       <h3>Результат</h3>
       <dl className="stat-grid">
-        <div><dt>Урон 1-го попадания</dt><dd>{firstShot ? formatDamage({ Piercing: firstShot.totalDamage }) ?? formatNumber(firstShot.totalDamage) : "—"}</dd></div>
+        <div><dt>Урон 1-го выстрела</dt><dd>{firstShot ? formatDamage({ Piercing: firstShot.totalDamage }) ?? formatNumber(firstShot.totalDamage) : "—"}</dd></div>
         <div><dt>До обездвиживания</dt><dd>{formatHits(engagement.hitsToCritical)}</dd></div>
         <div><dt>До смерти</dt><dd>{formatHits(engagement.hitsToDead)}</dd></div>
         <div><dt>Время до обездвиживания</dt><dd>{formatSeconds(engagement.timeToCriticalSeconds)}</dd></div>
@@ -112,6 +115,12 @@ export function ResultPanel({
           </div>
         )}
       </dl>
+
+      {projectilesPerShot != null && projectilesPerShot > 1 && (
+        <p className="holo-targeting-note">
+          Указан суммарный урон при попадании всех {formatNumber(projectilesPerShot)} снарядов. Разлёт отдельных снарядов по разным целям не моделируется.
+        </p>
+      )}
 
       {holoTargeting && (
         <p className="holo-targeting-note">

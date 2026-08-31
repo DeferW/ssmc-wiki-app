@@ -276,6 +276,7 @@ export type SimulatedShot = {
 
 export type EngagementSimulationInput = {
   effectiveDamage: DamageTypeMap;
+  projectilesPerShot?: number;
   distance: number;
   falloffThresholds: DamageFalloffThreshold[];
   weaponFalloffMultiplier: number;
@@ -359,7 +360,12 @@ export function simulateEngagement(input: EngagementSimulationInput, thresholds:
       hitDirection: input.hitDirection,
     });
 
-    cumulativeDamage += hit.totalDamage;
+    // ProjectileSpread.count is the total number of projectiles produced by
+    // one consumed round. Armor and falloff apply to every projectile, then
+    // their damage is combined into the damage of the shot.
+    const projectilesPerShot = Math.max(1, Math.floor(input.projectilesPerShot ?? 1));
+    const shotDamage = hit.totalDamage * projectilesPerShot;
+    cumulativeDamage += shotDamage;
     const firingPeriod = shotsPerSecond > 0 ? 1 / shotsPerSecond : Infinity;
     let intervalAfterShot = firingPeriod;
     let heatAfterShot: number | undefined;
@@ -389,7 +395,7 @@ export function simulateEngagement(input: EngagementSimulationInput, thresholds:
 
     shots.push({
       index,
-      totalDamage: hit.totalDamage,
+      totalDamage: shotDamage,
       cumulativeDamage,
       cumulativeTimeSeconds,
       armorPiercing,
