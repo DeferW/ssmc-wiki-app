@@ -9,23 +9,25 @@ import { MapCanvas, type MapCanvasHandle, type SelectionAnchor } from "./MapCanv
 import { activeInsertPlacements, areaAt, describeComponents, effectiveInsertProbability, flattenOverlay, flattenStaticItems, insertVariations, pointDisplayName, pointProbabilityDescriptions, restoreInsertSelections, serializeInsertSelections, spawnOptions } from "./overlay";
 import type { ActiveInsertRender, CanvasStats, LayerSettings, MapCatalog, MapOverlay, MapStaticItem, MapStaticItemCatalog, OverlayCategory, OverlayGroup, OverlayPoint, Point, TileManifest } from "./types";
 
-const SETTINGS_KEY = "ssmc-map-layers-v4";
+const SETTINGS_KEY = "ssmc-map-layers-v5";
 const DEFAULT_GROUPS: Record<OverlayGroup, boolean> = {
-  "loot-intel": true,
-  "loot-weapons": true,
-  "loot-ammo": true,
-  "loot-tools": true,
-  "loot-medical": true,
-  "loot-equipment": true,
-  "loot-supplies": true,
-  "loot-other": true,
-  "misc-spawns": true,
-  "misc-creatures": true,
-  "misc-transport": true,
-  "misc-boundaries": true,
-  "misc-decor": true,
-  "misc-other": true,
-  item: true,
+  "loot-intel": false,
+  "loot-weapons": false,
+  "loot-ammo": false,
+  "loot-tools": false,
+  "loot-medical": false,
+  "loot-equipment": false,
+  "loot-defense": false,
+  "loot-supplies": false,
+  "loot-other": false,
+  "misc-spawns": false,
+  "misc-creatures": false,
+  "misc-communications": false,
+  "misc-transport": false,
+  "misc-boundaries": false,
+  "misc-decor": false,
+  "misc-other": false,
+  item: false,
 };
 const DEFAULT_LAYERS: LayerSettings = {
   loot: false,
@@ -33,31 +35,45 @@ const DEFAULT_LAYERS: LayerSettings = {
   label: false,
   spawn: false,
   marker: false,
-  item: true,
+  item: false,
   coordinateGrid: false,
   areaSupport: false,
   markerScale: 1,
   groups: DEFAULT_GROUPS,
 };
 
-const LOOT_GROUPS: { key: OverlayGroup; label: string }[] = [
-  { key: "loot-intel", label: "Разведданные и документы" },
-  { key: "loot-weapons", label: "Оружие" },
-  { key: "loot-ammo", label: "Боеприпасы" },
-  { key: "loot-tools", label: "Инструменты и техника" },
-  { key: "loot-medical", label: "Медицина" },
-  { key: "loot-equipment", label: "Экипировка" },
-  { key: "loot-supplies", label: "Ящики и снабжение" },
-  { key: "loot-other", label: "Прочий лут" },
+const LOOT_GROUP_KEYS: OverlayGroup[] = [
+  "loot-intel", "loot-weapons", "loot-ammo", "loot-tools", "loot-medical",
+  "loot-equipment", "loot-defense", "loot-supplies", "loot-other",
 ];
-
-const MISC_GROUPS: { key: OverlayGroup; label: string }[] = [
-  { key: "misc-spawns", label: "Точки появления" },
-  { key: "misc-creatures", label: "Тела, существа и следы" },
-  { key: "misc-transport", label: "Эвакуация и переходы" },
-  { key: "misc-boundaries", label: "Барьеры и ограничения" },
-  { key: "misc-decor", label: "Декор и случайное окружение" },
-  { key: "misc-other", label: "Прочие технические точки" },
+const MISC_GROUP_KEYS: OverlayGroup[] = [
+  "misc-spawns", "misc-creatures", "misc-communications", "misc-transport",
+  "misc-boundaries", "misc-decor", "misc-other",
+];
+const MARKER_CATEGORIES: {
+  key: string;
+  label: string;
+  detail: string;
+  groups?: OverlayGroup[];
+  layer?: "insert";
+}[] = [
+  { key: "intel", label: "Разведданные", detail: "документы, отчёты и разведывательные цели", groups: ["loot-intel"] },
+  { key: "weapons", label: "Оружие", detail: "случайное оружие и оружейные модули", groups: ["loot-weapons"] },
+  { key: "ammo", label: "Боеприпасы", detail: "магазины, патроны и боеприпасы", groups: ["loot-ammo"] },
+  { key: "defense", label: "Оборонные системы", detail: "турели, мины и тяжёлое вооружение", groups: ["loot-defense"] },
+  { key: "tools", label: "Инструменты и техника", detail: "инструменты, батареи и технические наборы", groups: ["loot-tools"] },
+  { key: "medical", label: "Медицина", detail: "аптечки, препараты и медицинские наборы", groups: ["loot-medical"] },
+  { key: "equipment", label: "Экипировка", detail: "броня, очки и носимое снаряжение", groups: ["loot-equipment"] },
+  { key: "supplies", label: "Снабжение и ящики", detail: "комплекты, контейнеры и точки снабжения", groups: ["loot-supplies"] },
+  { key: "random", label: "Прочий случайный лут", detail: "прочие случайные предметы", groups: ["loot-other"] },
+  { key: "spawns", label: "Точки появления", detail: "роли, отряды и точки подключения", groups: ["misc-spawns"] },
+  { key: "creatures", label: "Существа и останки", detail: "животные, тела, кровь и следы", groups: ["misc-creatures"] },
+  { key: "communications", label: "Связь", detail: "вышки связи и телекоммуникации", groups: ["misc-communications"] },
+  { key: "transport", label: "Транспорт и переходы", detail: "эвакуация, телепорты и переходы", groups: ["misc-transport"] },
+  { key: "boundaries", label: "Границы и запреты", detail: "барьеры, блокировщики и ограничения", groups: ["misc-boundaries"] },
+  { key: "environment", label: "Окружение", detail: "случайный декор и следы окружения", groups: ["misc-decor"] },
+  { key: "technical", label: "Служебные точки", detail: "редкие технические маркеры карты", groups: ["misc-other"] },
+  { key: "inserts", label: "Инсерты", detail: "вариативные участки карты", layer: "insert" },
 ];
 
 const CATEGORY_LABELS: Record<OverlayCategory, string> = {
@@ -184,62 +200,6 @@ function MapPicker({
   );
 }
 
-function LayerGroupControl({
-  label,
-  detail,
-  checked,
-  count,
-  groups,
-  groupCounts,
-  settings,
-  onParentChange,
-  onGroupChange,
-  initiallyOpen = false,
-}: {
-  label: string;
-  detail: string;
-  checked: boolean;
-  count: number;
-  groups: { key: OverlayGroup; label: string }[];
-  groupCounts: Partial<Record<OverlayGroup, number>>;
-  settings: Record<OverlayGroup, boolean>;
-  onParentChange: () => void;
-  onGroupChange: (group: OverlayGroup) => void;
-  initiallyOpen?: boolean;
-}) {
-  const [open, setOpen] = useState(initiallyOpen);
-  return (
-    <details className="maps-layer-group" open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
-      <summary className="maps-layer maps-layer--group">
-        <input
-          type="checkbox"
-          checked={checked}
-          onClick={(event) => event.stopPropagation()}
-          onChange={onParentChange}
-          aria-label={`Показывать: ${label}`}
-        />
-        <span title={detail}><strong>{label}</strong></span>
-        <output>{count}</output>
-        <i className="maps-layer-chevron" aria-hidden="true" />
-      </summary>
-      <div className={checked ? "maps-layer-subgroups" : "maps-layer-subgroups is-disabled"}>
-        {groups.map((group) => (
-          <label className="maps-layer-subgroup" key={group.key}>
-            <input
-              type="checkbox"
-              checked={settings[group.key]}
-              disabled={!checked}
-              onChange={() => onGroupChange(group.key)}
-            />
-            <span>{group.label}</span>
-            <output>{groupCounts[group.key] ?? 0}</output>
-          </label>
-        ))}
-      </div>
-    </details>
-  );
-}
-
 export function MapPage() {
   useLayoutEffect(() => {
     // React Router preserves the document scroll offset. On a real phone a
@@ -256,6 +216,7 @@ export function MapPage() {
   const [insertSelection, setInsertSelection] = useState<{ scope: string; value: Record<string, string> }>({ scope: "", value: {} });
   const [layers, setLayers] = useState<LayerSettings>(initialLayers);
   const [search, setSearch] = useState("");
+  const [markerPanelOpen, setMarkerPanelOpen] = useState(false);
   const [itemPanelOpen, setItemPanelOpen] = useState(false);
   const [itemSearch, setItemSearch] = useState("");
   const [itemCategories, setItemCategories] = useState<Set<string>>(() => new Set());
@@ -425,10 +386,17 @@ export function MapPage() {
     return ids;
   }, [activeItemId, availableItems, itemCategories, itemCounts, itemSearch, searchableItems]);
   const itemPoints = useMemo(
-    () => allItemPoints.map((point) => ({ ...point, highlighted: highlightedItemIds.has(point.prototypeId) })),
+    () => allItemPoints
+      .filter((point) => highlightedItemIds.has(point.prototypeId))
+      .map((point) => ({ ...point, highlighted: true })),
     [allItemPoints, highlightedItemIds],
   );
   const points = useMemo(() => [...overlayPoints, ...itemPoints], [itemPoints, overlayPoints]);
+  const canvasLayers = useMemo<LayerSettings>(() => ({
+    ...layers,
+    item: itemPoints.length > 0,
+    groups: { ...layers.groups, item: itemPoints.length > 0 },
+  }), [itemPoints.length, layers]);
   const pointCounts = useMemo(() => allPoints.reduce<Record<string, number>>((counts, point) => {
     counts[point.category] = (counts[point.category] ?? 0) + 1;
     return counts;
@@ -477,13 +445,15 @@ export function MapPage() {
   }, [insertManifests, insertPlacements]);
 
   const toggleLayer = (key: OverlayCategory) => setLayers((current) => ({ ...current, [key]: !current[key] }));
-  const toggleGroup = (key: OverlayGroup) => setLayers((current) => ({
-    ...current,
-    groups: { ...current.groups, [key]: !current.groups[key] },
-  }));
-  const toggleMisc = () => setLayers((current) => {
-    const enabled = current.marker || current.spawn;
-    return { ...current, marker: !enabled, spawn: !enabled };
+  const toggleMarkerCategory = (definition: typeof MARKER_CATEGORIES[number]) => setLayers((current) => {
+    if (definition.layer) return { ...current, [definition.layer]: !current[definition.layer] };
+    const categoryGroups = definition.groups ?? [];
+    const enable = categoryGroups.some((group) => !current.groups[group]);
+    const groups = { ...current.groups };
+    for (const group of categoryGroups) groups[group] = enable;
+    const hasLoot = LOOT_GROUP_KEYS.some((group) => groups[group]);
+    const hasMisc = MISC_GROUP_KEYS.some((group) => groups[group]);
+    return { ...current, groups, loot: hasLoot, marker: hasMisc, spawn: hasMisc };
   });
   const toggleItemCategory = (category: string) => {
     setActiveItemId(undefined);
@@ -497,6 +467,14 @@ export function MapPage() {
     setItemSearch("");
     setItemCategories(new Set());
     setActiveItemId(undefined);
+  };
+  const clearMarkerFilters = () => {
+    setSearch("");
+    setLayers((current) => {
+      const groups = { ...current.groups };
+      for (const group of [...LOOT_GROUP_KEYS, ...MISC_GROUP_KEYS]) groups[group] = false;
+      return { ...current, loot: false, marker: false, spawn: false, insert: false, groups };
+    });
   };
   const onStats = useCallback((value: CanvasStats) => setStats(value), []);
   const onCoordinate = useCallback((value?: Point, anchor?: SelectionAnchor) => {
@@ -555,26 +533,13 @@ export function MapPage() {
             aria-expanded={sidebarOpen}
             aria-controls="map-layers"
             onClick={() => {
+              setMarkerPanelOpen(false);
               setItemPanelOpen(false);
               setSidebarOpen((value) => !value);
             }}
-            title="Слои карты"
+            title="Настройки отображения"
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 7 8-4 8 4-8 4-8-4Zm0 5 8 4 8-4M4 17l8 4 8-4" /></svg>
-          </button>
-          <button
-            className={itemPanelOpen ? "maps-sidebar-toggle is-active" : "maps-sidebar-toggle"}
-            type="button"
-            aria-label="Предметы на карте"
-            aria-expanded={itemPanelOpen}
-            aria-controls="map-items"
-            onClick={() => {
-              setSidebarOpen(false);
-              setItemPanelOpen((value) => !value);
-            }}
-            title="Предметы на карте"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14v12H5V8Zm3 0V5h8v3M9 12h6M12 10v4" /></svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
           </button>
         </div>
         <div className="maps-map-picker">
@@ -617,7 +582,7 @@ export function MapPage() {
               manifestUrl={manifestUrl}
               points={coordinatesReady ? points : []}
               insertRenders={activeInsertRenders}
-              layers={layers}
+              layers={canvasLayers}
               initialFocus={sharedView}
               selectedKey={selected?.key}
               anchorKey={selected?.key ?? selectionChoices[0]?.key}
@@ -630,6 +595,39 @@ export function MapPage() {
           ) : (
             <div className="maps-loading"><span className="maps-loader" />{error ? "Карта недоступна" : "Загрузка манифеста карты…"}</div>
           )}
+
+          <nav className="maps-data-tools maps-mode-dock" aria-label="Данные текущего модуля карты">
+            <button
+              className={markerPanelOpen ? "is-active" : ""}
+              type="button"
+              aria-expanded={markerPanelOpen}
+              aria-controls="map-markers"
+              onClick={() => {
+                setSidebarOpen(false);
+                setItemPanelOpen(false);
+                setMarkerPanelOpen((value) => !value);
+              }}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s6-5.2 6-11a6 6 0 1 0-12 0c0 5.8 6 11 6 11Zm0-8.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" /></svg>
+              <strong>Маркеры</strong>
+              <output>{allPoints.filter((point) => point.category !== "label").length}</output>
+            </button>
+            <button
+              className={itemPanelOpen ? "is-active" : ""}
+              type="button"
+              aria-expanded={itemPanelOpen}
+              aria-controls="map-items"
+              onClick={() => {
+                setSidebarOpen(false);
+                setMarkerPanelOpen(false);
+                setItemPanelOpen((value) => !value);
+              }}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14v12H5V8Zm3 0V5h8v3M9 12h6M12 10v4" /></svg>
+              <strong>Предметы</strong>
+              <output>{availableItems.length}</output>
+            </button>
+          </nav>
 
           <div className="maps-corner-tools">
             <div className="maps-coordinate">{formatCoordinate(coordinate)}</div>
@@ -811,45 +809,13 @@ export function MapPage() {
 
         <aside id="map-layers" className={sidebarOpen ? "maps-sidebar is-open" : "maps-sidebar"}>
           <div className="maps-sidebar-heading">
-            <div><span className="eyebrow">Отображение</span><h1>Слои</h1></div>
+            <div><span className="eyebrow">Карта</span><h1>Отображение</h1></div>
           </div>
 
-          <label className="maps-search">
-            <span>Поиск точки</span>
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="лут, эвакуация…" />
-          </label>
-
-          <section className="maps-layer-list" aria-label="Слои данных">
-            <LayerGroupControl
-              label="Лут маркеры"
-              detail="случайный лут, разведданные и снабжение"
-              checked={layers.loot}
-              count={pointCounts.loot ?? 0}
-              groups={LOOT_GROUPS}
-              groupCounts={groupCounts}
-              settings={layers.groups}
-              onParentChange={() => toggleLayer("loot")}
-              onGroupChange={toggleGroup}
-            />
-            <LayerGroupControl
-              label="Прочие маркеры"
-              detail="точки появления и технические маркеры карты"
-              checked={layers.marker || layers.spawn}
-              count={(pointCounts.marker ?? 0) + (pointCounts.spawn ?? 0)}
-              groups={MISC_GROUPS}
-              groupCounts={groupCounts}
-              settings={layers.groups}
-              onParentChange={toggleMisc}
-              onGroupChange={toggleGroup}
-            />
-            <label className="maps-layer">
-              <input type="checkbox" checked={layers.insert} onChange={() => toggleLayer("insert")} />
-              <span title="вариативные части карты"><strong>Инсерты</strong></span>
-              {overlay && <output>{pointCounts.insert ?? 0}</output>}
-            </label>
+          <section className="maps-layer-list maps-display-list" aria-label="Настройки отображения карты">
             <label className="maps-layer">
               <input type="checkbox" checked={layers.label} onChange={() => toggleLayer("label")} />
-              <span title="именованные точки и переходы"><strong>Надписи</strong></span>
+              <span title="названия локаций поверх рендера"><strong>Названия локаций</strong></span>
               {overlay && <output>{pointCounts.label ?? 0}</output>}
             </label>
             <label className="maps-layer">
@@ -862,16 +828,47 @@ export function MapPage() {
             </label>
           </section>
 
+          <p className="maps-sidebar-hint">
+            Эти настройки общие для всех будущих инструментов рендера карт.
+          </p>
+        </aside>
+
+        <aside id="map-markers" className={markerPanelOpen ? "maps-items-panel maps-marker-panel is-open" : "maps-items-panel maps-marker-panel"}>
+          <div className="maps-items-heading">
+            <div><span className="eyebrow">Данные карты</span><h1>Маркеры</h1></div>
+            <button type="button" onClick={() => setMarkerPanelOpen(false)} aria-label="Закрыть маркеры">×</button>
+          </div>
+          <label className="maps-search maps-item-search">
+            <span>Название или ID маркера</span>
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="разведданные, эвакуация…" />
+          </label>
+          <div className="maps-items-summary">
+            <span>Категорий: {MARKER_CATEGORIES.length}</span>
+            {(search || layers.loot || layers.marker || layers.spawn || layers.insert) && (
+              <button type="button" onClick={clearMarkerFilters}>Сбросить</button>
+            )}
+          </div>
+          <section className="maps-layer-list maps-marker-category-list" aria-label="Категории маркеров">
+            {MARKER_CATEGORIES.map((definition) => {
+              const checked = definition.layer
+                ? layers[definition.layer]
+                : (definition.groups ?? []).every((group) => layers.groups[group]);
+              const count = definition.layer
+                ? (pointCounts[definition.layer] ?? 0)
+                : (definition.groups ?? []).reduce((sum, group) => sum + (groupCounts[group] ?? 0), 0);
+              return (
+                <label className="maps-layer maps-marker-category" key={definition.key}>
+                  <input type="checkbox" checked={checked} onChange={() => toggleMarkerCategory(definition)} />
+                  <span title={definition.detail}><strong>{definition.label}</strong><small>{definition.detail}</small></span>
+                  <output>{count}</output>
+                </label>
+              );
+            })}
+          </section>
           <label className="maps-marker-size">
             <span>Размер маркеров <output>{layers.markerScale.toFixed(1)}×</output></span>
             <input type="range" min="0.6" max="1.8" step="0.1" value={layers.markerScale} onChange={(event) => setLayers((value) => ({ ...value, markerScale: Number(event.target.value) }))} />
           </label>
-
-          <p className="maps-sidebar-hint">
-            <span>Колесо или два пальца — масштаб</span>
-            <span>Перетаскивание — обзор</span>
-            <span>Клик — данные точки</span>
-          </p>
         </aside>
 
         <aside id="map-items" className={itemPanelOpen ? "maps-items-panel is-open" : "maps-items-panel"}>

@@ -163,30 +163,35 @@ export type InsertVariationOption = {
 function categoryOf(id: string, prototype: OverlayPrototype, occurrence: OverlayOccurrence): OverlayCategory {
   if (typeof occurrence[4] === "string") return "label";
   const components = Object.keys(prototype.components ?? {});
+  const source = `${id} ${prototype.name}`;
   if (prototype.kind === "insert" || components.includes("MapInsert")) return "insert";
+  if (/spawn.?mob|corpse|rat|mouse|monkey|carp|blood|gib|oil/i.test(source)) return "spawn";
+  if (/communications?.?tower|static.?comms|evac|lifeboat|teleport|warp|dropship|blocker|barrier|fog|poster|plant|arcade|cigarette|bedsheet|decal|chair/i.test(source)) return "marker";
   if (components.includes("SpawnPoint") || components.includes("SquadSpawner") || /spawn.?point/i.test(id)) return "spawn";
   if (components.some((component) => LOOT_COMPONENTS.has(component))) return "loot";
-  if (prototype.kind === "spawner" && /intel|objective|loot|gun|ammo|buckshot|attachment|goggles|pill|sentry|tool|power.?cell|supply|equipment|gear|warhead/i.test(`${id} ${prototype.name}`)) return "loot";
+  if (prototype.kind === "spawner" && /intel|objective|folder|document|report|loot|gun|ammo|buckshot|attachment|goggles|pill|sentry|turret|tool|power.?cell|supply|equipment|gear|warhead/i.test(source)) return "loot";
   return "marker";
 }
 
 function groupOf(category: OverlayCategory, id: string, name: string): OverlayGroup {
   const source = `${id} ${name}`;
-  if (category === "loot") {
-    if (/intel|objective|folder/i.test(source)) return "loot-intel";
-    if (/ammo|buckshot/i.test(source)) return "loot-ammo";
-    if (/gun|rifle|pistol|shotgun|smg|sentry|attachment|warhead|bomb/i.test(source)) return "loot-weapons";
-    if (/tool|power.?cell|tech/i.test(source)) return "loot-tools";
-    if (/pill|medical|medkit/i.test(source)) return "loot-medical";
-    if (/goggles|equipment|gear|armor/i.test(source)) return "loot-equipment";
-    if (/crate|supply|aegis/i.test(source)) return "loot-supplies";
-    return "loot-other";
-  }
-  if (category === "spawn" || /spawn.?point|latejoin|observer/i.test(source)) return "misc-spawns";
-  if (/corpse|mob|rat|mouse|monkey|carp|blood|gib|oil/i.test(source)) return "misc-creatures";
+  if (/spawn.?mob|corpse|rat|mouse|monkey|carp|blood|gib|oil/i.test(source)) return "misc-creatures";
+  if (/communications?.?tower|static.?comms|telecom|tcomms/i.test(source)) return "misc-communications";
   if (/evac|lifeboat|teleport|warp|dropship/i.test(source)) return "misc-transport";
   if (/blocker|barrier|fog/i.test(source)) return "misc-boundaries";
   if (/poster|plant|arcade|cigarette|bedsheet|decal|chair/i.test(source)) return "misc-decor";
+  if (category === "loot") {
+    if (/intel|objective|folder|document|report|data/i.test(source)) return "loot-intel";
+    if (/ammo|ammunition|buckshot|magazine|cartridge|shell/i.test(source)) return "loot-ammo";
+    if (/sentry|turret|warhead|bomb|mortar/i.test(source)) return "loot-defense";
+    if (/gun|rifle|pistol|shotgun|smg|weapon|attachment/i.test(source)) return "loot-weapons";
+    if (/pill|medical|medkit|medicine|trauma|burn.?kit/i.test(source)) return "loot-medical";
+    if (/tool|power.?cell|tech|battery/i.test(source)) return "loot-tools";
+    if (/goggles|equipment|gear|armor|helmet|clothing/i.test(source)) return "loot-equipment";
+    if (/crate|supply|aegis|kit|box/i.test(source)) return "loot-supplies";
+    return "loot-other";
+  }
+  if (category === "spawn" || /spawn.?point|latejoin|observer/i.test(source)) return "misc-spawns";
   return "misc-other";
 }
 
