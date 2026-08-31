@@ -4,7 +4,7 @@ import type { AdminLoadResult, AdminOverrides, AdminOverridesDocument } from "./
 
 const WORKER_ROOT = "https://ssmc-wiki-admin-api.24dfffer.workers.dev";
 const GITHUB_CONTENTS_URL =
-  "https://api.github.com/repos/DeferW/ssmc-wiki-data/contents/config/catalog-overrides.json?ref=main";
+  "https://api.github.com/repos/DeferW/ssmc-wiki-app/contents/config/catalog-overrides.json?ref=main";
 
 const configuredRoot = import.meta.env.VITE_ADMIN_API_ROOT?.replace(/\/$/u, "");
 const apiRoot = configuredRoot || (import.meta.env.DEV ? "/admin-api" : WORKER_ROOT);
@@ -27,22 +27,7 @@ export function normalizeAdminDocument(value: unknown): AdminOverrides {
 }
 
 export async function loadAdminOverrides(signal?: AbortSignal): Promise<AdminLoadResult> {
-  try {
-    const response = await fetch(overridesUrl, { cache: "no-store", signal });
-    const body: unknown = await response.json().catch(() => null);
-    if (!response.ok || !isMap(body) || body.ok !== true) {
-      throw new Error(apiError(body, `HTTP ${response.status}`));
-    }
-    return {
-      overrides: normalizeAdminDocument(body.overrides),
-      sha: typeof body.sha === "string" ? body.sha : null,
-      exists: body.exists === true,
-      fallback: false,
-    };
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") throw error;
-    return loadOverridesFromGitHub(signal);
-  }
+  return loadOverridesFromGitHub(signal);
 }
 
 async function loadOverridesFromGitHub(signal?: AbortSignal): Promise<AdminLoadResult> {

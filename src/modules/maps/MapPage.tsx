@@ -8,7 +8,7 @@ import { MapCanvas, type MapCanvasHandle, type SelectionAnchor } from "./MapCanv
 import { activeInsertPlacements, areaAt, describeComponents, effectiveInsertProbability, flattenOverlay, flattenStaticItems, insertVariations, pointDisplayName, pointProbabilityDescriptions, restoreInsertSelections, serializeInsertSelections, spawnOptions } from "./overlay";
 import type { ActiveInsertRender, CanvasStats, LayerSettings, MapCatalog, MapOverlay, MapStaticItem, MapStaticItemCatalog, OverlayCategory, OverlayGroup, OverlayPoint, Point, TileManifest } from "./types";
 
-const SETTINGS_KEY = "ssmc-map-layers-v3";
+const SETTINGS_KEY = "ssmc-map-layers-v4";
 const DEFAULT_GROUPS: Record<OverlayGroup, boolean> = {
   "loot-intel": true,
   "loot-weapons": true,
@@ -27,9 +27,9 @@ const DEFAULT_GROUPS: Record<OverlayGroup, boolean> = {
   item: true,
 };
 const DEFAULT_LAYERS: LayerSettings = {
-  loot: true,
-  insert: true,
-  label: true,
+  loot: false,
+  insert: false,
+  label: false,
   spawn: false,
   marker: false,
   item: true,
@@ -261,7 +261,7 @@ export function MapPage() {
   const [coordinateAnchor, setCoordinateAnchor] = useState<SelectionAnchor>();
   const [stats, setStats] = useState<CanvasStats>({ loadedTiles: 0, loadedBytes: 0, pendingTiles: 0, zoom: 0 });
   const [error, setError] = useState<string>();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const requestedMap = searchParams.get("map");
   const requestedXValue = searchParams.get("x");
   const requestedYValue = searchParams.get("y");
@@ -388,23 +388,30 @@ export function MapPage() {
     }
     return [...counts.entries()].sort(([first], [second]) => first.localeCompare(second, "ru"));
   }, [allItemPoints]);
-  const itemResults = useMemo(() => {
+  const availableItems = useMemo(() => {
     if (!staticItemCatalog) return [] as MapStaticItem[];
-    const query = itemSearch.trim().toLocaleLowerCase("ru");
     return staticItemCatalog.publicCatalog.itemIds
       .filter((id) => itemCounts[id])
       .map((id) => staticItemCatalog.items[id])
-      .filter((item) => (
-        (!itemCategories.size || itemCategories.has(item.category))
-        && (!query || `${item.name} ${item.id} ${item.category}`.toLocaleLowerCase("ru").includes(query))
-      ))
       .sort((first, second) => first.name.localeCompare(second.name, "ru") || first.id.localeCompare(second.id));
-  }, [itemCategories, itemCounts, itemSearch, staticItemCatalog]);
+  }, [itemCounts, staticItemCatalog]);
+  const searchableItems = useMemo(() => {
+    const query = itemSearch.trim().toLocaleLowerCase("ru");
+    return availableItems.filter((item) => !query || `${item.name} ${item.id} ${item.category}`.toLocaleLowerCase("ru").includes(query));
+  }, [availableItems, itemSearch]);
+  const itemResults = useMemo(
+    () => searchableItems.filter((item) => !itemCategories.size || itemCategories.has(item.category)),
+    [itemCategories, searchableItems],
+  );
   const highlightedItemIds = useMemo(() => {
     if (activeItemId && itemCounts[activeItemId]) return new Set([activeItemId]);
     if (!itemSearch.trim() && itemCategories.size === 0) return new Set<string>();
-    return new Set(itemResults.map((item) => item.id));
-  }, [activeItemId, itemCategories, itemCounts, itemResults, itemSearch]);
+    const ids = new Set(itemSearch.trim() ? searchableItems.map((item) => item.id) : []);
+    for (const item of availableItems) {
+      if (itemCategories.has(item.category)) ids.add(item.id);
+    }
+    return ids;
+  }, [activeItemId, availableItems, itemCategories, itemCounts, itemSearch, searchableItems]);
   const itemPoints = useMemo(
     () => allItemPoints.map((point) => ({ ...point, highlighted: highlightedItemIds.has(point.prototypeId) })),
     [allItemPoints, highlightedItemIds],
@@ -528,16 +535,36 @@ export function MapPage() {
   return (
     <main className="maps-page">
       <header className="maps-toolbar">
-        <button
-          className="maps-sidebar-toggle"
-          type="button"
-          aria-expanded={sidebarOpen}
-          aria-controls="map-layers"
-          onClick={() => setSidebarOpen((value) => !value)}
-          title={sidebarOpen ? "Свернуть слои" : "Открыть слои"}
-        >
-          {sidebarOpen ? "‹" : "☰"}
-        </button>
+        <div className="maps-panel-toggles">
+          <button
+            className={sidebarOpen ? "maps-sidebar-toggle is-active" : "maps-sidebar-toggle"}
+            type="button"
+            aria-label="Слои карты"
+            aria-expanded={sidebarOpen}
+            aria-controls="map-layers"
+            onClick={() => {
+              setItemPanelOpen(false);
+              setSidebarOpen((value) => !value);
+            }}
+            title="Слои карты"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 7 8-4 8 4-8 4-8-4Zm0 5 8 4 8-4M4 17l8 4 8-4" /></svg>
+          </button>
+          <button
+            className={itemPanelOpen ? "maps-sidebar-toggle is-active" : "maps-sidebar-toggle"}
+            type="button"
+            aria-label="Предметы на карте"
+            aria-expanded={itemPanelOpen}
+            aria-controls="map-items"
+            onClick={() => {
+              setSidebarOpen(false);
+              setItemPanelOpen((value) => !value);
+            }}
+            title="Предметы на карте"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14v12H5V8Zm3 0V5h8v3M9 12h6M12 10v4" /></svg>
+          </button>
+        </div>
         <div className="maps-map-picker">
           {catalog && (
             <MapPicker
@@ -593,15 +620,6 @@ export function MapPage() {
           )}
 
           <div className="maps-corner-tools">
-            <button
-              className={itemPanelOpen ? "maps-items-toggle is-active" : "maps-items-toggle"}
-              type="button"
-              aria-expanded={itemPanelOpen}
-              aria-controls="map-items"
-              onClick={() => setItemPanelOpen((value) => !value)}
-            >
-              <span aria-hidden="true">⌕</span><strong>Предметы</strong><output>{allItemPoints.length}</output>
-            </button>
             <div className="maps-coordinate">{formatCoordinate(coordinate)}</div>
             <nav className="maps-mode-dock" aria-label="Режим работы карты">
               <button className="is-active" type="button" aria-current="page">
@@ -704,18 +722,20 @@ export function MapPage() {
               <p>X {selected.x.toFixed(1)} · Y {selected.y.toFixed(1)}</p>
               {selected.category === "item" && selected.item && (
                 <>
-                  {selected.item.image && (
-                    <img
-                      className="maps-item-inspector-sprite"
-                      src={mapDataUrl(selected.item.image)}
-                      alt=""
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  )}
-                  {itemDescription(selected.item.description) && (
-                    <p>{itemDescription(selected.item.description)}</p>
-                  )}
+                  <div className="maps-item-inspector-summary">
+                    {selected.item.image && (
+                      <img
+                        className="maps-item-inspector-sprite"
+                        src={mapDataUrl(selected.item.image)}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    )}
+                    {itemDescription(selected.item.description) && (
+                      <p>{itemDescription(selected.item.description)}</p>
+                    )}
+                  </div>
                   <Link
                     className="maps-catalog-link"
                     to={`${modulePath("equipment")}?item=${encodeURIComponent(selected.prototypeId)}`}
@@ -798,7 +818,6 @@ export function MapPage() {
               settings={layers.groups}
               onParentChange={() => toggleLayer("loot")}
               onGroupChange={toggleGroup}
-              initiallyOpen
             />
             <LayerGroupControl
               label="Прочие маркеры"
@@ -859,42 +878,53 @@ export function MapPage() {
               placeholder="M41A, медицина, броня…"
             />
           </label>
-          <div className="maps-item-categories" aria-label="Категории предметов">
-            {availableItemCategories.map(([category, count]) => (
-              <button
-                className={itemCategories.has(category) ? "is-active" : ""}
-                type="button"
-                onClick={() => toggleItemCategory(category)}
-                key={category}
-              >
-                <span>{category}</span><output>{count}</output>
-              </button>
-            ))}
-          </div>
           <div className="maps-items-summary">
             <span>{activeItemId ? "Выбран один тип" : `В списке: ${itemResults.length}`}</span>
             {(itemSearch || itemCategories.size > 0 || activeItemId) && (
               <button type="button" onClick={clearItemFilters}>Сбросить</button>
             )}
           </div>
-          <div className="maps-item-results">
-            {itemResults.map((item) => (
-              <button
-                className={activeItemId === item.id ? "is-active" : ""}
-                type="button"
-                onClick={() => setActiveItemId((current) => current === item.id ? undefined : item.id)}
-                key={item.id}
-              >
-                <span className="maps-item-result-sprite">
-                  {item.image
-                    ? <img src={mapDataUrl(item.image)} alt="" loading="lazy" decoding="async" />
-                    : <i aria-hidden="true">?</i>}
-                </span>
-                <span><strong>{item.name}</strong><code>{item.id}</code></span>
-                <output>{itemCounts[item.id]}</output>
-              </button>
-            ))}
-            {!itemResults.length && <p>На этой карте совпадений нет.</p>}
+          <div className="maps-item-sections">
+            {availableItemCategories.map(([category, count]) => {
+              const categoryItems = searchableItems.filter((item) => item.category === category);
+              if (!categoryItems.length) return null;
+              return (
+                <details className="maps-item-section" open={itemSearch.trim() ? true : undefined} key={category}>
+                  <summary>
+                    <input
+                      type="checkbox"
+                      checked={itemCategories.has(category)}
+                      onClick={(event) => event.stopPropagation()}
+                      onChange={() => toggleItemCategory(category)}
+                      aria-label={`Выбрать категорию: ${category}`}
+                    />
+                    <strong>{category}</strong><output>{count}</output><i className="maps-layer-chevron" aria-hidden="true" />
+                  </summary>
+                  <div className="maps-item-results">
+                    {categoryItems.map((item) => (
+                      <button
+                        className={activeItemId === item.id ? "is-active" : ""}
+                        type="button"
+                        onClick={() => {
+                          setItemCategories(new Set());
+                          setActiveItemId((current) => current === item.id ? undefined : item.id);
+                        }}
+                        key={item.id}
+                      >
+                        <span className="maps-item-result-sprite">
+                          {item.image
+                            ? <img src={mapDataUrl(item.image)} alt="" loading="lazy" decoding="async" />
+                            : <i aria-hidden="true">?</i>}
+                        </span>
+                        <span><strong>{item.name}</strong><code>{item.id}</code></span>
+                        <output>{itemCounts[item.id]}</output>
+                      </button>
+                    ))}
+                  </div>
+                </details>
+              );
+            })}
+            {!searchableItems.length && <p>На этой карте совпадений нет.</p>}
           </div>
           <p className="maps-sidebar-hint">
             Поиск подсвечивает совпадения. Без подсветки предмет можно открыть кликом по его спрайту на близком масштабе.

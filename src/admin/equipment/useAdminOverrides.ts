@@ -37,7 +37,7 @@ export function useAdminOverrides(enabled: boolean, catalog: Catalog | null) {
         if (localDraft) {
           setMessage("Восстановлен локальный черновик. Сохранённый SHA загружен для защиты от конфликтов.");
         } else if (result.fallback) {
-          setMessage("Overrides загружены через резервный GitHub API. Worker не смог прочитать текущий файл.");
+          setMessage("Overrides и актуальный SHA загружены из ssmc-wiki-app через GitHub API.");
         } else {
           setMessage(result.exists ? "Сохранённые overrides загружены." : "Overrides ещё не созданы.");
         }

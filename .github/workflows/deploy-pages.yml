@@ -46,6 +46,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Apply app data overrides
+        run: npm run data:overrides
       - run: npm ci
       - run: npm run build
       - uses: actions/configure-pages@v5
