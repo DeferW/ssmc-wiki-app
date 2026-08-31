@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { REMOTE_DATA_UNAVAILABLE_MESSAGE } from "../../data/remoteJson";
 import { modulePath } from "../../routes";
+import { CATEGORY_ORDER } from "../equipment/config";
 import { loadMapCatalog, loadMapOverlay, loadMapStaticItems, loadTileManifest } from "./api";
 import { mapDataUrl } from "./config";
 import { MapCanvas, type MapCanvasHandle, type SelectionAnchor } from "./MapCanvas";
@@ -240,6 +241,11 @@ function LayerGroupControl({
 }
 
 export function MapPage() {
+  useLayoutEffect(() => {
+    // React Router preserves the document scroll offset. On a real phone a
+    // sticky site header can otherwise cover the map toolbar after navigation.
+    window.scrollTo(0, 0);
+  }, []);
   const [searchParams, setSearchParams] = useSearchParams();
   const canvasRef = useRef<MapCanvasHandle>(null);
   const [catalog, setCatalog] = useState<MapCatalog>();
@@ -386,7 +392,13 @@ export function MapPage() {
       const category = point.item?.category ?? "Другое";
       counts.set(category, (counts.get(category) ?? 0) + 1);
     }
-    return [...counts.entries()].sort(([first], [second]) => first.localeCompare(second, "ru"));
+    return [...counts.entries()].sort(([first], [second]) => {
+      const firstIndex = CATEGORY_ORDER.indexOf(first as typeof CATEGORY_ORDER[number]);
+      const secondIndex = CATEGORY_ORDER.indexOf(second as typeof CATEGORY_ORDER[number]);
+      const firstRank = firstIndex < 0 ? CATEGORY_ORDER.length : firstIndex;
+      const secondRank = secondIndex < 0 ? CATEGORY_ORDER.length : secondIndex;
+      return firstRank - secondRank || first.localeCompare(second, "ru");
+    });
   }, [allItemPoints]);
   const availableItems = useMemo(() => {
     if (!staticItemCatalog) return [] as MapStaticItem[];
