@@ -22,6 +22,10 @@ const [catalog, mapItems, document] = await Promise.all([
   readJsonOptional(mapItemsPath),
   readJson(overridesPath),
 ]);
+if (isObject(document) && Object.keys(document).length === 0) {
+  document.schemaVersion = 2;
+  document.items = {};
+}
 if (document.schemaVersion !== 2 || !isObject(document.items)) {
   throw new Error("config/catalog-overrides.json must use schemaVersion 2");
 }
