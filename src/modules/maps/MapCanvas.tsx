@@ -46,6 +46,7 @@ const CATEGORY_COLOR: Record<OverlayPoint["category"], string> = {
   label: "#8fe09e",
   spawn: "#ef7777",
   marker: "#b2bcb5",
+  item: "#72d895",
 };
 
 const QUIET_MARKERS: Record<string, { glyph: string; color: string }> = {
@@ -392,10 +393,29 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       right: (size.width - view.x) / view.scale + markerRadius * 4,
       bottom: (size.height - view.y) / view.scale + markerRadius * 4,
     };
+    const drawnItemTiles = new Set<string>();
     for (const point of visiblePoints) {
       const pixel = worldToMapPixel(grid, point);
       if (pixel.x < bounds.left || pixel.x > bounds.right || pixel.y < bounds.top || pixel.y > bounds.bottom) continue;
       const selected = point.key === selectedKey;
+
+      if (point.category === "item") {
+        if (!point.highlighted && !selected) continue;
+        const tileKey = `${Math.floor(point.x)}:${Math.floor(point.y)}`;
+        if (drawnItemTiles.has(tileKey) && !selected) continue;
+        drawnItemTiles.add(tileKey);
+        const radius = Math.max(6 / view.scale, (7.5 * layers.markerScale) / Math.sqrt(Math.max(view.scale, 0.08)));
+        context.save();
+        context.translate(pixel.x, pixel.y);
+        context.rotate(Math.PI / 4);
+        context.strokeStyle = selected ? "#ffffff" : CATEGORY_COLOR.item;
+        context.fillStyle = selected ? "rgba(114, 216, 149, .26)" : "rgba(114, 216, 149, .12)";
+        context.lineWidth = (selected ? 2.6 : 1.4) / view.scale;
+        context.fillRect(-radius, -radius, radius * 2, radius * 2);
+        context.strokeRect(-radius, -radius, radius * 2, radius * 2);
+        context.restore();
+        continue;
+      }
 
       if (point.category === "label" && point.label) {
         const fontSize = 17 / view.scale;
@@ -459,6 +479,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
     let winner: OverlayPoint | undefined;
     let winnerDistance = radius * radius;
     for (const point of visiblePoints) {
+      if (point.category === "item" && !point.highlighted && view.scale < 0.65) continue;
       const pixel = worldToMapPixel(grid, point);
       const distance = (pixel.x - mapPoint.x) ** 2 + (pixel.y - mapPoint.y) ** 2;
       if (distance <= winnerDistance) { winner = point; winnerDistance = distance; }

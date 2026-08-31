@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { fetchRemoteJson } from "../../data/remoteJson";
 import { CATALOG_URL } from "./config";
 import type { Catalog } from "./types";
+import { loadMapStaticItems } from "../maps/api";
+import { mapDataUrl } from "../maps/config";
 
 let catalogCache: Catalog | null = null;
 let inflight: Promise<Catalog> | null = null;
@@ -35,11 +37,44 @@ function validateCatalog(value: unknown): Catalog {
   return catalog as Catalog;
 }
 
+function mergeMapItems(catalog: Catalog, mapCatalog: Awaited<ReturnType<typeof loadMapStaticItems>> | null): Catalog {
+  if (!mapCatalog) return catalog;
+  const items = { ...catalog.items };
+  for (const [id, item] of Object.entries(mapCatalog.items)) {
+    if (items[id]) continue;
+    items[id] = {
+      ...item,
+      image: item.image ? mapDataUrl(item.image) : undefined,
+    };
+  }
+  const itemIds = [...catalog.publicCatalog.itemIds];
+  for (const id of mapCatalog.publicCatalog.itemIds) if (!itemIds.includes(id)) itemIds.push(id);
+  const categories: Record<string, string[]> = {};
+  for (const category of new Set([
+    ...Object.keys(catalog.publicCatalog.categories),
+    ...Object.keys(mapCatalog.publicCatalog.categories),
+  ])) {
+    categories[category] = [...new Set([
+      ...(catalog.publicCatalog.categories[category] ?? []),
+      ...(mapCatalog.publicCatalog.categories[category] ?? []),
+    ])];
+  }
+  return {
+    ...catalog,
+    items,
+    publicCatalog: { ...catalog.publicCatalog, itemIds, categories },
+    counts: { ...catalog.counts, publicItems: itemIds.length, catalogItems: Object.keys(items).length },
+  };
+}
+
 function loadCatalog(force = false): Promise<Catalog> {
   if (catalogCache && !force) return Promise.resolve(catalogCache);
   if (inflight && !force) return inflight;
-  inflight = fetchRemoteJson(CATALOG_URL, { cache: force ? "reload" : "default" })
-    .then(validateCatalog)
+  inflight = Promise.all([
+    fetchRemoteJson(CATALOG_URL, { cache: force ? "reload" : "default" }).then(validateCatalog),
+    loadMapStaticItems().catch(() => null),
+  ])
+    .then(([catalog, mapCatalog]) => mergeMapItems(catalog, mapCatalog))
     .then((catalog) => {
       catalogCache = catalog;
       return catalog;

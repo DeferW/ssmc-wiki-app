@@ -1,4 +1,4 @@
-import type { InsertPlacement, MapArea, MapAreaGrid, MapEntry, MapOverlay, MapTileFootprint, OverlayCategory, OverlayGroup, OverlayOccurrence, OverlayPoint, OverlayPrototype, Point } from "./types";
+import type { InsertPlacement, MapArea, MapAreaGrid, MapEntry, MapOverlay, MapStaticItemCatalog, MapTileFootprint, OverlayCategory, OverlayGroup, OverlayOccurrence, OverlayPoint, OverlayPrototype, Point } from "./types";
 
 const LOOT_COMPONENTS = new Set([
   "UniqueRandomSpawner",
@@ -316,6 +316,54 @@ export function flattenOverlay(
     }
   };
   expand(points);
+  return points;
+}
+
+function staticItemPoints(
+  occurrences: Record<string, OverlayOccurrence[]> | undefined,
+  catalog: MapStaticItemCatalog,
+  prefix: string,
+  origin: Point = { x: 0, y: 0 },
+): OverlayPoint[] {
+  if (!occurrences) return [];
+  return Object.entries(occurrences).flatMap(([prototypeId, entries]) => {
+    const item = catalog.items[prototypeId];
+    if (!item) return [];
+    return entries.map((entry, index) => ({
+      key: `${prefix}:${prototypeId}:${index}`,
+      prototypeId,
+      name: item.name,
+      category: "item" as const,
+      group: "item" as const,
+      x: origin.x + entry[0],
+      y: origin.y + entry[1],
+      rotation: entry[2] ?? 0,
+      item,
+    }));
+  });
+}
+
+export function flattenStaticItems(
+  overlay: MapOverlay,
+  catalog: MapStaticItemCatalog,
+  overlayPoints: OverlayPoint[],
+  activeInserts: Record<string, string>,
+): OverlayPoint[] {
+  const points = staticItemPoints(overlay.itemOccurrences, catalog, "map-item");
+  for (const placement of activeInsertPlacements(overlay, overlayPoints, activeInserts)) {
+    const insert = overlay.insertMaps[placement.path];
+    if (placement.clearEntities && insert?.footprint) {
+      for (let index = points.length - 1; index >= 0; index -= 1) {
+        if (pointInFootprint(insert.footprint, placement.origin, points[index])) points.splice(index, 1);
+      }
+    }
+    points.push(...staticItemPoints(
+      insert?.itemOccurrences,
+      catalog,
+      `insert-item:${placement.key}`,
+      placement.origin,
+    ));
+  }
   return points;
 }
 

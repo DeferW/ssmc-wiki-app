@@ -1,8 +1,9 @@
 import { fetchRemoteJson } from "../../data/remoteJson";
-import { MAP_CATALOG_URL } from "./config";
-import type { MapCatalog, MapOverlay, TileManifest } from "./types";
+import { MAP_CATALOG_URL, MAP_STATIC_ITEMS_URL } from "./config";
+import type { MapCatalog, MapOverlay, MapStaticItemCatalog, TileManifest } from "./types";
 
 let catalogPromise: Promise<MapCatalog> | undefined;
+let staticItemsPromise: Promise<MapStaticItemCatalog> | undefined;
 
 async function fetchJson<T>(url: string, signal?: AbortSignal): Promise<T> {
   // JSON files are tiny mutable pointers on the main branch. Revalidate them;
@@ -22,6 +23,16 @@ export function loadMapCatalog(): Promise<MapCatalog> {
   return catalogPromise;
 }
 
+export function loadMapStaticItems(): Promise<MapStaticItemCatalog> {
+  staticItemsPromise ??= fetchJson<MapStaticItemCatalog>(MAP_STATIC_ITEMS_URL).then((value) => {
+    if (value.schemaVersion !== 1 || !value.items || !Array.isArray(value.publicCatalog?.itemIds)) {
+      throw new Error("Каталог предметов карт имеет неподдерживаемый формат.");
+    }
+    return value;
+  });
+  return staticItemsPromise;
+}
+
 export async function loadTileManifest(url: string, signal: AbortSignal): Promise<TileManifest> {
   const value = await fetchJson<TileManifest>(url, signal);
   if (![1, 2, 3].includes(value.schemaVersion) || !Array.isArray(value.grids) || value.grids.length === 0) {
@@ -32,7 +43,7 @@ export async function loadTileManifest(url: string, signal: AbortSignal): Promis
 
 export async function loadMapOverlay(url: string, signal: AbortSignal): Promise<MapOverlay> {
   const value = await fetchJson<MapOverlay>(url, signal);
-  if (![1, 2, 3, 4].includes(value.schemaVersion) || !value.prototypes || !value.occurrences) {
+  if (![1, 2, 3, 4, 5].includes(value.schemaVersion) || !value.prototypes || !value.occurrences) {
     throw new Error("Оверлей карты имеет неподдерживаемый формат.");
   }
   return value;

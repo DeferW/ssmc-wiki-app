@@ -17,6 +17,7 @@ export type MapEntry = {
 export type MapCatalog = {
   schemaVersion: number;
   gameCommit: string;
+  items?: string;
   maps: MapEntry[];
   counts: { maps: number; ships: number; planets: number; assetBytes: number };
 };
@@ -64,8 +65,10 @@ export type MapOverlay = {
   mapPath: string;
   prototypes: Record<string, OverlayPrototype>;
   occurrences: Record<string, OverlayOccurrence[]>;
+  itemOccurrences?: Record<string, OverlayOccurrence[]>;
   insertMaps: Record<string, {
     occurrences: Record<string, OverlayOccurrence[]>;
+    itemOccurrences?: Record<string, OverlayOccurrence[]>;
     tiles?: string;
     areas?: MapAreaGrid | null;
     footprint?: MapTileFootprint | null;
@@ -88,7 +91,7 @@ export type MapArea = {
   supportMask: number;
 };
 
-export type OverlayCategory = "loot" | "insert" | "label" | "spawn" | "marker";
+export type OverlayCategory = "loot" | "insert" | "label" | "spawn" | "marker" | "item";
 
 export type OverlayGroup =
   | "loot-intel"
@@ -104,7 +107,31 @@ export type OverlayGroup =
   | "misc-transport"
   | "misc-boundaries"
   | "misc-decor"
-  | "misc-other";
+  | "misc-other"
+  | "item";
+
+export type MapStaticItem = {
+  id: string;
+  name: string;
+  baseName?: string;
+  description?: unknown;
+  category: string;
+  image?: string;
+  types?: string[];
+  tags?: string[];
+  componentTypes?: string[];
+  classification?: { category?: string; categoryId?: string; reason?: string };
+};
+
+export type MapStaticItemCatalog = {
+  schemaVersion: number;
+  gameCommit: string;
+  source: string;
+  locale?: string;
+  items: Record<string, MapStaticItem>;
+  publicCatalog: { itemIds: string[]; categories: Record<string, string[]> };
+  counts: { items: number };
+};
 
 export type OverlayPoint = {
   key: string;
@@ -120,6 +147,8 @@ export type OverlayPoint = {
   insertPath?: string;
   probability?: number;
   nightmareScenario?: string;
+  item?: MapStaticItem;
+  highlighted?: boolean;
 };
 
 export type InsertPlacement = {

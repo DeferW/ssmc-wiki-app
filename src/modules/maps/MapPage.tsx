@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { REMOTE_DATA_UNAVAILABLE_MESSAGE } from "../../data/remoteJson";
-import { loadMapCatalog, loadMapOverlay, loadTileManifest } from "./api";
+import { modulePath } from "../../routes";
+import { loadMapCatalog, loadMapOverlay, loadMapStaticItems, loadTileManifest } from "./api";
 import { mapDataUrl } from "./config";
 import { MapCanvas, type MapCanvasHandle, type SelectionAnchor } from "./MapCanvas";
-import { activeInsertPlacements, areaAt, describeComponents, effectiveInsertProbability, flattenOverlay, insertVariations, pointDisplayName, pointProbabilityDescriptions, restoreInsertSelections, serializeInsertSelections, spawnOptions } from "./overlay";
-import type { ActiveInsertRender, CanvasStats, LayerSettings, MapCatalog, MapOverlay, OverlayCategory, OverlayGroup, OverlayPoint, Point, TileManifest } from "./types";
+import { activeInsertPlacements, areaAt, describeComponents, effectiveInsertProbability, flattenOverlay, flattenStaticItems, insertVariations, pointDisplayName, pointProbabilityDescriptions, restoreInsertSelections, serializeInsertSelections, spawnOptions } from "./overlay";
+import type { ActiveInsertRender, CanvasStats, LayerSettings, MapCatalog, MapOverlay, MapStaticItem, MapStaticItemCatalog, OverlayCategory, OverlayGroup, OverlayPoint, Point, TileManifest } from "./types";
 
 const SETTINGS_KEY = "ssmc-map-layers-v3";
 const DEFAULT_GROUPS: Record<OverlayGroup, boolean> = {
@@ -23,6 +24,7 @@ const DEFAULT_GROUPS: Record<OverlayGroup, boolean> = {
   "misc-boundaries": true,
   "misc-decor": true,
   "misc-other": true,
+  item: true,
 };
 const DEFAULT_LAYERS: LayerSettings = {
   loot: true,
@@ -30,6 +32,7 @@ const DEFAULT_LAYERS: LayerSettings = {
   label: true,
   spawn: false,
   marker: false,
+  item: true,
   coordinateGrid: false,
   areaSupport: false,
   markerScale: 1,
@@ -62,7 +65,13 @@ const CATEGORY_LABELS: Record<OverlayCategory, string> = {
   label: "Надпись",
   spawn: "Точка появления",
   marker: "Технический маркер",
+  item: "Предмет",
 };
+
+function itemDescription(value: unknown): string {
+  if (typeof value === "string") return value.replace(/^\{\s*""\s*\}$/, "").trim();
+  return "";
+}
 
 const AREA_SUPPORT_COLUMNS = [
   [
@@ -234,12 +243,17 @@ export function MapPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const canvasRef = useRef<MapCanvasHandle>(null);
   const [catalog, setCatalog] = useState<MapCatalog>();
+  const [staticItemCatalog, setStaticItemCatalog] = useState<MapStaticItemCatalog>();
   const [manifestResult, setManifestResult] = useState<{ url: string; value: TileManifest }>();
   const [overlayResult, setOverlayResult] = useState<{ url: string; value: MapOverlay }>();
   const [insertManifests, setInsertManifests] = useState<Record<string, TileManifest>>({});
   const [insertSelection, setInsertSelection] = useState<{ scope: string; value: Record<string, string> }>({ scope: "", value: {} });
   const [layers, setLayers] = useState<LayerSettings>(initialLayers);
   const [search, setSearch] = useState("");
+  const [itemPanelOpen, setItemPanelOpen] = useState(false);
+  const [itemSearch, setItemSearch] = useState("");
+  const [itemCategories, setItemCategories] = useState<Set<string>>(() => new Set());
+  const [activeItemId, setActiveItemId] = useState<string>();
   const [selected, setSelected] = useState<OverlayPoint>();
   const [selectionChoices, setSelectionChoices] = useState<OverlayPoint[]>([]);
   const [selectionAnchor, setSelectionAnchor] = useState<SelectionAnchor>();
@@ -283,6 +297,14 @@ export function MapPage() {
       .catch((reason: unknown) => active && setError(reason instanceof Error ? reason.message : "Не удалось загрузить каталог карт."));
     return () => { active = false; };
   }, [requestedMap, setSearchParams]);
+
+  useEffect(() => {
+    let active = true;
+    loadMapStaticItems()
+      .then((value) => { if (active) setStaticItemCatalog(value); })
+      .catch(() => { /* Site remains usable while the new dataset is being published. */ });
+    return () => { active = false; };
+  }, []);
 
   const entry = useMemo(
     () => catalog?.maps.find((map) => map.id === requestedMap) ?? catalog?.maps[0],
@@ -343,11 +365,51 @@ export function MapPage() {
     () => overlay ? flattenOverlay(overlay, activeInserts) : [],
     [activeInserts, overlay],
   );
-  const points = useMemo(() => {
+  const overlayPoints = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("ru");
     if (!query) return allPoints;
     return allPoints.filter((point) => `${pointDisplayName(point)} ${point.name} ${point.prototypeId}`.toLocaleLowerCase("ru").includes(query));
   }, [allPoints, search]);
+  const allItemPoints = useMemo(
+    () => overlay && staticItemCatalog
+      ? flattenStaticItems(overlay, staticItemCatalog, allPoints, activeInserts)
+      : [],
+    [activeInserts, allPoints, overlay, staticItemCatalog],
+  );
+  const itemCounts = useMemo(() => allItemPoints.reduce<Record<string, number>>((counts, point) => {
+    counts[point.prototypeId] = (counts[point.prototypeId] ?? 0) + 1;
+    return counts;
+  }, {}), [allItemPoints]);
+  const availableItemCategories = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const point of allItemPoints) {
+      const category = point.item?.category ?? "Другое";
+      counts.set(category, (counts.get(category) ?? 0) + 1);
+    }
+    return [...counts.entries()].sort(([first], [second]) => first.localeCompare(second, "ru"));
+  }, [allItemPoints]);
+  const itemResults = useMemo(() => {
+    if (!staticItemCatalog) return [] as MapStaticItem[];
+    const query = itemSearch.trim().toLocaleLowerCase("ru");
+    return staticItemCatalog.publicCatalog.itemIds
+      .filter((id) => itemCounts[id])
+      .map((id) => staticItemCatalog.items[id])
+      .filter((item) => (
+        (!itemCategories.size || itemCategories.has(item.category))
+        && (!query || `${item.name} ${item.id} ${item.category}`.toLocaleLowerCase("ru").includes(query))
+      ))
+      .sort((first, second) => first.name.localeCompare(second.name, "ru") || first.id.localeCompare(second.id));
+  }, [itemCategories, itemCounts, itemSearch, staticItemCatalog]);
+  const highlightedItemIds = useMemo(() => {
+    if (activeItemId && itemCounts[activeItemId]) return new Set([activeItemId]);
+    if (!itemSearch.trim() && itemCategories.size === 0) return new Set<string>();
+    return new Set(itemResults.map((item) => item.id));
+  }, [activeItemId, itemCategories, itemCounts, itemResults, itemSearch]);
+  const itemPoints = useMemo(
+    () => allItemPoints.map((point) => ({ ...point, highlighted: highlightedItemIds.has(point.prototypeId) })),
+    [allItemPoints, highlightedItemIds],
+  );
+  const points = useMemo(() => [...overlayPoints, ...itemPoints], [itemPoints, overlayPoints]);
   const pointCounts = useMemo(() => allPoints.reduce<Record<string, number>>((counts, point) => {
     counts[point.category] = (counts[point.category] ?? 0) + 1;
     return counts;
@@ -404,6 +466,19 @@ export function MapPage() {
     const enabled = current.marker || current.spawn;
     return { ...current, marker: !enabled, spawn: !enabled };
   });
+  const toggleItemCategory = (category: string) => {
+    setActiveItemId(undefined);
+    setItemCategories((current) => {
+      const next = new Set(current);
+      if (next.has(category)) next.delete(category); else next.add(category);
+      return next;
+    });
+  };
+  const clearItemFilters = () => {
+    setItemSearch("");
+    setItemCategories(new Set());
+    setActiveItemId(undefined);
+  };
   const onStats = useCallback((value: CanvasStats) => setStats(value), []);
   const onCoordinate = useCallback((value?: Point, anchor?: SelectionAnchor) => {
     setCoordinate(value);
@@ -471,6 +546,7 @@ export function MapPage() {
               onChange={(mapId) => {
               setSelected(undefined);
               setSelectionChoices([]);
+              setActiveItemId(undefined);
               setInsertSelection({ scope: "", value: {} });
               setInsertManifests({});
               setCoordinate(undefined);
@@ -517,6 +593,15 @@ export function MapPage() {
           )}
 
           <div className="maps-corner-tools">
+            <button
+              className={itemPanelOpen ? "maps-items-toggle is-active" : "maps-items-toggle"}
+              type="button"
+              aria-expanded={itemPanelOpen}
+              aria-controls="map-items"
+              onClick={() => setItemPanelOpen((value) => !value)}
+            >
+              <span aria-hidden="true">⌕</span><strong>Предметы</strong><output>{allItemPoints.length}</output>
+            </button>
             <div className="maps-coordinate">{formatCoordinate(coordinate)}</div>
             <nav className="maps-mode-dock" aria-label="Режим работы карты">
               <button className="is-active" type="button" aria-current="page">
@@ -543,7 +628,13 @@ export function MapPage() {
               <button type="button" onClick={() => window.location.reload()}>Повторить</button>
             </div>
           )}
-          {search && <div className="maps-result-count">Найдено: {points.length}</div>}
+          {(search || highlightedItemIds.size > 0) && (
+            <div className="maps-result-count">
+              {search ? `Маркеров: ${overlayPoints.length}` : ""}
+              {search && highlightedItemIds.size > 0 ? " · " : ""}
+              {highlightedItemIds.size > 0 ? `Предметов: ${itemPoints.filter((point) => point.highlighted).length}` : ""}
+            </div>
+          )}
 
           {layers.areaSupport && coordinate && coordinateAnchor && hoveredArea && (
             <section
@@ -579,8 +670,8 @@ export function MapPage() {
             >
               <button className="maps-inspector-close" type="button" onClick={() => setSelectionChoices([])} aria-label="Закрыть выбор">×</button>
               <div className="maps-point-badge">Один тайл</div>
-              <h2>Выберите маркер</h2>
-              <p>Маркеров в этой точке: {selectionChoices.length}.</p>
+              <h2>Выберите объект</h2>
+              <p>Объектов в этой точке: {selectionChoices.length}.</p>
               <div className="maps-marker-picker-list">
                 {selectionChoices.map((point) => (
                   <button
@@ -611,6 +702,29 @@ export function MapPage() {
               <h2>{pointDisplayName(selected)}</h2>
               <code>{selected.prototypeId}</code>
               <p>X {selected.x.toFixed(1)} · Y {selected.y.toFixed(1)}</p>
+              {selected.category === "item" && selected.item && (
+                <>
+                  {selected.item.image && (
+                    <img
+                      className="maps-item-inspector-sprite"
+                      src={mapDataUrl(selected.item.image)}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  )}
+                  {itemDescription(selected.item.description) && (
+                    <p>{itemDescription(selected.item.description)}</p>
+                  )}
+                  <Link
+                    className="maps-catalog-link"
+                    to={`${modulePath("equipment")}?item=${encodeURIComponent(selected.prototypeId)}`}
+                    title="Открыть карточку предмета в каталоге"
+                  >
+                    <span>Открыть в каталоге</span><strong aria-hidden="true">→</strong>
+                  </Link>
+                </>
+              )}
               {selected.probability !== undefined && entry && (
                 <p>Вероятность инсерта: {Math.round(effectiveInsertProbability(selected.probability, selected.nightmareScenario, entry) * 100)}%</p>
               )}
@@ -726,6 +840,64 @@ export function MapPage() {
             <span>Колесо или два пальца — масштаб</span>
             <span>Перетаскивание — обзор</span>
             <span>Клик — данные точки</span>
+          </p>
+        </aside>
+
+        <aside id="map-items" className={itemPanelOpen ? "maps-items-panel is-open" : "maps-items-panel"}>
+          <div className="maps-items-heading">
+            <div><span className="eyebrow">Поиск на карте</span><h1>Предметы</h1></div>
+            <button type="button" onClick={() => setItemPanelOpen(false)} aria-label="Закрыть поиск предметов">×</button>
+          </div>
+          <label className="maps-search maps-item-search">
+            <span>Название, ID или категория</span>
+            <input
+              value={itemSearch}
+              onChange={(event) => {
+                setItemSearch(event.target.value);
+                setActiveItemId(undefined);
+              }}
+              placeholder="M41A, медицина, броня…"
+            />
+          </label>
+          <div className="maps-item-categories" aria-label="Категории предметов">
+            {availableItemCategories.map(([category, count]) => (
+              <button
+                className={itemCategories.has(category) ? "is-active" : ""}
+                type="button"
+                onClick={() => toggleItemCategory(category)}
+                key={category}
+              >
+                <span>{category}</span><output>{count}</output>
+              </button>
+            ))}
+          </div>
+          <div className="maps-items-summary">
+            <span>{activeItemId ? "Выбран один тип" : `В списке: ${itemResults.length}`}</span>
+            {(itemSearch || itemCategories.size > 0 || activeItemId) && (
+              <button type="button" onClick={clearItemFilters}>Сбросить</button>
+            )}
+          </div>
+          <div className="maps-item-results">
+            {itemResults.map((item) => (
+              <button
+                className={activeItemId === item.id ? "is-active" : ""}
+                type="button"
+                onClick={() => setActiveItemId((current) => current === item.id ? undefined : item.id)}
+                key={item.id}
+              >
+                <span className="maps-item-result-sprite">
+                  {item.image
+                    ? <img src={mapDataUrl(item.image)} alt="" loading="lazy" decoding="async" />
+                    : <i aria-hidden="true">?</i>}
+                </span>
+                <span><strong>{item.name}</strong><code>{item.id}</code></span>
+                <output>{itemCounts[item.id]}</output>
+              </button>
+            ))}
+            {!itemResults.length && <p>На этой карте совпадений нет.</p>}
+          </div>
+          <p className="maps-sidebar-hint">
+            Поиск подсвечивает совпадения. Без подсветки предмет можно открыть кликом по его спрайту на близком масштабе.
           </p>
         </aside>
       </div>
