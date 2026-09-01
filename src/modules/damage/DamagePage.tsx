@@ -68,8 +68,21 @@ function aimedShotEffectFrom(projectile: JsonMap | undefined): AimedShotEffectCo
   };
 }
 
+function damageFalloffFrom(projectile: JsonMap | undefined): JsonMap | undefined {
+  if (isMap(projectile?.damageFalloff)) return projectile.damageFalloff;
+  const projectileId = String(projectile?.projectileId ?? "");
+  if (/bullet/i.test(projectileId)) return {
+    thresholds: [
+      { range: 0, falloff: 1, ignoreModifiers: false },
+      { range: 22, falloff: 9999, ignoreModifiers: true },
+    ],
+    minRemainingDamageMult: 0.05,
+  };
+  return undefined;
+}
+
 function falloffThresholdsFrom(projectile: JsonMap | undefined, rangeFlat = 0): DamageFalloffThreshold[] {
-  const raw = isMap(projectile?.damageFalloff) ? projectile.damageFalloff.thresholds : undefined;
+  const raw = damageFalloffFrom(projectile)?.thresholds;
   if (!Array.isArray(raw)) return [];
   return raw.filter(isMap).map((entry) => ({
     range: (typeof entry.range === "number" ? entry.range : 0) + rangeFlat,
@@ -101,7 +114,7 @@ function FalloffRows({ projectile, rangeFlat, weaponMultiplier }: {
   rangeFlat: number;
   weaponMultiplier: number;
 }) {
-  const falloff = isMap(projectile.damageFalloff) ? projectile.damageFalloff : undefined;
+  const falloff = damageFalloffFrom(projectile);
   if (!falloff) return null;
 
   const thresholds = falloffThresholdsFrom(projectile, rangeFlat);
