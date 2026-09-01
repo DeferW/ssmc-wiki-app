@@ -1,20 +1,209 @@
 {
   "schemaVersion": 2,
   "items": {
-    "CMScalpelPredator": { "category": "Другое" },
-    "RMCStunBatonDamaged": { "category": "Другое" },
-    "RMCCigarCase": { "category": "Другое" },
-    "RMCTarbackTube": { "category": "Другое" },
-    "RMCLampCandelabra": { "category": "Другое" },
-    "ClothingUniformJumpsuitJanitor": { "category": "Другое" },
-    "RMCMegaphone": { "category": "Другое" },
-    "RMCLamp": { "category": "Другое" },
-    "RMCLampGreen": { "category": "Другое" },
-    "RMCIntelFolder": { "category": "Другое" },
-    "RMCFlashlightPen": { "category": "Другое" },
-    "CMWarningCone": { "category": "Другое" },
-    "RMCLampTripod": { "category": "Другое" },
-    "RMCLampTripodGrey": { "category": "Другое" },
-    "XenoEgg": { "category": "Другое" }
+    "CMScalpelPredator": {
+      "category": "Другое"
+    },
+    "RMCStunBatonDamaged": {
+      "category": "Другое"
+    },
+    "RMCCigarCase": {
+      "category": "Другое"
+    },
+    "RMCTarbackTube": {
+      "category": "Другое"
+    },
+    "RMCLampCandelabra": {
+      "category": "Другое"
+    },
+    "RMCMegaphone": {
+      "category": "Другое"
+    },
+    "RMCLamp": {
+      "category": "Другое"
+    },
+    "RMCLampGreen": {
+      "category": "Другое"
+    },
+    "RMCIntelFolder": {
+      "category": "Другое"
+    },
+    "RMCFlashlightPen": {
+      "category": "Другое"
+    },
+    "CMWarningCone": {
+      "category": "Другое"
+    },
+    "RMCLampTripod": {
+      "category": "Другое"
+    },
+    "RMCLampTripodGrey": {
+      "category": "Другое"
+    },
+    "XenoEgg": {
+      "category": "Другое"
+    },
+    "WeaponRifleM4SPRFilled": {
+      "category": "Скрытые"
+    },
+    "RMCWeaponShotgunM42A2Filled": {
+      "category": "Скрытые"
+    },
+    "RMCWeaponRifleM54CFilled": {
+      "category": "Скрытые"
+    },
+    "RMCWeaponRifleM54CSemiStripped": {
+      "category": "Скрытые"
+    },
+    "RMCWeaponRifleM54CStripped": {
+      "category": "Скрытые"
+    },
+    "RMCWeaponRifleM54CWhiteNoLock": {
+      "category": "Скрытые"
+    },
+    "RMCWeaponRifleSSG45NoLock": {
+      "category": "Скрытые"
+    },
+    "RMCPouchFlareFilled": {
+      "category": "Экипировка"
+    },
+    "RMCPouchFlareR44Filled": {
+      "category": "Экипировка"
+    },
+    "CMSoapDeluxe": {
+      "category": "Другое"
+    },
+    "CMSoapSyndie": {
+      "category": "Другое"
+    },
+    "RMCPouchFlare": {
+      "category": "Экипировка"
+    },
+    "CMSoapNT": {
+      "category": "Другое"
+    },
+    "CMSoap": {
+      "category": "Другое"
+    },
+    "RMCToolMiniHoe": {
+      "category": "Другое"
+    },
+    "STFlagCarriableUS": {
+      "category": "Другое"
+    },
+    "RMCLightReplacer": {
+      "category": "Другое"
+    },
+    "RMCGeigerCounter": {
+      "category": "Другое"
+    },
+    "RMCFlashlightLantern": {
+      "category": "Другое"
+    },
+    "RMCToolSpade": {
+      "category": "Другое"
+    },
+    "RMCShovel": {
+      "category": "Другое"
+    },
+    "RMCSynthResetKey": {
+      "category": "Другое"
+    },
+    "CMFlash": {
+      "category": "Другое"
+    },
+    "CMBottleEmpty": {
+      "category": "Другое"
+    },
+    "RMCTrayEmpty": {
+      "category": "Другое"
+    },
+    "CMSandbagEmpty": {
+      "category": "Снаряжение"
+    },
+    "CMSandbagFull": {
+      "category": "Снаряжение"
+    },
+    "CMSandbagFull25": {
+      "category": "Снаряжение"
+    },
+    "CMSandbagFull5": {
+      "category": "Снаряжение"
+    },
+    "CMSandbagFull50": {
+      "category": "Снаряжение"
+    },
+    "CMSandbagEmpty50": {
+      "category": "Снаряжение"
+    },
+    "CMSandbagEmpty25": {
+      "category": "Снаряжение"
+    },
+    "CMSandbagEmpty10": {
+      "category": "Снаряжение"
+    },
+    "CMWrench": {
+      "category": "Снаряжение"
+    },
+    "CMBottleBicaridine": {
+      "category": "Медицина"
+    },
+    "CMBottleDexalin": {
+      "category": "Медицина"
+    },
+    "CMBottleDylovene": {
+      "category": "Медицина"
+    },
+    "CMBottleInaprovaline": {
+      "category": "Медицина"
+    },
+    "CMBottleKelotane": {
+      "category": "Медицина"
+    },
+    "CMCrowbarRed": {
+      "category": "Снаряжение"
+    },
+    "RMCVanWheel": {
+      "category": "Снаряжение"
+    },
+    "BarbedWire10": {
+      "category": "Снаряжение"
+    },
+    "BarbedWire15": {
+      "category": "Снаряжение"
+    },
+    "BarbedWire1": {
+      "category": "Снаряжение"
+    },
+    "CMWirecutter": {
+      "category": "Снаряжение"
+    },
+    "Wirecutter": {
+      "category": "Снаряжение"
+    },
+    "CMCrowbar": {
+      "category": "Снаряжение"
+    },
+    "CMFireExtinguisher": {
+      "category": "Снаряжение"
+    },
+    "CMScrewdriver": {
+      "category": "Снаряжение"
+    },
+    "CMFireExtinguisherPortable": {
+      "category": "Снаряжение"
+    },
+    "CMWelder": {
+      "category": "Снаряжение"
+    },
+    "CMSyringe": {
+      "category": "Медицина"
+    },
+    "RMCBoxMREWEYA": {
+      "category": "Другое"
+    },
+    "RMCBoxMRE": {
+      "category": "Другое"
+    }
   }
 }
