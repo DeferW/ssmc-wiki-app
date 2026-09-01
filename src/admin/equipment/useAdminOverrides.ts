@@ -9,15 +9,16 @@ import {
 import type { AdminOverrides, AdminOverridesDocument, AdminSyncState } from "./types";
 
 const DRAFT_KEY = "ssmc.admin.catalog-overrides.v2";
+type StoredDraft = { overrides: AdminOverrides; baseSha: string | null };
 
 export function automaticCategory(item: CatalogItem) {
   return item.classification?.automaticCategory ?? item.category ?? "Другое";
 }
 
 export function useAdminOverrides(enabled: boolean, catalog: Catalog | null) {
-  const [storedDraft] = useState<AdminOverrides | null>(() => readLocalDraft());
-  const [draft, setDraft] = useState<AdminOverrides>(() => storedDraft ?? {});
-  const [dirty, setDirty] = useState(storedDraft !== null);
+  const [storedDraft] = useState<StoredDraft | null>(() => readLocalDraft());
+  const [draft, setDraft] = useState<AdminOverrides>({});
+  const [dirty, setDirty] = useState(false);
   const [sha, setSha] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [state, setState] = useState<AdminSyncState>(enabled ? "loading" : "ready");
@@ -31,11 +32,24 @@ export function useAdminOverrides(enabled: boolean, catalog: Catalog | null) {
     loadAdminOverrides(controller.signal)
       .then((result) => {
         setSha(result.sha);
-        setDraft(localDraft ?? result.overrides);
+        const restoreLocal = Boolean(
+          localDraft?.baseSha
+          && result.sha
+          && localDraft.baseSha === result.sha,
+        );
+        setDraft(restoreLocal ? localDraft!.overrides : result.overrides);
+        setDirty(restoreLocal);
         setState("ready");
         setHydrated(true);
-        if (localDraft) {
+        if (restoreLocal) {
           setMessage("Восстановлен локальный черновик. Сохранённый SHA загружен для защиты от конфликтов.");
+        } else if (localDraft) {
+          try {
+            window.localStorage.removeItem(DRAFT_KEY);
+          } catch {
+            // A stale draft can remain in blocked storage, but is still ignored.
+          }
+          setMessage("Устаревший локальный черновик удалён; загружены актуальные overrides из GitHub.");
         } else if (result.fallback) {
           setMessage("Overrides и актуальный SHA загружены из ssmc-wiki-app через GitHub API.");
         } else {
@@ -44,7 +58,8 @@ export function useAdminOverrides(enabled: boolean, catalog: Catalog | null) {
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setDraft(localDraft ?? overridesFromCatalog(catalog));
+        setDraft(localDraft?.overrides ?? overridesFromCatalog(catalog));
+        setDirty(localDraft !== null);
         setState("error");
         setHydrated(true);
         setMessage(error instanceof Error ? `Не удалось загрузить overrides: ${error.message}` : "Не удалось загрузить overrides.");
@@ -55,11 +70,14 @@ export function useAdminOverrides(enabled: boolean, catalog: Catalog | null) {
   useEffect(() => {
     if (!enabled || !hydrated || !dirty) return;
     try {
-      window.localStorage.setItem(DRAFT_KEY, JSON.stringify(makeAdminDocument(draft)));
+      window.localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        ...makeAdminDocument(draft),
+        baseSha: sha,
+      }));
     } catch {
       // The draft remains available in memory when storage is blocked.
     }
-  }, [dirty, draft, enabled, hydrated]);
+  }, [dirty, draft, enabled, hydrated, sha]);
 
   const setCategory = useCallback((id: string, category: string, item: CatalogItem) => {
     setDirty(true);
@@ -155,12 +173,15 @@ export function useAdminOverrides(enabled: boolean, catalog: Catalog | null) {
   }), [draft, password, state, message, hydrated, setCategory, reset, setManyCategories, resetMany, save, download]);
 }
 
-function readLocalDraft(): AdminOverrides | null {
+function readLocalDraft(): StoredDraft | null {
   try {
     const raw = window.localStorage.getItem(DRAFT_KEY);
     if (!raw) return null;
-    const document = JSON.parse(raw) as AdminOverridesDocument;
-    return normalizeAdminDocument(document);
+    const document = JSON.parse(raw) as AdminOverridesDocument & { baseSha?: unknown };
+    return {
+      overrides: normalizeAdminDocument(document),
+      baseSha: typeof document.baseSha === "string" ? document.baseSha : null,
+    };
   } catch {
     return null;
   }
