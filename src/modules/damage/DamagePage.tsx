@@ -90,9 +90,60 @@ function DamageBreakdown({ damage }: { damage: DamageTypeMap }) {
   const entries = Object.entries(damage).filter(([, amount]) => amount !== 0);
   if (!entries.length) return <>—</>;
   return (
-    <span className="damage-type-values">
+    <span className={`damage-type-values${entries.length === 1 ? " is-single" : ""}`}>
       {entries.map(([type, amount]) => <span key={type}><small>{labels[type] ?? readableId(type)}</small><b>{formatNumber(amount)}</b></span>)}
     </span>
+  );
+}
+
+function FalloffRows({ projectile, rangeFlat, weaponMultiplier }: {
+  projectile: JsonMap;
+  rangeFlat: number;
+  weaponMultiplier: number;
+}) {
+  const falloff = isMap(projectile.damageFalloff) ? projectile.damageFalloff : undefined;
+  if (!falloff) return null;
+
+  const thresholds = falloffThresholdsFrom(projectile, rangeFlat);
+  const minimumPercent = (numberField(falloff, "minRemainingDamageMult") ?? 0.05) * 100;
+  const gradual = thresholds
+    .map((threshold) => ({
+      ...threshold,
+      effectiveFalloff: threshold.falloff * (threshold.ignoreModifiers ? 1 : weaponMultiplier),
+    }))
+    .filter((threshold) => threshold.effectiveFalloff > 0 && threshold.effectiveFalloff < 999);
+  const hardLimits = thresholds.filter((threshold) => {
+    const effective = threshold.falloff * (threshold.ignoreModifiers ? 1 : weaponMultiplier);
+    return effective >= 999;
+  });
+
+  return (
+    <>
+      {gradual.length > 0 && (
+        <div>
+          <dt>Падение урона</dt>
+          <dd className="falloff-values">
+            {gradual.map((threshold, index) => (
+              <span key={`${threshold.range}:${threshold.falloff}:${index}`}>
+                {threshold.range > 0 ? `После ${formatNumber(threshold.range)} т.` : "С первого тайла"}: −{formatNumber(threshold.effectiveFalloff)} за тайл
+              </span>
+            ))}
+          </dd>
+        </div>
+      )}
+      {hardLimits.length > 0 && (
+        <div>
+          <dt>Предельная дальность</dt>
+          <dd className="falloff-values">
+            {hardLimits.map((threshold, index) => (
+              <span key={`${threshold.range}:${threshold.falloff}:${index}`}>
+                После {formatNumber(threshold.range)} т. остаётся минимум {formatNumber(minimumPercent)}%
+              </span>
+            ))}
+          </dd>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -570,6 +621,11 @@ export function DamagePage() {
                         {(selectedAmmoMode?.armorPiercing != null || projectile.armorPiercing != null) && (
                           <div><dt>Бронепробитие</dt><dd>{formatNumber(selectedAmmoMode?.armorPiercing ?? projectile.armorPiercing)}</dd></div>
                         )}
+                        <FalloffRows
+                          projectile={projectile}
+                          rangeFlat={modifiedStats?.rangeFlat ?? 0}
+                          weaponMultiplier={modifiedStats?.damageFalloffMultiplier ?? 1}
+                        />
                         {isMap(projectile.holoTargeting) && (
                           <>
                             <div>

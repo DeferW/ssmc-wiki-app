@@ -377,8 +377,10 @@
 .damage-page .compare-chart { min-height: 260px; background: var(--bg); }
 .damage-type-values { display: grid; width: min(100%, 240px); grid-template-columns: repeat(2, minmax(74px, 1fr)); gap: 4px; margin-left: auto; }
 .damage-type-values > span { display: flex; min-width: 0; align-items: baseline; justify-content: space-between; gap: 7px; padding: 4px 6px; border: 1px solid var(--line); background: var(--surface); }
+.damage-type-values.is-single { grid-template-columns: minmax(74px, 96px); justify-content: end; }
 .damage-type-values small { overflow: hidden; color: var(--muted); font-size: .5rem; text-overflow: ellipsis; white-space: nowrap; }
 .damage-type-values b { color: var(--text-strong); font-size: .6rem; }
+.falloff-values { display: grid; gap: 3px; color: var(--text-strong); font-size: .56rem; line-height: 1.35; text-align: right; }
 
 .compare-build.series-1, .compare-legend .series-1, .compare-result-row.series-1 { --series-color: #ef4b4b; }
 .compare-build.series-2, .compare-legend .series-2, .compare-result-row.series-2 { --series-color: #f0cc42; }
