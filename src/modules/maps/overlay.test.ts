@@ -112,7 +112,7 @@ describe("map overlays", () => {
     expect(pointDisplayName({ ...point, label: "Aurora Medical Clinic" })).toBe("Aurora Medical Clinic");
   });
 
-  it("keeps plain editor markers in the service group", () => {
+  it("classifies plain editor blockers as boundaries", () => {
     const overlay: MapOverlay = {
       schemaVersion: 4,
       mapPath: "/Maps/test.yml",
@@ -123,7 +123,37 @@ describe("map overlays", () => {
       insertMaps: {},
     };
 
-    expect(flattenOverlay(overlay)[0].group).toBe("misc-other");
+    expect(flattenOverlay(overlay)[0].group).toBe("misc-boundaries");
+  });
+
+  it("separates supplies, remains, fauna, teleports and service landmarks", () => {
+    const overlay: MapOverlay = {
+      schemaVersion: 4,
+      mapPath: "/Maps/test.yml",
+      prototypes: {
+        RMCAegisSpawner: { name: "AEGIS crate spawner", kind: "spawner", components: { AegisSpawner: {} } },
+        RMCSpawnerCorpseDoctor: { name: "Corpse Spawner - Doctor", kind: "spawner", components: { CorpseSpawner: {} } },
+        RMCSpawnRatGray: { name: "rat spawner", kind: "spawner", components: { ConditionalSpawner: {} } },
+        WarpPoint: { name: "warp point", kind: "marker" },
+        RMCRequisitionsChairMarkerWest: { name: "requisitions chair marker", kind: "marker" },
+      },
+      occurrences: Object.fromEntries([
+        "RMCAegisSpawner",
+        "RMCSpawnerCorpseDoctor",
+        "RMCSpawnRatGray",
+        "WarpPoint",
+        "RMCRequisitionsChairMarkerWest",
+      ].map((id, index) => [id, [[index + .5, .5]]])),
+      insertMaps: {},
+    };
+
+    expect(Object.fromEntries(flattenOverlay(overlay).map((point) => [point.prototypeId, point.group]))).toEqual({
+      RMCAegisSpawner: "loot-supplies",
+      RMCSpawnerCorpseDoctor: "misc-remains",
+      RMCSpawnRatGray: "misc-fauna",
+      WarpPoint: "misc-teleports",
+      RMCRequisitionsChairMarkerWest: "misc-technical",
+    });
   });
 
   it("calculates grouped communication tower probability", () => {

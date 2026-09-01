@@ -1,6 +1,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { chooseLevel, fitView, gridWorldMin, mapPixelToWorld, visibleTiles, worldToMapPixel } from "./tileMath";
 import { pointsOnSameTile } from "./overlay";
+import { markerStyle, type MarkerIcon } from "./markerConfig";
 import type { ActiveInsertRender, CanvasStats, GridManifest, LayerSettings, OverlayPoint, Point, TileLevel, TileManifest, ViewState } from "./types";
 
 type Props = {
@@ -50,19 +51,159 @@ const CATEGORY_COLOR: Record<OverlayPoint["category"], string> = {
   object: "#e9a052",
 };
 
-const GROUP_COLOR: Partial<Record<OverlayPoint["group"], string>> = {
-  "misc-creatures": "#ff737d",
-  "misc-other": "#d9a7ff",
-  "misc-spawns": "#ff8585",
-  "loot-supplies": "#ffd166",
-};
+function drawMarkerIcon(
+  context: CanvasRenderingContext2D,
+  icon: MarkerIcon,
+  x: number,
+  y: number,
+  radius: number,
+  color: string,
+  selected: boolean,
+  scale: number,
+) {
+  const size = radius * 1.2;
+  const line = (selected ? 2.4 : 1.8) / scale;
+  context.save();
+  context.translate(x, y);
+  context.lineWidth = line;
+  context.strokeStyle = selected ? "#ffffff" : color;
+  context.fillStyle = selected ? "#ffffff" : color;
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  context.shadowColor = "rgba(0, 0, 0, .95)";
+  context.shadowBlur = 2.5 / scale;
 
-const QUIET_MARKERS: Record<string, { glyph: string; color: string }> = {
-  RMCCrashLandBarrier: { glyph: "H", color: "#e8efc7" },
-  RMCBlockerVehicle: { glyph: "⊘", color: "#9bd5d2" },
-  RMCDecalSpawnerBloodSplatters: { glyph: "✦", color: "#e77878" },
-  DecalSpawnerBloodSplatters: { glyph: "✦", color: "#e77878" },
-};
+  const linePath = (...parts: number[]) => {
+    context.beginPath();
+    context.moveTo(parts[0] * size, parts[1] * size);
+    for (let index = 2; index < parts.length; index += 2) context.lineTo(parts[index] * size, parts[index + 1] * size);
+    context.stroke();
+  };
+  const circle = (cx: number, cy: number, r: number, fill = false) => {
+    context.beginPath();
+    context.arc(cx * size, cy * size, r * size, 0, Math.PI * 2);
+    if (fill) context.fill(); else context.stroke();
+  };
+
+  switch (icon) {
+    case "insert":
+      linePath(-.9, -.35, -.9, -.9, -.35, -.9);
+      linePath(.35, -.9, .9, -.9, .9, -.35);
+      linePath(.9, .35, .9, .9, .35, .9);
+      linePath(-.35, .9, -.9, .9, -.9, .35);
+      circle(0, 0, .16, true);
+      break;
+    case "spawn":
+      circle(0, -.48, .24, true);
+      linePath(0, -.18, 0, .45, -.46, .82);
+      linePath(0, .45, .46, .82);
+      break;
+    case "comms":
+      linePath(0, -.72, 0, .78, -.38, .78, .38, .78);
+      context.beginPath(); context.arc(0, -.48 * size, .42 * size, -Math.PI * .78, -Math.PI * .22); context.stroke();
+      context.beginPath(); context.arc(0, -.48 * size, .72 * size, -Math.PI * .78, -Math.PI * .22); context.stroke();
+      break;
+    case "intel":
+      context.strokeRect(-.65 * size, -.82 * size, 1.3 * size, 1.64 * size);
+      linePath(-.38, -.3, .38, -.3);
+      linePath(-.38, .05, .38, .05);
+      linePath(-.38, .4, .15, .4);
+      break;
+    case "weapon":
+      circle(0, 0, .54);
+      linePath(-.9, 0, -.35, 0);
+      linePath(.35, 0, .9, 0);
+      linePath(0, -.9, 0, -.35);
+      linePath(0, .35, 0, .9);
+      break;
+    case "ammo":
+      context.beginPath();
+      context.moveTo(0, -.9 * size); context.lineTo(.38 * size, -.48 * size);
+      context.lineTo(.38 * size, .75 * size); context.lineTo(-.38 * size, .75 * size);
+      context.lineTo(-.38 * size, -.48 * size); context.closePath(); context.fill();
+      break;
+    case "attachment":
+      linePath(-.86, 0, .86, 0);
+      linePath(-.5, -.55, -.5, .55);
+      linePath(.5, -.55, .5, .55);
+      circle(0, 0, .18, true);
+      break;
+    case "defense":
+      context.beginPath(); context.moveTo(0, -.88 * size); context.lineTo(.82 * size, .7 * size);
+      context.lineTo(-.82 * size, .7 * size); context.closePath(); context.stroke();
+      circle(0, .12, .16, true);
+      break;
+    case "medical":
+      context.fillRect(-.22 * size, -.82 * size, .44 * size, 1.64 * size);
+      context.fillRect(-.82 * size, -.22 * size, 1.64 * size, .44 * size);
+      break;
+    case "tools":
+      context.beginPath();
+      for (let index = 0; index < 6; index += 1) {
+        const angle = -Math.PI / 2 + index * Math.PI / 3;
+        const px = Math.cos(angle) * .75 * size;
+        const py = Math.sin(angle) * .75 * size;
+        if (index === 0) context.moveTo(px, py); else context.lineTo(px, py);
+      }
+      context.closePath(); context.stroke(); circle(0, 0, .2, true);
+      break;
+    case "equipment":
+      context.beginPath(); context.moveTo(0, -.88 * size); context.lineTo(.7 * size, -.55 * size);
+      context.lineTo(.55 * size, .4 * size); context.lineTo(0, .88 * size);
+      context.lineTo(-.55 * size, .4 * size); context.lineTo(-.7 * size, -.55 * size);
+      context.closePath(); context.stroke();
+      break;
+    case "supply":
+      context.strokeRect(-.72 * size, -.72 * size, 1.44 * size, 1.44 * size);
+      linePath(-.72, -.72, .72, .72);
+      linePath(.72, -.72, -.72, .72);
+      break;
+    case "loot":
+    case "decor":
+      for (let index = 0; index < (icon === "decor" ? 6 : 8); index += 1) {
+        const angle = index * Math.PI / (icon === "decor" ? 3 : 4);
+        linePath(Math.cos(angle) * .2, Math.sin(angle) * .2, Math.cos(angle) * .82, Math.sin(angle) * .82);
+      }
+      circle(0, 0, .2, true);
+      break;
+    case "fauna":
+      circle(0, .3, .42, true);
+      circle(-.5, -.35, .2, true); circle(0, -.58, .2, true); circle(.5, -.35, .2, true);
+      break;
+    case "remains":
+      linePath(-.72, -.72, .72, .72);
+      linePath(.72, -.72, -.72, .72);
+      circle(0, 0, .18, true);
+      break;
+    case "evacuation":
+      linePath(-.76, .72, -.76, -.72, .15, -.72);
+      linePath(-.1, .42, .78, -.46, .78, .18);
+      linePath(.78, -.46, .14, -.46);
+      break;
+    case "teleport":
+      circle(0, 0, .78); circle(0, 0, .4); circle(0, 0, .1, true);
+      break;
+    case "boundary":
+      circle(0, 0, .78);
+      linePath(-.55, .55, .55, -.55);
+      break;
+    case "technical":
+      context.strokeRect(-.68 * size, -.68 * size, 1.36 * size, 1.36 * size);
+      circle(0, 0, .2, true);
+      break;
+    default:
+      context.font = `800 ${1.45 * size}px IBM Plex Mono, monospace`;
+      context.textAlign = "center"; context.textBaseline = "middle";
+      context.fillText("?", 0, 0);
+  }
+
+  if (selected) {
+    context.shadowBlur = 0;
+    context.beginPath(); context.arc(0, 0, radius * 1.55, 0, Math.PI * 2);
+    context.lineWidth = 1.4 / scale; context.strokeStyle = "#ffffff"; context.stroke();
+  }
+  context.restore();
+}
 
 function tileUrl(pattern: string, manifestUrl: string, revision: number, z: number, x: number, y: number): string {
   const url = new URL(pattern.replace("{z}", String(z)).replace("{x}", String(x)).replace("{y}", String(y)), manifestUrl);
@@ -444,57 +585,8 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         continue;
       }
 
-      const quiet = QUIET_MARKERS[point.prototypeId];
-      if (quiet) {
-        context.save();
-        context.globalAlpha = 1;
-        context.font = `800 ${15 / view.scale}px IBM Plex Mono, monospace`;
-        context.textAlign = "center";
-        context.textBaseline = "middle";
-        context.lineJoin = "round";
-        context.lineWidth = 3 / view.scale;
-        context.strokeStyle = "rgba(0, 0, 0, .92)";
-        context.strokeText(quiet.glyph, pixel.x, pixel.y);
-        context.fillStyle = quiet.color;
-        context.fillText(quiet.glyph, pixel.x, pixel.y);
-        if (selected) {
-          context.beginPath();
-          context.arc(pixel.x, pixel.y, 8 / view.scale, 0, Math.PI * 2);
-          context.lineWidth = 1.5 / view.scale;
-          context.strokeStyle = "#ffffff";
-          context.stroke();
-        }
-        context.restore();
-        continue;
-      }
-
-      const serviceMarker = point.category === "marker" && point.group === "misc-other";
-      const emphasized = serviceMarker || (point.category === "spawn" && point.group === "misc-creatures");
-      const pointColor = point.category === "insert"
-        ? CATEGORY_COLOR.insert
-        : GROUP_COLOR[point.group] ?? CATEGORY_COLOR[point.category];
-      if (serviceMarker) {
-        const radius = markerRadius * (selected ? 1.6 : 1.3);
-        context.save();
-        context.translate(pixel.x, pixel.y);
-        context.rotate(Math.PI / 4);
-        context.fillStyle = pointColor;
-        context.strokeStyle = selected ? "#ffffff" : "rgba(0, 0, 0, .92)";
-        context.lineWidth = (selected ? 3 : 2) / view.scale;
-        context.fillRect(-radius, -radius, radius * 2, radius * 2);
-        context.strokeRect(-radius, -radius, radius * 2, radius * 2);
-        context.restore();
-        continue;
-      }
-      context.beginPath();
-      context.arc(pixel.x, pixel.y, markerRadius * (selected ? 1.45 : emphasized ? 1.16 : 1), 0, Math.PI * 2);
-      context.fillStyle = pointColor;
-      context.globalAlpha = point.insertPath ? 0.88 : 1;
-      context.fill();
-      context.globalAlpha = 1;
-      context.lineWidth = (selected ? 3 : emphasized ? 1.7 : 1.15) / view.scale;
-      context.strokeStyle = selected ? "#ffffff" : "rgba(0, 0, 0, .78)";
-      context.stroke();
+      const style = markerStyle(point);
+      drawMarkerIcon(context, style.icon, pixel.x, pixel.y, markerRadius, style.color, selected, view.scale);
     }
     context.restore();
   }, [grid, hoverTile, insertLayers, layers, level, manifest.tileSize, maximum, overview, overviewUrls, selectedKey, size, tileRevision, view, visible, visiblePoints, visibleUrls]);

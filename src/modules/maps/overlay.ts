@@ -1,17 +1,5 @@
 import type { InsertPlacement, MapArea, MapAreaGrid, MapEntry, MapOverlay, MapStaticItemCatalog, MapTileFootprint, OverlayCategory, OverlayGroup, OverlayOccurrence, OverlayPoint, OverlayPrototype, Point } from "./types";
 
-const LOOT_COMPONENTS = new Set([
-  "AegisSpawner",
-  "UniqueRandomSpawner",
-  "ConditionalSpawner",
-  "GunSpawner",
-  "IntelSpawner",
-  "ItemPoolSpawner",
-  "EntityTableSpawner",
-  "ProportionalSpawner",
-  "RandomPatronFigurineSpawner",
-]);
-
 const POINT_NAME_TRANSLATIONS: Record<string, string> = {
   CMRandomPosterAny: "Случайный постер",
   CMRandomPosterSPP: "Случайный постер СПН",
@@ -161,43 +149,44 @@ export type InsertVariationOption = {
   index: number;
 };
 
-function categoryOf(id: string, prototype: OverlayPrototype, occurrence: OverlayOccurrence): OverlayCategory {
-  if (typeof occurrence[4] === "string") return "label";
-  const components = Object.keys(prototype.components ?? {});
+function groupOf(id: string, prototype: OverlayPrototype, occurrence: OverlayOccurrence): OverlayGroup {
+  if (typeof occurrence[4] === "string") return "misc-other";
+  const components = new Set(Object.keys(prototype.components ?? {}));
   const source = `${id} ${prototype.name}`;
-  if (prototype.kind === "insert" || components.includes("MapInsert")) return "insert";
-  if (components.includes("SpawnPoint") || components.includes("SquadSpawner") || /spawn.?point/i.test(id)) return "spawn";
-  if (/spawn.?mob|spawn.?rat|corpse|mouse|monkey|carp|blood|gibs?|oil/i.test(source)) return "spawn";
-  if (/communications?.?tower|static.?comms|evac|lifeboat|teleport|warp|dropship|blocker|barrier|fog|poster|plant|arcade|cigarette|bedsheet|decal|chair/i.test(source)) return "marker";
-  if (components.some((component) => LOOT_COMPONENTS.has(component))) return "loot";
-  if (prototype.kind === "spawner" && /aegis|crate|box|intel|objective|folder|document|report|loot|gun|ammo|buckshot|attachment|goggles|pill|sentry|turret|tool|power.?cell|supply|equipment|gear|warhead/i.test(source)) return "loot";
-  return "marker";
+
+  if (prototype.kind === "insert" || components.has("MapInsert")) return "misc-other";
+  if (components.has("SpawnPoint") || components.has("SquadSpawner")) return "misc-spawns";
+  if (components.has("CommunicationsTowerSpawner")) return "misc-communications";
+  if (components.has("IntelSpawner")) return "loot-intel";
+  if (components.has("GunSpawner")) return "loot-weapons";
+  if (components.has("ItemPoolSpawner") || /buckshot|ammo|ammunition|bomb.?supply/i.test(source)) return "loot-ammo";
+  if (/attachment/i.test(source)) return "loot-attachments";
+  if (/sentry|turret|warhead|mortar/i.test(source)) return "loot-defense";
+  if (/pill|medical|medkit|medicine|trauma|burn.?kit/i.test(source)) return "loot-medical";
+  if (/goggles|equipment|gear|armor|helmet|clothing/i.test(source)) return "loot-equipment";
+  if (components.has("AegisSpawner") || /crate.?loot|supply.?kit/i.test(source)) return "loot-supplies";
+  if (/tool|power.?cell|powercell|tech.?supply|battery/i.test(source)) return "loot-tools";
+  if (components.has("AegisCorpseSpawner") || components.has("CorpseSpawner") || components.has("RandomDecalSpawner")) return "misc-remains";
+  if (/corpse|blood|gibs?|oil.?splatter/i.test(source)) return "misc-remains";
+  if (/spawn.?mob|spawn.?rat|mouse|monkey|carp|jones|orion|wiggles|bernard|buttons|garry/i.test(source)) return "misc-fauna";
+  if (components.has("GridSpawner") && /evac|lifeboat/i.test(source)) return "misc-evacuation";
+  if (/trigger.?teleporter|teleport.?destination|warp.?point/i.test(source)) return "misc-teleports";
+  if (/blocker|barrier|fog/i.test(source)) return "misc-boundaries";
+  if (/poster|plant|arcade|cigarette|bedsheet|random.?sheet|trash.?spawner/i.test(source)) return "misc-decor";
+  if (/requisitions.?chair.?marker/i.test(source)) return "misc-technical";
+  if (/folder|document|report|objective|intel/i.test(source)) return "loot-intel";
+  if (/gun|rifle|pistol|shotgun|smg|weapon/i.test(source)) return "loot-weapons";
+  if (/aegis|crate|box|supply|kit/i.test(source)) return "loot-supplies";
+  if (prototype.kind === "spawner") return "loot-other";
+  return "misc-unclassified";
 }
 
-function groupOf(category: OverlayCategory, id: string, name: string, kind: OverlayPrototype["kind"]): OverlayGroup {
-  const source = `${id} ${name}`;
-  // Plain map markers are editor/service landmarks. Keep them in the
-  // technical group even when their name resembles transport or decor.
-  if (kind === "marker" && category !== "label") return "misc-other";
-  if (category === "spawn" && /spawn.?point|latejoin|observer/i.test(source)) return "misc-spawns";
-  if (/spawn.?mob|spawn.?rat|corpse|mouse|monkey|carp|blood|gibs?|oil/i.test(source)) return "misc-creatures";
-  if (/communications?.?tower|static.?comms|telecom|tcomms/i.test(source)) return "misc-communications";
-  if (/evac|lifeboat|teleport|warp|dropship/i.test(source)) return "misc-transport";
-  if (/blocker|barrier|fog/i.test(source)) return "misc-boundaries";
-  if (/poster|plant|arcade|cigarette|bedsheet|decal|chair/i.test(source)) return "misc-decor";
-  if (category === "loot") {
-    if (/intel|objective|folder|document|report|data/i.test(source)) return "loot-intel";
-    if (/ammo|ammunition|buckshot|magazine|cartridge|shell/i.test(source)) return "loot-ammo";
-    if (/sentry|turret|warhead|bomb|mortar/i.test(source)) return "loot-defense";
-    if (/gun|rifle|pistol|shotgun|smg|weapon|attachment/i.test(source)) return "loot-weapons";
-    if (/pill|medical|medkit|medicine|trauma|burn.?kit/i.test(source)) return "loot-medical";
-    if (/tool|power.?cell|tech|battery/i.test(source)) return "loot-tools";
-    if (/goggles|equipment|gear|armor|helmet|clothing/i.test(source)) return "loot-equipment";
-    if (/crate|supply|aegis|kit|box/i.test(source)) return "loot-supplies";
-    return "loot-other";
-  }
-  if (category === "spawn") return "misc-spawns";
-  return "misc-other";
+function categoryOf(prototype: OverlayPrototype, occurrence: OverlayOccurrence, group: OverlayGroup): OverlayCategory {
+  if (typeof occurrence[4] === "string") return "label";
+  if (prototype.kind === "insert" || prototype.components?.MapInsert) return "insert";
+  if (group === "misc-spawns") return "spawn";
+  if (group.startsWith("loot-")) return "loot";
+  return "marker";
 }
 
 function probabilityValue(value: unknown): number | undefined {
@@ -221,13 +210,14 @@ function pointsFor(
     const prototype = prototypes[prototypeId];
     if (!prototype) continue;
     entries.forEach((entry, index) => {
-      const category = categoryOf(prototypeId, prototype, entry);
+      const group = groupOf(prototypeId, prototype, entry);
+      const category = categoryOf(prototype, entry, group);
       points.push({
         key: `${prefix}:${prototypeId}:${index}`,
         prototypeId,
         name: prototype.name || prototypeId,
         category,
-        group: groupOf(category, prototypeId, prototype.name, prototype.kind),
+        group,
         x: entry[0],
         y: entry[1],
         rotation: entry[2] ?? 0,

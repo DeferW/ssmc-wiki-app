@@ -6,6 +6,7 @@ import { CATEGORY_ORDER, HIDDEN_CATEGORY } from "../equipment/config";
 import { loadMapCatalog, loadMapOverlay, loadMapStaticItems, loadTileManifest } from "./api";
 import { mapDataUrl } from "./config";
 import { MapCanvas, type MapCanvasHandle, type SelectionAnchor } from "./MapCanvas";
+import { MARKER_CATEGORIES, markerCategory, type MarkerCategoryDefinition } from "./markerConfig";
 import { activeInsertPlacements, areaAt, describeComponents, effectiveInsertProbability, flattenMapObjects, flattenOverlay, flattenStaticItems, insertVariations, pointDisplayName, pointProbabilityDescriptions, restoreInsertSelections, serializeInsertSelections, spawnOptions } from "./overlay";
 import type { ActiveInsertRender, CanvasStats, LayerSettings, MapCatalog, MapOverlay, MapStaticItem, MapStaticItemCatalog, OverlayCategory, OverlayGroup, OverlayPoint, Point, TileManifest } from "./types";
 
@@ -14,6 +15,7 @@ const DEFAULT_GROUPS: Record<OverlayGroup, boolean> = {
   "loot-intel": false,
   "loot-weapons": false,
   "loot-ammo": false,
+  "loot-attachments": false,
   "loot-tools": false,
   "loot-medical": false,
   "loot-equipment": false,
@@ -22,11 +24,17 @@ const DEFAULT_GROUPS: Record<OverlayGroup, boolean> = {
   "loot-other": false,
   "misc-spawns": false,
   "misc-creatures": false,
+  "misc-fauna": false,
+  "misc-remains": false,
   "misc-communications": false,
   "misc-transport": false,
+  "misc-evacuation": false,
+  "misc-teleports": false,
   "misc-boundaries": false,
   "misc-decor": false,
   "misc-other": false,
+  "misc-technical": false,
+  "misc-unclassified": false,
   item: false,
   object: false,
 };
@@ -45,37 +53,13 @@ const DEFAULT_LAYERS: LayerSettings = {
 };
 
 const LOOT_GROUP_KEYS: OverlayGroup[] = [
-  "loot-intel", "loot-weapons", "loot-ammo", "loot-tools", "loot-medical",
+  "loot-intel", "loot-weapons", "loot-ammo", "loot-attachments", "loot-tools", "loot-medical",
   "loot-equipment", "loot-defense", "loot-supplies", "loot-other",
 ];
 const MISC_GROUP_KEYS: OverlayGroup[] = [
-  "misc-spawns", "misc-creatures", "misc-communications", "misc-transport",
-  "misc-boundaries", "misc-decor", "misc-other",
-];
-const MARKER_CATEGORIES: {
-  key: string;
-  label: string;
-  detail: string;
-  groups?: OverlayGroup[];
-  layer?: "insert";
-}[] = [
-  { key: "inserts", label: "Инсерты", detail: "вариативные участки карты", layer: "insert" },
-  { key: "communications", label: "Связь", detail: "вышки связи и телекоммуникации", groups: ["misc-communications"] },
-  { key: "spawns", label: "Точки появления", detail: "роли, отряды и точки подключения", groups: ["misc-spawns"] },
-  { key: "intel", label: "Разведданные", detail: "документы, отчёты и разведывательные цели", groups: ["loot-intel"] },
-  { key: "weapons", label: "Оружие", detail: "случайное оружие и оружейные модули", groups: ["loot-weapons"] },
-  { key: "ammo", label: "Боеприпасы", detail: "магазины, патроны и боеприпасы", groups: ["loot-ammo"] },
-  { key: "defense", label: "Оборонные системы", detail: "турели, мины и тяжёлое вооружение", groups: ["loot-defense"] },
-  { key: "medical", label: "Медицина", detail: "аптечки, препараты и медицинские наборы", groups: ["loot-medical"] },
-  { key: "tools", label: "Инструменты и техника", detail: "инструменты, батареи и технические наборы", groups: ["loot-tools"] },
-  { key: "equipment", label: "Экипировка", detail: "броня, очки и носимое снаряжение", groups: ["loot-equipment"] },
-  { key: "supplies", label: "Снабжение и ящики", detail: "комплекты, контейнеры и точки снабжения", groups: ["loot-supplies"] },
-  { key: "random", label: "Прочий случайный лут", detail: "прочие случайные предметы", groups: ["loot-other"] },
-  { key: "transport", label: "Транспорт и переходы", detail: "эвакуация, телепорты и переходы", groups: ["misc-transport"] },
-  { key: "boundaries", label: "Границы и запреты", detail: "барьеры, блокировщики и ограничения", groups: ["misc-boundaries"] },
-  { key: "creatures", label: "Существа и останки", detail: "животные, тела, кровь и следы", groups: ["misc-creatures"] },
-  { key: "environment", label: "Окружение", detail: "случайный декор и следы окружения", groups: ["misc-decor"] },
-  { key: "technical", label: "Служебные точки", detail: "редкие технические маркеры карты", groups: ["misc-other"] },
+  "misc-spawns", "misc-fauna", "misc-remains", "misc-communications",
+  "misc-evacuation", "misc-teleports", "misc-boundaries", "misc-decor",
+  "misc-technical", "misc-unclassified",
 ];
 
 const CATEGORY_LABELS: Record<OverlayCategory, string> = {
@@ -482,7 +466,7 @@ export function MapPage() {
   }, [insertManifests, insertPlacements]);
 
   const toggleLayer = (key: OverlayCategory) => setLayers((current) => ({ ...current, [key]: !current[key] }));
-  const toggleMarkerCategory = (definition: typeof MARKER_CATEGORIES[number]) => setLayers((current) => {
+  const toggleMarkerCategory = (definition: MarkerCategoryDefinition) => setLayers((current) => {
     if (definition.layer) return { ...current, [definition.layer]: !current[definition.layer] };
     const categoryGroups = definition.groups ?? [];
     const enable = categoryGroups.some((group) => !current.groups[group]);
@@ -785,7 +769,9 @@ export function MapPage() {
                     }}
                     key={point.key}
                   >
-                    <span className={`maps-marker-picker-dot maps-marker-picker-dot--${point.category}`} aria-hidden="true" />
+                    {point.category === "item" || point.category === "object"
+                      ? <span className={`maps-marker-picker-dot maps-marker-picker-dot--${point.category}`} aria-hidden="true" />
+                      : <span className="maps-marker-picker-symbol" aria-hidden="true">{markerCategory(point)?.symbol ?? "?"}</span>}
                     <span><strong>{pointDisplayName(point)}</strong><code>{point.prototypeId}</code></span>
                   </button>
                 ))}
@@ -801,7 +787,7 @@ export function MapPage() {
               style={selected.category === "insert" ? undefined : { left: selectionAnchor!.x, top: selectionAnchor!.y }}
             >
               <button className="maps-inspector-close" type="button" onClick={() => setSelected(undefined)} aria-label="Закрыть информацию">×</button>
-              <div className={`maps-point-badge maps-point-badge--${selected.category}`}>{CATEGORY_LABELS[selected.category]}</div>
+              <div className={`maps-point-badge maps-point-badge--${selected.category}`}>{markerCategory(selected)?.label ?? CATEGORY_LABELS[selected.category]}</div>
               <h2>{pointDisplayName(selected)}</h2>
               <code>{selected.prototypeId}</code>
               <p>X {selected.x.toFixed(1)} · Y {selected.y.toFixed(1)}</p>
@@ -923,7 +909,11 @@ export function MapPage() {
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="разведданные, эвакуация…" />
           </label>
           <div className="maps-items-summary">
-            <span>Категорий: {MARKER_CATEGORIES.length}</span>
+            <span>Категорий: {MARKER_CATEGORIES.filter((definition) => (
+              definition.layer
+                ? (pointCounts[definition.layer] ?? 0) > 0
+                : (definition.groups ?? []).some((group) => (groupCounts[group] ?? 0) > 0)
+            )).length}</span>
             {(search || layers.loot || layers.marker || layers.spawn || layers.insert) && (
               <button type="button" onClick={clearMarkerFilters}>Сбросить</button>
             )}
@@ -936,9 +926,11 @@ export function MapPage() {
               const count = definition.layer
                 ? (pointCounts[definition.layer] ?? 0)
                 : (definition.groups ?? []).reduce((sum, group) => sum + (groupCounts[group] ?? 0), 0);
+              if (count === 0) return null;
               return (
                 <label className="maps-layer maps-marker-category" key={definition.key}>
                   <input type="checkbox" checked={checked} onChange={() => toggleMarkerCategory(definition)} />
+                  <i className="maps-marker-category-icon" aria-hidden="true">{definition.symbol}</i>
                   <span title={definition.detail}><strong>{definition.label}</strong><small>{definition.detail}</small></span>
                   <output>{count}</output>
                 </label>
