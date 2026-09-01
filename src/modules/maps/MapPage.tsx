@@ -6,7 +6,7 @@ import { CATEGORY_ORDER } from "../equipment/config";
 import { loadMapCatalog, loadMapOverlay, loadMapStaticItems, loadTileManifest } from "./api";
 import { mapDataUrl } from "./config";
 import { MapCanvas, type MapCanvasHandle, type SelectionAnchor } from "./MapCanvas";
-import { activeInsertPlacements, areaAt, describeComponents, effectiveInsertProbability, flattenOverlay, flattenStaticItems, insertVariations, pointDisplayName, pointProbabilityDescriptions, restoreInsertSelections, serializeInsertSelections, spawnOptions } from "./overlay";
+import { activeInsertPlacements, areaAt, describeComponents, effectiveInsertProbability, flattenMapObjects, flattenOverlay, flattenStaticItems, insertVariations, pointDisplayName, pointProbabilityDescriptions, restoreInsertSelections, serializeInsertSelections, spawnOptions } from "./overlay";
 import type { ActiveInsertRender, CanvasStats, LayerSettings, MapCatalog, MapOverlay, MapStaticItem, MapStaticItemCatalog, OverlayCategory, OverlayGroup, OverlayPoint, Point, TileManifest } from "./types";
 
 const SETTINGS_KEY = "ssmc-map-layers-v5";
@@ -28,6 +28,7 @@ const DEFAULT_GROUPS: Record<OverlayGroup, boolean> = {
   "misc-decor": false,
   "misc-other": false,
   item: false,
+  object: false,
 };
 const DEFAULT_LAYERS: LayerSettings = {
   loot: false,
@@ -36,6 +37,7 @@ const DEFAULT_LAYERS: LayerSettings = {
   spawn: false,
   marker: false,
   item: false,
+  object: false,
   coordinateGrid: false,
   areaSupport: false,
   markerScale: 1,
@@ -83,6 +85,7 @@ const CATEGORY_LABELS: Record<OverlayCategory, string> = {
   spawn: "Точка появления",
   marker: "Технический маркер",
   item: "Предмет",
+  object: "Объект карты",
 };
 
 function itemDescription(value: unknown): string {
@@ -218,9 +221,12 @@ export function MapPage() {
   const [search, setSearch] = useState("");
   const [markerPanelOpen, setMarkerPanelOpen] = useState(false);
   const [itemPanelOpen, setItemPanelOpen] = useState(false);
+  const [objectPanelOpen, setObjectPanelOpen] = useState(false);
   const [itemSearch, setItemSearch] = useState("");
   const [itemCategories, setItemCategories] = useState<Set<string>>(() => new Set());
   const [activeItemId, setActiveItemId] = useState<string>();
+  const [objectSearch, setObjectSearch] = useState("");
+  const [objectGroups, setObjectGroups] = useState<Set<string>>(() => new Set());
   const [selected, setSelected] = useState<OverlayPoint>();
   const [selectionChoices, setSelectionChoices] = useState<OverlayPoint[]>([]);
   const [selectionAnchor, setSelectionAnchor] = useState<SelectionAnchor>();
@@ -386,17 +392,46 @@ export function MapPage() {
     return ids;
   }, [activeItemId, availableItems, itemCategories, itemCounts, itemSearch, searchableItems]);
   const itemPoints = useMemo(
-    () => allItemPoints
-      .filter((point) => highlightedItemIds.has(point.prototypeId))
-      .map((point) => ({ ...point, highlighted: true })),
+    () => allItemPoints.map((point) => ({ ...point, highlighted: highlightedItemIds.has(point.prototypeId) })),
     [allItemPoints, highlightedItemIds],
   );
-  const points = useMemo(() => [...overlayPoints, ...itemPoints], [itemPoints, overlayPoints]);
+  const allObjectPoints = useMemo(
+    () => overlay ? flattenMapObjects(overlay, allPoints, activeInserts) : [],
+    [activeInserts, allPoints, overlay],
+  );
+  const objectGroupCounts = useMemo(() => allObjectPoints.reduce<Record<string, number>>((counts, point) => {
+    const group = point.object?.group ?? "other";
+    counts[group] = (counts[group] ?? 0) + 1;
+    return counts;
+  }, {}), [allObjectPoints]);
+  const availableObjectGroups = useMemo(
+    () => (overlay?.objectGroups ?? []).filter((group) => objectGroupCounts[group.id]),
+    [objectGroupCounts, overlay?.objectGroups],
+  );
+  const highlightedObjectIds = useMemo(() => {
+    const query = objectSearch.trim().toLocaleLowerCase("ru");
+    const ids = new Set<string>();
+    for (const point of allObjectPoints) {
+      const object = point.object;
+      if (!object) continue;
+      const group = availableObjectGroups.find((candidate) => candidate.id === object.group);
+      if ((query && `${point.name} ${point.prototypeId} ${group?.name ?? ""}`.toLocaleLowerCase("ru").includes(query)) || objectGroups.has(object.group)) {
+        ids.add(point.prototypeId);
+      }
+    }
+    return ids;
+  }, [allObjectPoints, availableObjectGroups, objectGroups, objectSearch]);
+  const objectPoints = useMemo(
+    () => allObjectPoints.map((point) => ({ ...point, highlighted: highlightedObjectIds.has(point.prototypeId) })),
+    [allObjectPoints, highlightedObjectIds],
+  );
+  const points = useMemo(() => [...overlayPoints, ...itemPoints, ...objectPoints], [itemPoints, objectPoints, overlayPoints]);
   const canvasLayers = useMemo<LayerSettings>(() => ({
     ...layers,
     item: itemPoints.length > 0,
-    groups: { ...layers.groups, item: itemPoints.length > 0 },
-  }), [itemPoints.length, layers]);
+    object: objectPoints.length > 0,
+    groups: { ...layers.groups, item: itemPoints.length > 0, object: objectPoints.length > 0 },
+  }), [itemPoints.length, layers, objectPoints.length]);
   const pointCounts = useMemo(() => allPoints.reduce<Record<string, number>>((counts, point) => {
     counts[point.category] = (counts[point.category] ?? 0) + 1;
     return counts;
@@ -468,6 +503,22 @@ export function MapPage() {
     setItemCategories(new Set());
     setActiveItemId(undefined);
   };
+  const enableAllItems = () => {
+    setItemSearch("");
+    setActiveItemId(undefined);
+    setItemCategories(new Set(availableItemCategories
+      .map(([category]) => category)
+      .filter((category) => category !== "Другое" && category !== "Скрытые")));
+  };
+  const toggleObjectGroup = (group: string) => setObjectGroups((current) => {
+    const next = new Set(current);
+    if (next.has(group)) next.delete(group); else next.add(group);
+    return next;
+  });
+  const clearObjectFilters = () => {
+    setObjectSearch("");
+    setObjectGroups(new Set());
+  };
   const clearMarkerFilters = () => {
     setSearch("");
     setLayers((current) => {
@@ -535,6 +586,7 @@ export function MapPage() {
             onClick={() => {
               setMarkerPanelOpen(false);
               setItemPanelOpen(false);
+              setObjectPanelOpen(false);
               setSidebarOpen((value) => !value);
             }}
             title="Настройки отображения"
@@ -551,6 +603,8 @@ export function MapPage() {
               setSelected(undefined);
               setSelectionChoices([]);
               setActiveItemId(undefined);
+              setObjectSearch("");
+              setObjectGroups(new Set());
               setInsertSelection({ scope: "", value: {} });
               setInsertManifests({});
               setCoordinate(undefined);
@@ -596,7 +650,7 @@ export function MapPage() {
             <div className="maps-loading"><span className="maps-loader" />{error ? "Карта недоступна" : "Загрузка манифеста карты…"}</div>
           )}
 
-          {!sidebarOpen && !markerPanelOpen && !itemPanelOpen && <nav className="maps-data-tools maps-mode-dock" aria-label="Данные текущего модуля карты">
+          {!sidebarOpen && !markerPanelOpen && !itemPanelOpen && !objectPanelOpen && <nav className="maps-data-tools maps-mode-dock" aria-label="Данные текущего модуля карты">
             <button
               className={markerPanelOpen ? "is-active" : ""}
               type="button"
@@ -605,6 +659,7 @@ export function MapPage() {
               onClick={() => {
                 setSidebarOpen(false);
                 setItemPanelOpen(false);
+                setObjectPanelOpen(false);
                 setMarkerPanelOpen((value) => !value);
               }}
             >
@@ -620,12 +675,29 @@ export function MapPage() {
               onClick={() => {
                 setSidebarOpen(false);
                 setMarkerPanelOpen(false);
+                setObjectPanelOpen(false);
                 setItemPanelOpen((value) => !value);
               }}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14v12H5V8Zm3 0V5h8v3M9 12h6M12 10v4" /></svg>
               <strong>Предметы</strong>
               <output>{availableItems.length}</output>
+            </button>
+            <button
+              className={objectPanelOpen ? "is-active" : ""}
+              type="button"
+              aria-expanded={objectPanelOpen}
+              aria-controls="map-objects"
+              onClick={() => {
+                setSidebarOpen(false);
+                setMarkerPanelOpen(false);
+                setItemPanelOpen(false);
+                setObjectPanelOpen((value) => !value);
+              }}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Zm0 0v9m8-4.5-8 4.5-8-4.5M12 12v9" /></svg>
+              <strong>Объекты</strong>
+              <output>{allObjectPoints.length}</output>
             </button>
           </nav>}
 
@@ -656,11 +728,13 @@ export function MapPage() {
               <button type="button" onClick={() => window.location.reload()}>Повторить</button>
             </div>
           )}
-          {(search || highlightedItemIds.size > 0) && (
+          {(search || highlightedItemIds.size > 0 || highlightedObjectIds.size > 0) && (
             <div className="maps-result-count">
               {search ? `Маркеров: ${overlayPoints.length}` : ""}
-              {search && highlightedItemIds.size > 0 ? " · " : ""}
+              {search && (highlightedItemIds.size > 0 || highlightedObjectIds.size > 0) ? " · " : ""}
               {highlightedItemIds.size > 0 ? `Предметов: ${itemPoints.filter((point) => point.highlighted).length}` : ""}
+              {highlightedItemIds.size > 0 && highlightedObjectIds.size > 0 ? " · " : ""}
+              {highlightedObjectIds.size > 0 ? `Объектов: ${objectPoints.filter((point) => point.highlighted).length}` : ""}
             </div>
           )}
 
@@ -889,9 +963,12 @@ export function MapPage() {
           </label>
           <div className="maps-items-summary">
             <span>{activeItemId ? "Выбран один тип" : `В списке: ${itemResults.length}`}</span>
-            {(itemSearch || itemCategories.size > 0 || activeItemId) && (
-              <button type="button" onClick={clearItemFilters}>Сбросить</button>
-            )}
+            <div className="maps-items-actions">
+              <button type="button" onClick={enableAllItems}>Включить всё</button>
+              {(itemSearch || itemCategories.size > 0 || activeItemId) && (
+                <button type="button" onClick={clearItemFilters}>Сбросить</button>
+              )}
+            </div>
           </div>
           <div className="maps-item-sections">
             {availableItemCategories.map(([category, count]) => {
@@ -938,6 +1015,32 @@ export function MapPage() {
           <p className="maps-sidebar-hint">
             Поиск подсвечивает совпадения. Без подсветки предмет можно открыть кликом по его спрайту на близком масштабе.
           </p>
+        </aside>
+
+        <aside id="map-objects" className={objectPanelOpen ? "maps-items-panel maps-object-panel is-open" : "maps-items-panel maps-object-panel"}>
+          <div className="maps-items-heading">
+            <div><span className="eyebrow">Объекты карты</span><h1>Объекты</h1></div>
+            <button type="button" onClick={() => setObjectPanelOpen(false)} aria-label="Закрыть объекты">×</button>
+          </div>
+          <label className="maps-search maps-item-search">
+            <span>Название, ID или категория</span>
+            <input value={objectSearch} onChange={(event) => setObjectSearch(event.target.value)} placeholder="наномед, машина, топливо…" />
+          </label>
+          <div className="maps-items-summary">
+            <span>Категорий: {availableObjectGroups.length}</span>
+            {(objectSearch || objectGroups.size > 0) && <button type="button" onClick={clearObjectFilters}>Сбросить</button>}
+          </div>
+          <section className="maps-layer-list maps-marker-category-list" aria-label="Категории объектов карты">
+            {availableObjectGroups.map((group) => (
+              <label className="maps-layer maps-marker-category" key={group.id}>
+                <input type="checkbox" checked={objectGroups.has(group.id)} onChange={() => toggleObjectGroup(group.id)} />
+                <span title={group.detail}><strong>{group.name}</strong>{group.detail && <small>{group.detail}</small>}</span>
+                <output>{objectGroupCounts[group.id] ?? 0}</output>
+              </label>
+            ))}
+          </section>
+          {!availableObjectGroups.length && <p className="maps-sidebar-hint">На этой карте настроенных объектов нет.</p>}
+          <p className="maps-sidebar-hint">Поиск и категории подсвечивают объекты оранжевым ромбом. На близком масштабе их можно открыть без фильтра.</p>
         </aside>
       </div>
     </main>

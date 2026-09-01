@@ -165,9 +165,9 @@ function categoryOf(id: string, prototype: OverlayPrototype, occurrence: Overlay
   const components = Object.keys(prototype.components ?? {});
   const source = `${id} ${prototype.name}`;
   if (prototype.kind === "insert" || components.includes("MapInsert")) return "insert";
-  if (/spawn.?mob|corpse|rat|mouse|monkey|carp|blood|gib|oil/i.test(source)) return "spawn";
-  if (/communications?.?tower|static.?comms|evac|lifeboat|teleport|warp|dropship|blocker|barrier|fog|poster|plant|arcade|cigarette|bedsheet|decal|chair/i.test(source)) return "marker";
   if (components.includes("SpawnPoint") || components.includes("SquadSpawner") || /spawn.?point/i.test(id)) return "spawn";
+  if (/spawn.?mob|spawn.?rat|corpse|mouse|monkey|carp|blood|gibs?|oil/i.test(source)) return "spawn";
+  if (/communications?.?tower|static.?comms|evac|lifeboat|teleport|warp|dropship|blocker|barrier|fog|poster|plant|arcade|cigarette|bedsheet|decal|chair/i.test(source)) return "marker";
   if (components.some((component) => LOOT_COMPONENTS.has(component))) return "loot";
   if (prototype.kind === "spawner" && /intel|objective|folder|document|report|loot|gun|ammo|buckshot|attachment|goggles|pill|sentry|turret|tool|power.?cell|supply|equipment|gear|warhead/i.test(source)) return "loot";
   return "marker";
@@ -175,7 +175,8 @@ function categoryOf(id: string, prototype: OverlayPrototype, occurrence: Overlay
 
 function groupOf(category: OverlayCategory, id: string, name: string): OverlayGroup {
   const source = `${id} ${name}`;
-  if (/spawn.?mob|corpse|rat|mouse|monkey|carp|blood|gib|oil/i.test(source)) return "misc-creatures";
+  if (category === "spawn" && /spawn.?point|latejoin|observer/i.test(source)) return "misc-spawns";
+  if (/spawn.?mob|spawn.?rat|corpse|mouse|monkey|carp|blood|gibs?|oil/i.test(source)) return "misc-creatures";
   if (/communications?.?tower|static.?comms|telecom|tcomms/i.test(source)) return "misc-communications";
   if (/evac|lifeboat|teleport|warp|dropship/i.test(source)) return "misc-transport";
   if (/blocker|barrier|fog/i.test(source)) return "misc-boundaries";
@@ -191,7 +192,7 @@ function groupOf(category: OverlayCategory, id: string, name: string): OverlayGr
     if (/crate|supply|aegis|kit|box/i.test(source)) return "loot-supplies";
     return "loot-other";
   }
-  if (category === "spawn" || /spawn.?point|latejoin|observer/i.test(source)) return "misc-spawns";
+  if (category === "spawn") return "misc-spawns";
   return "misc-other";
 }
 
@@ -366,6 +367,54 @@ export function flattenStaticItems(
       insert?.itemOccurrences,
       catalog,
       `insert-item:${placement.key}`,
+      placement.origin,
+    ));
+  }
+  return points;
+}
+
+function mapObjectPoints(
+  occurrences: Record<string, OverlayOccurrence[]> | undefined,
+  prototypes: NonNullable<MapOverlay["objectPrototypes"]>,
+  prefix: string,
+  origin: Point = { x: 0, y: 0 },
+): OverlayPoint[] {
+  if (!occurrences) return [];
+  return Object.entries(occurrences).flatMap(([prototypeId, entries]) => {
+    const object = prototypes[prototypeId];
+    if (!object) return [];
+    return entries.map((entry, index) => ({
+      key: `${prefix}:${prototypeId}:${index}`,
+      prototypeId,
+      name: object.name,
+      category: "object" as const,
+      group: "object" as const,
+      x: origin.x + entry[0],
+      y: origin.y + entry[1],
+      rotation: entry[2] ?? 0,
+      object,
+    }));
+  });
+}
+
+export function flattenMapObjects(
+  overlay: MapOverlay,
+  overlayPoints: OverlayPoint[],
+  activeInserts: Record<string, string>,
+): OverlayPoint[] {
+  const prototypes = overlay.objectPrototypes ?? {};
+  const points = mapObjectPoints(overlay.objectOccurrences, prototypes, "map-object");
+  for (const placement of activeInsertPlacements(overlay, overlayPoints, activeInserts)) {
+    const insert = overlay.insertMaps[placement.path];
+    if (placement.clearEntities && insert?.footprint) {
+      for (let index = points.length - 1; index >= 0; index -= 1) {
+        if (pointInFootprint(insert.footprint, placement.origin, points[index])) points.splice(index, 1);
+      }
+    }
+    points.push(...mapObjectPoints(
+      insert?.objectOccurrences,
+      prototypes,
+      `insert-object:${placement.key}`,
       placement.origin,
     ));
   }

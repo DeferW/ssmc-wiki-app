@@ -3,8 +3,6 @@ import { isMap } from "../../modules/equipment/format";
 import type { AdminLoadResult, AdminOverrides, AdminOverridesDocument } from "./types";
 
 const WORKER_ROOT = "https://ssmc-wiki-admin-api.24dfffer.workers.dev";
-const GITHUB_CONTENTS_URL =
-  "https://api.github.com/repos/DeferW/ssmc-wiki-app/contents/config/catalog-overrides.json?ref=main";
 
 const configuredRoot = import.meta.env.VITE_ADMIN_API_ROOT?.replace(/\/$/u, "");
 const apiRoot = configuredRoot || (import.meta.env.DEV ? "/admin-api" : WORKER_ROOT);
@@ -27,25 +25,20 @@ export function normalizeAdminDocument(value: unknown): AdminOverrides {
 }
 
 export async function loadAdminOverrides(signal?: AbortSignal): Promise<AdminLoadResult> {
-  return loadOverridesFromGitHub(signal);
-}
-
-async function loadOverridesFromGitHub(signal?: AbortSignal): Promise<AdminLoadResult> {
-  const response = await fetch(GITHUB_CONTENTS_URL, {
+  const response = await fetch(overridesUrl, {
     cache: "no-store",
-    headers: { Accept: "application/vnd.github+json" },
+    headers: { Accept: "application/json" },
     signal,
   });
-  if (response.status === 404) return { overrides: {}, sha: null, exists: false, fallback: true };
   const body: unknown = await response.json().catch(() => null);
-  if (!response.ok || !isMap(body)) throw new Error(apiError(body, `GitHub HTTP ${response.status}`));
-  const content = typeof body.content === "string" ? decodeBase64Utf8(body.content) : "";
-  const document = content.trim() ? JSON.parse(content) as unknown : {};
+  if (!response.ok || !isMap(body) || body.ok !== true) {
+    throw new Error(apiError(body, `HTTP ${response.status}`));
+  }
   return {
-    overrides: normalizeAdminDocument(document),
+    overrides: normalizeAdminDocument(body.overrides),
     sha: typeof body.sha === "string" ? body.sha : null,
-    exists: true,
-    fallback: true,
+    exists: body.exists === true,
+    fallback: false,
   };
 }
 
@@ -80,8 +73,3 @@ function apiError(value: unknown, fallback: string) {
   return isMap(value) && typeof value.error === "string" ? value.error : fallback;
 }
 
-function decodeBase64Utf8(value: string) {
-  const binary = window.atob(value.replace(/\s/gu, ""));
-  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
-  return new TextDecoder().decode(bytes);
-}

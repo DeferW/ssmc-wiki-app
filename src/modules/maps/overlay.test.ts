@@ -170,6 +170,26 @@ describe("map overlays", () => {
     expect(pointDisplayName(point)).toBe("Точка появления выжившего");
   });
 
+  it("does not mistake the Operator role name for a rat marker", () => {
+    const overlay: MapOverlay = {
+      schemaVersion: 6,
+      mapPath: "/Maps/test.yml",
+      prototypes: {
+        CMSpawnPointSmartGunOperator: {
+          name: "smart gun operator",
+          kind: "spawner",
+          components: { SpawnPoint: { job_id: "CMSmartGunOperator" } },
+        },
+      },
+      occurrences: { CMSpawnPointSmartGunOperator: [[1.5, 2.5]] },
+      insertMaps: {},
+    };
+
+    const [point] = flattenOverlay(overlay);
+    expect(point.category).toBe("spawn");
+    expect(point.group).toBe("misc-spawns");
+  });
+
   it("uses the map scenario chance for conditional inserts", () => {
     expect(effectiveInsertProbability(1, "clfsmugglers", {
       nightmareScenarios: [{ scenarioName: "none", scenarioProbability: 1 }],

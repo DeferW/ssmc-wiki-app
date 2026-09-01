@@ -47,12 +47,14 @@ const CATEGORY_COLOR: Record<OverlayPoint["category"], string> = {
   spawn: "#ef7777",
   marker: "#b2bcb5",
   item: "#72d895",
+  object: "#e9a052",
 };
 
 const QUIET_MARKERS: Record<string, { glyph: string; color: string }> = {
-  RMCCrashLandBarrier: { glyph: "H", color: "#c4cba6" },
-  RMCBlockerVehicle: { glyph: "⊘", color: "#75a6a4" },
-  RMCDecalSpawnerBloodSplatters: { glyph: "✦", color: "#a96767" },
+  RMCCrashLandBarrier: { glyph: "H", color: "#e8efc7" },
+  RMCBlockerVehicle: { glyph: "⊘", color: "#9bd5d2" },
+  RMCDecalSpawnerBloodSplatters: { glyph: "✦", color: "#e77878" },
+  DecalSpawnerBloodSplatters: { glyph: "✦", color: "#e77878" },
 };
 
 function tileUrl(pattern: string, manifestUrl: string, revision: number, z: number, x: number, y: number): string {
@@ -393,23 +395,24 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       right: (size.width - view.x) / view.scale + markerRadius * 4,
       bottom: (size.height - view.y) / view.scale + markerRadius * 4,
     };
-    const drawnItemTiles = new Set<string>();
+    const drawnDataTiles = new Set<string>();
     for (const point of visiblePoints) {
       const pixel = worldToMapPixel(grid, point);
       if (pixel.x < bounds.left || pixel.x > bounds.right || pixel.y < bounds.top || pixel.y > bounds.bottom) continue;
       const selected = point.key === selectedKey;
 
-      if (point.category === "item") {
+      if (point.category === "item" || point.category === "object") {
         if (!point.highlighted && !selected) continue;
-        const tileKey = `${Math.floor(point.x)}:${Math.floor(point.y)}`;
-        if (drawnItemTiles.has(tileKey) && !selected) continue;
-        drawnItemTiles.add(tileKey);
+        const tileKey = `${point.category}:${Math.floor(point.x)}:${Math.floor(point.y)}`;
+        if (drawnDataTiles.has(tileKey) && !selected) continue;
+        drawnDataTiles.add(tileKey);
         const radius = Math.max(6 / view.scale, (7.5 * layers.markerScale) / Math.sqrt(Math.max(view.scale, 0.08)));
+        const color = CATEGORY_COLOR[point.category];
         context.save();
         context.translate(pixel.x, pixel.y);
         context.rotate(Math.PI / 4);
-        context.strokeStyle = selected ? "#ffffff" : CATEGORY_COLOR.item;
-        context.fillStyle = selected ? "rgba(114, 216, 149, .26)" : "rgba(114, 216, 149, .12)";
+        context.strokeStyle = selected ? "#ffffff" : color;
+        context.fillStyle = selected ? `${color}42` : `${color}1f`;
         context.lineWidth = (selected ? 2.6 : 1.4) / view.scale;
         context.fillRect(-radius, -radius, radius * 2, radius * 2);
         context.strokeRect(-radius, -radius, radius * 2, radius * 2);
@@ -437,10 +440,14 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       const quiet = QUIET_MARKERS[point.prototypeId];
       if (quiet) {
         context.save();
-        context.globalAlpha = selected ? 1 : 0.82;
-        context.font = `700 ${12.5 / view.scale}px IBM Plex Mono, monospace`;
+        context.globalAlpha = 1;
+        context.font = `800 ${15 / view.scale}px IBM Plex Mono, monospace`;
         context.textAlign = "center";
         context.textBaseline = "middle";
+        context.lineJoin = "round";
+        context.lineWidth = 3 / view.scale;
+        context.strokeStyle = "rgba(0, 0, 0, .92)";
+        context.strokeText(quiet.glyph, pixel.x, pixel.y);
         context.fillStyle = quiet.color;
         context.fillText(quiet.glyph, pixel.x, pixel.y);
         if (selected) {
@@ -478,7 +485,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
     let winner: OverlayPoint | undefined;
     let winnerDistance = radius * radius;
     for (const point of visiblePoints) {
-      if (point.category === "item" && !point.highlighted && view.scale < 0.65) continue;
+      if ((point.category === "item" || point.category === "object") && !point.highlighted && view.scale < 0.65) continue;
       const pixel = worldToMapPixel(grid, point);
       const distance = (pixel.x - mapPoint.x) ** 2 + (pixel.y - mapPoint.y) ** 2;
       if (distance <= winnerDistance) { winner = point; winnerDistance = distance; }

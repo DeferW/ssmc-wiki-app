@@ -66,15 +66,22 @@ export type MapOverlay = {
   prototypes: Record<string, OverlayPrototype>;
   occurrences: Record<string, OverlayOccurrence[]>;
   itemOccurrences?: Record<string, OverlayOccurrence[]>;
+  objectGroups?: MapObjectGroup[];
+  objectPrototypes?: Record<string, MapObjectPrototype>;
+  objectOccurrences?: Record<string, OverlayOccurrence[]>;
   insertMaps: Record<string, {
     occurrences: Record<string, OverlayOccurrence[]>;
     itemOccurrences?: Record<string, OverlayOccurrence[]>;
+    objectOccurrences?: Record<string, OverlayOccurrence[]>;
     tiles?: string;
     areas?: MapAreaGrid | null;
     footprint?: MapTileFootprint | null;
   }>;
   areas?: MapAreaGrid | null;
 };
+
+export type MapObjectGroup = { id: string; name: string; detail?: string };
+export type MapObjectPrototype = { name: string; group: string };
 
 export type MapTileFootprint = {
   rows: number[][];
@@ -91,7 +98,7 @@ export type MapArea = {
   supportMask: number;
 };
 
-export type OverlayCategory = "loot" | "insert" | "label" | "spawn" | "marker" | "item";
+export type OverlayCategory = "loot" | "insert" | "label" | "spawn" | "marker" | "item" | "object";
 
 export type OverlayGroup =
   | "loot-intel"
@@ -110,7 +117,8 @@ export type OverlayGroup =
   | "misc-boundaries"
   | "misc-decor"
   | "misc-other"
-  | "item";
+  | "item"
+  | "object";
 
 export type MapStaticItem = {
   id: string;
@@ -150,6 +158,7 @@ export type OverlayPoint = {
   probability?: number;
   nightmareScenario?: string;
   item?: MapStaticItem;
+  object?: MapObjectPrototype;
   highlighted?: boolean;
 };
 

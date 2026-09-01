@@ -1,18 +1,6 @@
 {
   "schemaVersion": 2,
   "items": {
-    "RMCCombatUtilityKnifeA": {
-      "category": "Обвесы"
-    },
-    "RMCSentry": {
-      "category": "Снаряжение"
-    },
-    "WeaponRifleM4SPRFilled": {
-      "category": "Скрытые"
-    },
-    "CMFlash": {
-      "category": "Снаряжение"
-    },
     "ToySword": {
       "category": "Другое"
     },
@@ -34,9 +22,6 @@
     "RMCKitchenKnifeChef": {
       "category": "Другое"
     },
-    "VehicleTankLTBCannon": {
-      "category": "Другое"
-    },
     "RMCIceAxe": {
       "category": "Другое"
     },
@@ -46,47 +31,8 @@
     "CMM11Knife": {
       "category": "Снаряжение"
     },
-    "RMCSentryMini": {
-      "category": "Снаряжение"
-    },
-    "RMCMortarKit": {
-      "category": "Снаряжение"
-    },
-    "RMCWeaponShotgunM42A2Filled": {
-      "category": "Скрытые"
-    },
-    "CMScalpelLaser": {
-      "category": "Медицина"
-    },
-    "CMScalpelManager": {
-      "category": "Медицина"
-    },
-    "CMScalpelPICT": {
-      "category": "Медицина"
-    },
-    "CMScalpel": {
-      "category": "Медицина"
-    },
-    "CMScalpelLaserAdvanced": {
-      "category": "Медицина"
-    },
-    "RMCWeaponRifleM54CFilled": {
-      "category": "Скрытые"
-    },
-    "RMCM5Bayonet": {
-      "category": "Обвесы"
-    },
-    "CMStunbaton": {
-      "category": "Другое"
-    },
-    "RMCSawtoothDaggerA": {
-      "category": "Обвесы"
-    },
     "RMCKatanaDull": {
       "category": "Другое"
-    },
-    "RMCSentryFire": {
-      "category": "Снаряжение"
     },
     "RMCIceAxeGreen": {
       "category": "Другое"
@@ -250,9 +196,6 @@
     "CMDrinkCanAle": {
       "category": "Другое"
     },
-    "RMCFork": {
-      "category": "Другое"
-    },
     "CMDrinkCanBobdaGrape": {
       "category": "Другое"
     },
@@ -298,31 +241,13 @@
     "DrinkRumBottleFull": {
       "category": "Другое"
     },
-    "RMCSpoon": {
-      "category": "Другое"
-    },
-    "RMCShovel": {
-      "category": "Другое"
-    },
-    "RMCToolSpade": {
-      "category": "Другое"
-    },
     "RMCMegaphone": {
       "category": "Другое"
     },
     "DoorElectronics": {
       "category": "Другое"
     },
-    "RMCToolMiniHoe": {
-      "category": "Другое"
-    },
     "CMAPCElectronics": {
-      "category": "Другое"
-    },
-    "CMSoap": {
-      "category": "Другое"
-    },
-    "CMSoapNT": {
       "category": "Другое"
     },
     "RMCLamp": {
@@ -343,28 +268,13 @@
     "RMCDrinkCanSequoiaBeer": {
       "category": "Другое"
     },
-    "RMCForkPlastic": {
-      "category": "Другое"
-    },
-    "RMCSpoonPlastic": {
-      "category": "Другое"
-    },
-    "CMSoapSyndie": {
-      "category": "Другое"
-    },
     "CMWarningCone": {
-      "category": "Другое"
-    },
-    "CMSoapDeluxe": {
       "category": "Другое"
     },
     "RMCRollingPin": {
       "category": "Другое"
     },
     "CMDrinkCanThirteenLoko": {
-      "category": "Другое"
-    },
-    "STFlagCarriableUS": {
       "category": "Другое"
     },
     "CMDrinkCanFruitBeer": {

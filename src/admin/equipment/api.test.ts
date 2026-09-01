@@ -1,9 +1,27 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CatalogItem } from "../../modules/equipment/types";
-import { makeAdminDocument, normalizeAdminDocument } from "./api";
+import { loadAdminOverrides, makeAdminDocument, normalizeAdminDocument } from "./api";
 import { automaticCategory } from "./useAdminOverrides";
 
 describe("catalog admin overrides", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("loads the document and current SHA through the Worker", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      ok: true,
+      exists: true,
+      sha: "current-sha",
+      overrides: { schemaVersion: 2, items: {} },
+    }), { status: 200 })));
+
+    await expect(loadAdminOverrides()).resolves.toEqual({
+      overrides: {},
+      sha: "current-sha",
+      exists: true,
+      fallback: false,
+    });
+  });
+
   it("normalizes schema v2 and keeps Hidden as a category", () => {
     expect(normalizeAdminDocument({
       schemaVersion: 2,
