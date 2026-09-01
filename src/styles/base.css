@@ -68,7 +68,7 @@ input[type="checkbox"]::after {
   left: 4px;
   width: 4px;
   height: 7px;
-  border: solid var(--accent);
+  border: solid var(--surface);
   border-width: 0 2px 2px 0;
   content: "";
   opacity: 0;
@@ -81,8 +81,7 @@ input[type="radio"]::after {
   content: "";
   opacity: 0;
 }
-input[type="checkbox"]:checked { border-color: var(--accent); background: var(--surface); }
-input[type="radio"]:checked { border-color: var(--accent); background: var(--accent); }
+input[type="checkbox"]:checked, input[type="radio"]:checked { border-color: var(--accent); background: var(--accent); }
 input[type="checkbox"]:checked::after, input[type="radio"]:checked::after { opacity: 1; }
 button, a { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; }

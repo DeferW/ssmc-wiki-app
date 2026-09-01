@@ -134,7 +134,7 @@
 .maps-item-section > summary { display: grid; min-height: 35px; grid-template-columns: 16px minmax(0, 1fr) auto 9px; align-items: center; gap: 7px; padding: 5px 7px; color: var(--muted-strong); cursor: pointer; list-style: none; }
 .maps-item-section > summary::-webkit-details-marker { display: none; }
 .maps-item-section > summary:hover { background: var(--surface-highlight); color: var(--text-strong); }
-.maps-item-section > summary input { width: 13px; height: 13px; margin: 0; accent-color: var(--accent); }
+.maps-item-section > summary input { width: 13px; height: 13px; margin: 0; accent-color: var(--accent); transform: translateY(-1px); }
 .maps-item-section > summary strong { overflow: hidden; font-size: .58rem; text-overflow: ellipsis; white-space: nowrap; }
 .maps-item-section > summary output { color: var(--muted); font-size: .5rem; }
 .maps-item-section[open] > summary .maps-layer-chevron { transform: rotate(225deg); }
@@ -167,9 +167,6 @@
 .maps-marker-category { min-height: 45px; }
 .maps-marker-category span { display: grid; gap: 2px; }
 .maps-marker-category small { overflow: hidden; color: var(--muted); font-size: .49rem; font-weight: 400; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
-.maps-object-panel .maps-marker-category { min-height: 35px; padding-top: 4px; padding-bottom: 4px; }
-.maps-object-panel .maps-marker-category span { gap: 0; }
-.maps-object-panel .maps-marker-category small { font-size: .45rem; line-height: 1.15; }
 .maps-object-panel .maps-marker-category-list { align-content: start; grid-auto-rows: min-content; }
 .maps-layer-group { border: 0; }
 .maps-layer-group > summary { list-style: none; }
