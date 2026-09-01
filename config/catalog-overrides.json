@@ -1,4 +1,401 @@
 {
   "schemaVersion": 2,
-  "items": {}
+  "items": {
+    "RMCCombatUtilityKnifeA": {
+      "category": "Обвесы"
+    },
+    "RMCSentry": {
+      "category": "Снаряжение"
+    },
+    "WeaponRifleM4SPRFilled": {
+      "category": "Скрытые"
+    },
+    "CMFlash": {
+      "category": "Снаряжение"
+    },
+    "ToySword": {
+      "category": "Другое"
+    },
+    "RMCKatana": {
+      "category": "Другое"
+    },
+    "RMCPickaxe": {
+      "category": "Другое"
+    },
+    "STClanSword": {
+      "category": "Другое"
+    },
+    "HydroponicsToolScythe": {
+      "category": "Другое"
+    },
+    "KitchenKnife": {
+      "category": "Другое"
+    },
+    "RMCKitchenKnifeChef": {
+      "category": "Другое"
+    },
+    "VehicleTankLTBCannon": {
+      "category": "Другое"
+    },
+    "RMCIceAxe": {
+      "category": "Другое"
+    },
+    "CMM2132Machete": {
+      "category": "Снаряжение"
+    },
+    "CMM11Knife": {
+      "category": "Снаряжение"
+    },
+    "RMCSentryMini": {
+      "category": "Снаряжение"
+    },
+    "RMCMortarKit": {
+      "category": "Снаряжение"
+    },
+    "RMCWeaponShotgunM42A2Filled": {
+      "category": "Скрытые"
+    },
+    "CMScalpelLaser": {
+      "category": "Медицина"
+    },
+    "CMScalpelManager": {
+      "category": "Медицина"
+    },
+    "CMScalpelPICT": {
+      "category": "Медицина"
+    },
+    "CMScalpel": {
+      "category": "Медицина"
+    },
+    "CMScalpelLaserAdvanced": {
+      "category": "Медицина"
+    },
+    "RMCWeaponRifleM54CFilled": {
+      "category": "Скрытые"
+    },
+    "RMCM5Bayonet": {
+      "category": "Обвесы"
+    },
+    "CMStunbaton": {
+      "category": "Другое"
+    },
+    "RMCSawtoothDaggerA": {
+      "category": "Обвесы"
+    },
+    "RMCKatanaDull": {
+      "category": "Другое"
+    },
+    "RMCSentryFire": {
+      "category": "Снаряжение"
+    },
+    "RMCIceAxeGreen": {
+      "category": "Другое"
+    },
+    "RMCIceAxeRed": {
+      "category": "Другое"
+    },
+    "RMCKitchenKnife": {
+      "category": "Другое"
+    },
+    "RMCStraightRazor": {
+      "category": "Другое"
+    },
+    "RMCKitchenKnifePlastic": {
+      "category": "Другое"
+    },
+    "RMCFireAxe": {
+      "category": "Другое"
+    },
+    "FoamCrossbow": {
+      "category": "Другое"
+    },
+    "CMScalpelPredator": {
+      "category": "Другое"
+    },
+    "RMCKitchenKnifeButcher": {
+      "category": "Другое"
+    },
+    "HydroponicsToolHatchet": {
+      "category": "Другое"
+    },
+    "RMCToolHatchet": {
+      "category": "Другое"
+    },
+    "RMCCeremonialSword": {
+      "category": "Другое"
+    },
+    "STCeremonialDagger": {
+      "category": "Другое"
+    },
+    "RMCGrenadeSpecEquipmentCase": {
+      "category": "Другое"
+    },
+    "RMCBible": {
+      "category": "Другое"
+    },
+    "RCMPlushieRounyLizard": {
+      "category": "Другое"
+    },
+    "RMCLighter": {
+      "category": "Другое"
+    },
+    "RMCZippoExec": {
+      "category": "Другое"
+    },
+    "RMCZippo": {
+      "category": "Другое"
+    },
+    "RMCZippoGold": {
+      "category": "Другое"
+    },
+    "STHunterSpear": {
+      "category": "Другое"
+    },
+    "CMPenFountain": {
+      "category": "Другое"
+    },
+    "CMClipboard": {
+      "category": "Другое"
+    },
+    "RMCPlushieMoth": {
+      "category": "Другое"
+    },
+    "PlushieLizard": {
+      "category": "Другое"
+    },
+    "PlushieLizardMirrored": {
+      "category": "Другое"
+    },
+    "PlushieXeno": {
+      "category": "Другое"
+    },
+    "PlushieRouny": {
+      "category": "Другое"
+    },
+    "RMCStunBatonDamaged": {
+      "category": "Другое"
+    },
+    "RMCCigarCase": {
+      "category": "Другое"
+    },
+    "CMPlushieBee": {
+      "category": "Другое"
+    },
+    "ToyRubberDuck": {
+      "category": "Другое"
+    },
+    "CMPen": {
+      "category": "Другое"
+    },
+    "CMPenClicky": {
+      "category": "Другое"
+    },
+    "RMCTarbackTube": {
+      "category": "Другое"
+    },
+    "CMPlushieTherapy": {
+      "category": "Другое"
+    },
+    "RMCBibleHEFA": {
+      "category": "Другое"
+    },
+    "RMCWeYaClipboard": {
+      "category": "Другое"
+    },
+    "CMPlushieRunnerBeret": {
+      "category": "Другое"
+    },
+    "RMCMortarShellFlare": {
+      "category": "Боезапас"
+    },
+    "ClothingHeadHatHardhatWhite": {
+      "category": "Экипировка"
+    },
+    "UniformShortsRed": {
+      "category": "Экипировка"
+    },
+    "ClothingEyesBlindfold": {
+      "category": "Экипировка"
+    },
+    "ClothingHeadHatWelding": {
+      "category": "Экипировка"
+    },
+    "ClothingOuterStraightjacket": {
+      "category": "Экипировка"
+    },
+    "ClothingUniformJumpskirtJanimaidmini": {
+      "category": "Экипировка"
+    },
+    "VehicleAmmoBoxFlareLauncher": {
+      "category": "Боезапас"
+    },
+    "CMDrinkCanBobdaPineapple": {
+      "category": "Другое"
+    },
+    "DrinkFourteenLokoCan": {
+      "category": "Другое"
+    },
+    "CMDrinkCanBobdaClassic": {
+      "category": "Другое"
+    },
+    "DrinkPoisonWinebottleFull": {
+      "category": "Другое"
+    },
+    "CMDrinkCanBobdaVanilla": {
+      "category": "Другое"
+    },
+    "CMDrinkCanBeerLite": {
+      "category": "Другое"
+    },
+    "CMDrinkCanAle": {
+      "category": "Другое"
+    },
+    "RMCFork": {
+      "category": "Другое"
+    },
+    "CMDrinkCanBobdaGrape": {
+      "category": "Другое"
+    },
+    "CMDrinkCanBobdaCherry": {
+      "category": "Другое"
+    },
+    "CMDrinkCanSoda": {
+      "category": "Другое"
+    },
+    "CMDrinkCanBobdaBlue": {
+      "category": "Другое"
+    },
+    "CMDrinkCanMountainWind": {
+      "category": "Другое"
+    },
+    "CMDrinkCanBobdaDiet": {
+      "category": "Другое"
+    },
+    "CMDrinkCanBobdaCherryDiet": {
+      "category": "Другое"
+    },
+    "CMDrinkCanBobdaBlueDiet": {
+      "category": "Другое"
+    },
+    "CMDrinkCanBobdaLime": {
+      "category": "Другое"
+    },
+    "RMCLampCandelabra": {
+      "category": "Другое"
+    },
+    "BikeHorn": {
+      "category": "Другое"
+    },
+    "CMDrinkCanCola": {
+      "category": "Другое"
+    },
+    "CMDrinkCanBobdaCranberry": {
+      "category": "Другое"
+    },
+    "ClothingUniformJumpsuitJanitor": {
+      "category": "Другое"
+    },
+    "DrinkRumBottleFull": {
+      "category": "Другое"
+    },
+    "RMCSpoon": {
+      "category": "Другое"
+    },
+    "RMCShovel": {
+      "category": "Другое"
+    },
+    "RMCToolSpade": {
+      "category": "Другое"
+    },
+    "RMCMegaphone": {
+      "category": "Другое"
+    },
+    "DoorElectronics": {
+      "category": "Другое"
+    },
+    "RMCToolMiniHoe": {
+      "category": "Другое"
+    },
+    "CMAPCElectronics": {
+      "category": "Другое"
+    },
+    "CMSoap": {
+      "category": "Другое"
+    },
+    "CMSoapNT": {
+      "category": "Другое"
+    },
+    "RMCLamp": {
+      "category": "Другое"
+    },
+    "RMCLampGreen": {
+      "category": "Другое"
+    },
+    "RMCIntelFolder": {
+      "category": "Другое"
+    },
+    "RMCFlashlightPen": {
+      "category": "Другое"
+    },
+    "CMDrinkCanBobdaPeach": {
+      "category": "Другое"
+    },
+    "RMCDrinkCanSequoiaBeer": {
+      "category": "Другое"
+    },
+    "RMCForkPlastic": {
+      "category": "Другое"
+    },
+    "RMCSpoonPlastic": {
+      "category": "Другое"
+    },
+    "CMSoapSyndie": {
+      "category": "Другое"
+    },
+    "CMWarningCone": {
+      "category": "Другое"
+    },
+    "CMSoapDeluxe": {
+      "category": "Другое"
+    },
+    "RMCRollingPin": {
+      "category": "Другое"
+    },
+    "CMDrinkCanThirteenLoko": {
+      "category": "Другое"
+    },
+    "STFlagCarriableUS": {
+      "category": "Другое"
+    },
+    "CMDrinkCanFruitBeer": {
+      "category": "Другое"
+    },
+    "RMCLampTripod": {
+      "category": "Другое"
+    },
+    "RMCLampTripodGrey": {
+      "category": "Другое"
+    },
+    "XenoEgg": {
+      "category": "Другое"
+    },
+    "CMDrinkCanBoda": {
+      "category": "Другое"
+    },
+    "CMDrinkCanBodaPlyus": {
+      "category": "Другое"
+    },
+    "RMCPortableVendor": {
+      "category": "Экипировка"
+    },
+    "CMFirstAidKitFilledCommando": {
+      "category": "Медицина"
+    },
+    "RMCArmorB12Zipties": {
+      "category": "Скрытые"
+    },
+    "RMCArmorM4Zipties": {
+      "category": "Скрытые"
+    }
+  }
 }
