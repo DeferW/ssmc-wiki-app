@@ -41,23 +41,27 @@ function mergeMapItems(catalog: Catalog, mapCatalog: Awaited<ReturnType<typeof l
   if (!mapCatalog) return catalog;
   const items = { ...catalog.items };
   for (const [id, item] of Object.entries(mapCatalog.items)) {
-    if (items[id]) continue;
-    items[id] = {
-      ...item,
-      image: item.image ? mapDataUrl(item.image) : undefined,
-    };
+    const mapImage = item.image ? mapDataUrl(item.image) : undefined;
+    items[id] = items[id]
+      ? {
+          ...items[id],
+          category: item.category,
+          types: item.types,
+          classification: item.classification,
+          image: items[id].image ?? mapImage,
+        }
+      : { ...item, image: mapImage };
   }
   const itemIds = [...catalog.publicCatalog.itemIds];
   for (const id of mapCatalog.publicCatalog.itemIds) if (!itemIds.includes(id)) itemIds.push(id);
-  const categories: Record<string, string[]> = {};
-  for (const category of new Set([
+  const categoryNames = new Set([
     ...Object.keys(catalog.publicCatalog.categories),
     ...Object.keys(mapCatalog.publicCatalog.categories),
-  ])) {
-    categories[category] = [...new Set([
-      ...(catalog.publicCatalog.categories[category] ?? []),
-      ...(mapCatalog.publicCatalog.categories[category] ?? []),
-    ])];
+  ]);
+  const categories = Object.fromEntries([...categoryNames].map((category) => [category, [] as string[]]));
+  for (const id of itemIds) {
+    const category = items[id].category ?? "Другое";
+    (categories[category] ??= []).push(id);
   }
   return {
     ...catalog,

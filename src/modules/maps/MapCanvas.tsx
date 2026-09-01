@@ -468,8 +468,24 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         continue;
       }
 
-      const emphasized = point.group === "misc-other" || point.group === "misc-creatures";
-      const pointColor = GROUP_COLOR[point.group] ?? CATEGORY_COLOR[point.category];
+      const serviceMarker = point.category === "marker" && point.group === "misc-other";
+      const emphasized = serviceMarker || (point.category === "spawn" && point.group === "misc-creatures");
+      const pointColor = point.category === "insert"
+        ? CATEGORY_COLOR.insert
+        : GROUP_COLOR[point.group] ?? CATEGORY_COLOR[point.category];
+      if (serviceMarker) {
+        const radius = markerRadius * (selected ? 1.6 : 1.3);
+        context.save();
+        context.translate(pixel.x, pixel.y);
+        context.rotate(Math.PI / 4);
+        context.fillStyle = pointColor;
+        context.strokeStyle = selected ? "#ffffff" : "rgba(0, 0, 0, .92)";
+        context.lineWidth = (selected ? 3 : 2) / view.scale;
+        context.fillRect(-radius, -radius, radius * 2, radius * 2);
+        context.strokeRect(-radius, -radius, radius * 2, radius * 2);
+        context.restore();
+        continue;
+      }
       context.beginPath();
       context.arc(pixel.x, pixel.y, markerRadius * (selected ? 1.45 : emphasized ? 1.16 : 1), 0, Math.PI * 2);
       context.fillStyle = pointColor;
@@ -490,14 +506,14 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
 
   const nearestPoint = useCallback((screen: Point): OverlayPoint | undefined => {
     const mapPoint = mapPointAt(screen);
-    const radius = 14 / view.scale;
     let winner: OverlayPoint | undefined;
-    let winnerDistance = radius * radius;
+    let winnerDistance = Number.POSITIVE_INFINITY;
     for (const point of visiblePoints) {
-      if ((point.category === "item" || point.category === "object") && !point.highlighted && view.scale < 0.65) continue;
+      const quietDataPoint = (point.category === "item" || point.category === "object") && !point.highlighted;
+      const radius = (quietDataPoint ? 8 : 14) / view.scale;
       const pixel = worldToMapPixel(grid, point);
       const distance = (pixel.x - mapPoint.x) ** 2 + (pixel.y - mapPoint.y) ** 2;
-      if (distance <= winnerDistance) { winner = point; winnerDistance = distance; }
+      if (distance <= radius * radius && distance < winnerDistance) { winner = point; winnerDistance = distance; }
     }
     return winner;
   }, [grid, mapPointAt, view.scale, visiblePoints]);
