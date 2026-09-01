@@ -16,6 +16,8 @@ export type MarkerIcon =
   | "loot"
   | "fauna"
   | "remains"
+  | "corpse"
+  | "traces"
   | "evacuation"
   | "teleport"
   | "boundary"
@@ -50,7 +52,8 @@ export const MARKER_CATEGORIES: MarkerCategoryDefinition[] = [
   { key: "supplies", label: "Снабжение и ящики", detail: "комплекты, контейнеры и ящики AEGIS", icon: "supply", symbol: "⊠", groups: ["loot-supplies"] },
   { key: "random", label: "Прочий случайный лут", detail: "прочие точки случайных предметов", icon: "loot", symbol: "※", groups: ["loot-other"] },
   { key: "fauna", label: "Живые существа", detail: "животные, обезьяны и космические карпы", icon: "fauna", symbol: "♣", groups: ["misc-fauna"] },
-  { key: "remains", label: "Тела и следы", detail: "тела, кровь, останки и масляные пятна", icon: "remains", symbol: "✕", groups: ["misc-remains"] },
+  { key: "corpses", label: "Мёртвые тела", detail: "тела людей и других существ", icon: "corpse", symbol: "☠", groups: ["misc-corpses"] },
+  { key: "traces", label: "Кровь и пятна", detail: "кровь, останки, ошмётки и масляные пятна", icon: "traces", symbol: "●", groups: ["misc-traces"] },
   { key: "environment", label: "Случайное окружение", detail: "постеры, растения, мусор и декор", icon: "decor", symbol: "✣", groups: ["misc-decor"] },
   { key: "boundaries", label: "Границы и запреты", detail: "туман, барьеры и ограничители транспорта", icon: "boundary", symbol: "⊘", groups: ["misc-boundaries"] },
   { key: "technical", label: "Служебные точки", detail: "редкие вспомогательные точки маппинга", icon: "technical", symbol: "⊙", groups: ["misc-technical"] },
@@ -73,7 +76,8 @@ export const MARKER_STYLE: Partial<Record<OverlayGroup, { icon: MarkerIcon; colo
   "loot-supplies": { icon: "supply", color: "#ffd166" },
   "loot-other": { icon: "loot", color: "#d8bc78" },
   "misc-fauna": { icon: "fauna", color: "#e58a9b" },
-  "misc-remains": { icon: "remains", color: "#d97070" },
+  "misc-corpses": { icon: "corpse", color: "#c98a8a" },
+  "misc-traces": { icon: "traces", color: "#e76f73" },
   "misc-decor": { icon: "decor", color: "#a5b58e" },
   "misc-boundaries": { icon: "boundary", color: "#9bd5d2" },
   "misc-technical": { icon: "technical", color: "#d9a7ff" },

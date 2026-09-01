@@ -133,6 +133,7 @@ describe("map overlays", () => {
       prototypes: {
         RMCAegisSpawner: { name: "AEGIS crate spawner", kind: "spawner", components: { AegisSpawner: {} } },
         RMCSpawnerCorpseDoctor: { name: "Corpse Spawner - Doctor", kind: "spawner", components: { CorpseSpawner: {} } },
+        RMCDecalSpawnerBloodSplatters: { name: "blood spawner", kind: "spawner", components: { RandomDecalSpawner: {} } },
         RMCSpawnRatGray: { name: "rat spawner", kind: "spawner", components: { ConditionalSpawner: {} } },
         WarpPoint: { name: "warp point", kind: "marker" },
         RMCRequisitionsChairMarkerWest: { name: "requisitions chair marker", kind: "marker" },
@@ -140,6 +141,7 @@ describe("map overlays", () => {
       occurrences: Object.fromEntries([
         "RMCAegisSpawner",
         "RMCSpawnerCorpseDoctor",
+        "RMCDecalSpawnerBloodSplatters",
         "RMCSpawnRatGray",
         "WarpPoint",
         "RMCRequisitionsChairMarkerWest",
@@ -149,7 +151,8 @@ describe("map overlays", () => {
 
     expect(Object.fromEntries(flattenOverlay(overlay).map((point) => [point.prototypeId, point.group]))).toEqual({
       RMCAegisSpawner: "loot-supplies",
-      RMCSpawnerCorpseDoctor: "misc-remains",
+      RMCSpawnerCorpseDoctor: "misc-corpses",
+      RMCDecalSpawnerBloodSplatters: "misc-traces",
       RMCSpawnRatGray: "misc-fauna",
       WarpPoint: "misc-teleports",
       RMCRequisitionsChairMarkerWest: "misc-technical",

@@ -115,6 +115,8 @@ export type OverlayGroup =
   | "misc-creatures"
   | "misc-fauna"
   | "misc-remains"
+  | "misc-corpses"
+  | "misc-traces"
   | "misc-communications"
   | "misc-transport"
   | "misc-evacuation"

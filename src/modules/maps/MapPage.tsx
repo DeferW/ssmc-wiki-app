@@ -6,7 +6,7 @@ import { CATEGORY_ORDER, HIDDEN_CATEGORY } from "../equipment/config";
 import { loadMapCatalog, loadMapOverlay, loadMapStaticItems, loadTileManifest } from "./api";
 import { mapDataUrl } from "./config";
 import { MapCanvas, type MapCanvasHandle, type SelectionAnchor } from "./MapCanvas";
-import { MARKER_CATEGORIES, markerCategory, type MarkerCategoryDefinition } from "./markerConfig";
+import { MARKER_CATEGORIES, markerCategory, markerStyle, type MarkerCategoryDefinition } from "./markerConfig";
 import { activeInsertPlacements, areaAt, describeComponents, effectiveInsertProbability, flattenMapObjects, flattenOverlay, flattenStaticItems, insertVariations, pointDisplayName, pointProbabilityDescriptions, restoreInsertSelections, serializeInsertSelections, spawnOptions } from "./overlay";
 import type { ActiveInsertRender, CanvasStats, LayerSettings, MapCatalog, MapOverlay, MapStaticItem, MapStaticItemCatalog, OverlayCategory, OverlayGroup, OverlayPoint, Point, TileManifest } from "./types";
 
@@ -26,6 +26,8 @@ const DEFAULT_GROUPS: Record<OverlayGroup, boolean> = {
   "misc-creatures": false,
   "misc-fauna": false,
   "misc-remains": false,
+  "misc-corpses": false,
+  "misc-traces": false,
   "misc-communications": false,
   "misc-transport": false,
   "misc-evacuation": false,
@@ -57,7 +59,7 @@ const LOOT_GROUP_KEYS: OverlayGroup[] = [
   "loot-equipment", "loot-defense", "loot-supplies", "loot-other",
 ];
 const MISC_GROUP_KEYS: OverlayGroup[] = [
-  "misc-spawns", "misc-fauna", "misc-remains", "misc-communications",
+  "misc-spawns", "misc-fauna", "misc-corpses", "misc-traces", "misc-communications",
   "misc-evacuation", "misc-teleports", "misc-boundaries", "misc-decor",
   "misc-technical", "misc-unclassified",
 ];
@@ -787,7 +789,12 @@ export function MapPage() {
               style={selected.category === "insert" ? undefined : { left: selectionAnchor!.x, top: selectionAnchor!.y }}
             >
               <button className="maps-inspector-close" type="button" onClick={() => setSelected(undefined)} aria-label="Закрыть информацию">×</button>
-              <div className={`maps-point-badge maps-point-badge--${selected.category}`}>{markerCategory(selected)?.label ?? CATEGORY_LABELS[selected.category]}</div>
+              <div
+                className={`maps-point-badge maps-point-badge--${selected.category}`}
+                style={markerCategory(selected) ? { color: markerStyle(selected).color } : undefined}
+              >
+                {markerCategory(selected)?.label ?? CATEGORY_LABELS[selected.category]}
+              </div>
               <h2>{pointDisplayName(selected)}</h2>
               <code>{selected.prototypeId}</code>
               <p>X {selected.x.toFixed(1)} · Y {selected.y.toFixed(1)}</p>

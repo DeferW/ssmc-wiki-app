@@ -166,8 +166,8 @@ function groupOf(id: string, prototype: OverlayPrototype, occurrence: OverlayOcc
   if (/goggles|equipment|gear|armor|helmet|clothing/i.test(source)) return "loot-equipment";
   if (components.has("AegisSpawner") || /crate.?loot|supply.?kit/i.test(source)) return "loot-supplies";
   if (/tool|power.?cell|powercell|tech.?supply|battery/i.test(source)) return "loot-tools";
-  if (components.has("AegisCorpseSpawner") || components.has("CorpseSpawner") || components.has("RandomDecalSpawner")) return "misc-remains";
-  if (/corpse|blood|gibs?|oil.?splatter/i.test(source)) return "misc-remains";
+  if (components.has("AegisCorpseSpawner") || components.has("CorpseSpawner") || /corpse/i.test(source)) return "misc-corpses";
+  if (components.has("RandomDecalSpawner") || /blood|gibs?|oil.?splatter/i.test(source)) return "misc-traces";
   if (/spawn.?mob|spawn.?rat|mouse|monkey|carp|jones|orion|wiggles|bernard|buttons|garry/i.test(source)) return "misc-fauna";
   if (components.has("GridSpawner") && /evac|lifeboat/i.test(source)) return "misc-evacuation";
   if (/trigger.?teleporter|teleport.?destination|warp.?point/i.test(source)) return "misc-teleports";

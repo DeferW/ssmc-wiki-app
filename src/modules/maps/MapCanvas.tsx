@@ -170,6 +170,23 @@ function drawMarkerIcon(
       circle(0, .3, .42, true);
       circle(-.5, -.35, .2, true); circle(0, -.58, .2, true); circle(.5, -.35, .2, true);
       break;
+    case "corpse":
+      circle(-.58, -.12, .22);
+      linePath(-.3, 0, .62, 0);
+      linePath(.05, 0, -.18, -.48);
+      linePath(.05, 0, -.12, .48);
+      linePath(.62, 0, .84, -.38);
+      linePath(.62, 0, .84, .38);
+      break;
+    case "traces":
+      context.beginPath();
+      context.moveTo(0, -.9 * size);
+      context.bezierCurveTo(.18 * size, -.5 * size, .66 * size, -.08 * size, .66 * size, .36 * size);
+      context.bezierCurveTo(.66 * size, .78 * size, .36 * size, .95 * size, 0, .95 * size);
+      context.bezierCurveTo(-.36 * size, .95 * size, -.66 * size, .78 * size, -.66 * size, .36 * size);
+      context.bezierCurveTo(-.66 * size, -.08 * size, -.18 * size, -.5 * size, 0, -.9 * size);
+      context.closePath(); context.fill();
+      break;
     case "remains":
       linePath(-.72, -.72, .72, .72);
       linePath(.72, -.72, -.72, .72);
