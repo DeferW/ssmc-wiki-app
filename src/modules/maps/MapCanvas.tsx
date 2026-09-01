@@ -436,10 +436,9 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
 
       const quiet = QUIET_MARKERS[point.prototypeId];
       if (quiet) {
-        if (view.scale < 0.28 && !selected) continue;
         context.save();
-        context.globalAlpha = selected ? 1 : 0.46;
-        context.font = `${point.prototypeId === "RMCCrashLandBarrier" ? 700 : 500} ${10 / view.scale}px IBM Plex Mono, monospace`;
+        context.globalAlpha = selected ? 1 : 0.82;
+        context.font = `700 ${12.5 / view.scale}px IBM Plex Mono, monospace`;
         context.textAlign = "center";
         context.textBaseline = "middle";
         context.fillStyle = quiet.color;

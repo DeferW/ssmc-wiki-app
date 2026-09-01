@@ -57,23 +57,23 @@ const MARKER_CATEGORIES: {
   groups?: OverlayGroup[];
   layer?: "insert";
 }[] = [
+  { key: "inserts", label: "Инсерты", detail: "вариативные участки карты", layer: "insert" },
+  { key: "communications", label: "Связь", detail: "вышки связи и телекоммуникации", groups: ["misc-communications"] },
+  { key: "spawns", label: "Точки появления", detail: "роли, отряды и точки подключения", groups: ["misc-spawns"] },
   { key: "intel", label: "Разведданные", detail: "документы, отчёты и разведывательные цели", groups: ["loot-intel"] },
   { key: "weapons", label: "Оружие", detail: "случайное оружие и оружейные модули", groups: ["loot-weapons"] },
   { key: "ammo", label: "Боеприпасы", detail: "магазины, патроны и боеприпасы", groups: ["loot-ammo"] },
   { key: "defense", label: "Оборонные системы", detail: "турели, мины и тяжёлое вооружение", groups: ["loot-defense"] },
-  { key: "tools", label: "Инструменты и техника", detail: "инструменты, батареи и технические наборы", groups: ["loot-tools"] },
   { key: "medical", label: "Медицина", detail: "аптечки, препараты и медицинские наборы", groups: ["loot-medical"] },
+  { key: "tools", label: "Инструменты и техника", detail: "инструменты, батареи и технические наборы", groups: ["loot-tools"] },
   { key: "equipment", label: "Экипировка", detail: "броня, очки и носимое снаряжение", groups: ["loot-equipment"] },
   { key: "supplies", label: "Снабжение и ящики", detail: "комплекты, контейнеры и точки снабжения", groups: ["loot-supplies"] },
   { key: "random", label: "Прочий случайный лут", detail: "прочие случайные предметы", groups: ["loot-other"] },
-  { key: "spawns", label: "Точки появления", detail: "роли, отряды и точки подключения", groups: ["misc-spawns"] },
-  { key: "creatures", label: "Существа и останки", detail: "животные, тела, кровь и следы", groups: ["misc-creatures"] },
-  { key: "communications", label: "Связь", detail: "вышки связи и телекоммуникации", groups: ["misc-communications"] },
   { key: "transport", label: "Транспорт и переходы", detail: "эвакуация, телепорты и переходы", groups: ["misc-transport"] },
   { key: "boundaries", label: "Границы и запреты", detail: "барьеры, блокировщики и ограничения", groups: ["misc-boundaries"] },
+  { key: "creatures", label: "Существа и останки", detail: "животные, тела, кровь и следы", groups: ["misc-creatures"] },
   { key: "environment", label: "Окружение", detail: "случайный декор и следы окружения", groups: ["misc-decor"] },
   { key: "technical", label: "Служебные точки", detail: "редкие технические маркеры карты", groups: ["misc-other"] },
-  { key: "inserts", label: "Инсерты", detail: "вариативные участки карты", layer: "insert" },
 ];
 
 const CATEGORY_LABELS: Record<OverlayCategory, string> = {
@@ -596,7 +596,7 @@ export function MapPage() {
             <div className="maps-loading"><span className="maps-loader" />{error ? "Карта недоступна" : "Загрузка манифеста карты…"}</div>
           )}
 
-          <nav className="maps-data-tools maps-mode-dock" aria-label="Данные текущего модуля карты">
+          {!sidebarOpen && !markerPanelOpen && !itemPanelOpen && <nav className="maps-data-tools maps-mode-dock" aria-label="Данные текущего модуля карты">
             <button
               className={markerPanelOpen ? "is-active" : ""}
               type="button"
@@ -627,7 +627,7 @@ export function MapPage() {
               <strong>Предметы</strong>
               <output>{availableItems.length}</output>
             </button>
-          </nav>
+          </nav>}
 
           <div className="maps-corner-tools">
             <div className="maps-coordinate">{formatCoordinate(coordinate)}</div>
