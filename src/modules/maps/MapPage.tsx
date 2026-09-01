@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Link, useSearchParams } from "react-router-dom";
 import { REMOTE_DATA_UNAVAILABLE_MESSAGE } from "../../data/remoteJson";
 import { modulePath } from "../../routes";
-import { CATEGORY_ORDER } from "../equipment/config";
+import { CATEGORY_ORDER, HIDDEN_CATEGORY } from "../equipment/config";
 import { loadMapCatalog, loadMapOverlay, loadMapStaticItems, loadTileManifest } from "./api";
 import { mapDataUrl } from "./config";
 import { MapCanvas, type MapCanvasHandle, type SelectionAnchor } from "./MapCanvas";
@@ -384,12 +384,11 @@ export function MapPage() {
   );
   const highlightedItemIds = useMemo(() => {
     const ids = new Set([...activeItemIds].filter((id) => itemCounts[id]));
-    if (itemSearch.trim()) for (const item of searchableItems) ids.add(item.id);
     for (const item of availableItems) {
       if (itemCategories.has(item.category)) ids.add(item.id);
     }
     return ids;
-  }, [activeItemIds, availableItems, itemCategories, itemCounts, itemSearch, searchableItems]);
+  }, [activeItemIds, availableItems, itemCategories, itemCounts]);
   const itemPoints = useMemo(
     () => allItemPoints.map((point) => ({ ...point, highlighted: highlightedItemIds.has(point.prototypeId) })),
     [allItemPoints, highlightedItemIds],
@@ -824,7 +823,12 @@ export function MapPage() {
                   </div>
                   <Link
                     className="maps-catalog-link"
-                    to={`${modulePath("equipment")}?item=${encodeURIComponent(selected.prototypeId)}`}
+                    to={`${modulePath("equipment")}?${new URLSearchParams({
+                      item: selected.prototypeId,
+                      ...(selected.item.category === HIDDEN_CATEGORY
+                        ? {}
+                        : { category: selected.item.category, locate: "1" }),
+                    }).toString()}`}
                     title="Открыть карточку предмета в каталоге"
                   >
                     <span>Открыть в каталоге</span><strong aria-hidden="true">→</strong>
@@ -1016,9 +1020,6 @@ export function MapPage() {
             })}
             {!searchableItems.length && <p>На этой карте совпадений нет.</p>}
           </div>
-          <p className="maps-sidebar-hint">
-            Поиск подсвечивает совпадения. Без подсветки предмет можно открыть кликом по его спрайту на близком масштабе.
-          </p>
         </aside>
 
         <aside id="map-objects" className={objectPanelOpen ? "maps-items-panel maps-object-panel is-open" : "maps-items-panel maps-object-panel"}>
@@ -1044,7 +1045,6 @@ export function MapPage() {
             ))}
           </section>
           {!availableObjectGroups.length && <p className="maps-sidebar-hint">На этой карте настроенных объектов нет.</p>}
-          <p className="maps-sidebar-hint">Поиск и категории подсвечивают объекты оранжевым ромбом. На близком масштабе их можно открыть без фильтра.</p>
         </aside>
       </div>
     </main>

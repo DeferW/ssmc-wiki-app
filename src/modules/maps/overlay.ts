@@ -174,8 +174,11 @@ function categoryOf(id: string, prototype: OverlayPrototype, occurrence: Overlay
   return "marker";
 }
 
-function groupOf(category: OverlayCategory, id: string, name: string): OverlayGroup {
+function groupOf(category: OverlayCategory, id: string, name: string, kind: OverlayPrototype["kind"]): OverlayGroup {
   const source = `${id} ${name}`;
+  // Plain map markers are editor/service landmarks. Keep them in the
+  // technical group even when their name resembles transport or decor.
+  if (kind === "marker" && category !== "label") return "misc-other";
   if (category === "spawn" && /spawn.?point|latejoin|observer/i.test(source)) return "misc-spawns";
   if (/spawn.?mob|spawn.?rat|corpse|mouse|monkey|carp|blood|gibs?|oil/i.test(source)) return "misc-creatures";
   if (/communications?.?tower|static.?comms|telecom|tcomms/i.test(source)) return "misc-communications";
@@ -224,7 +227,7 @@ function pointsFor(
         prototypeId,
         name: prototype.name || prototypeId,
         category,
-        group: groupOf(category, prototypeId, prototype.name),
+        group: groupOf(category, prototypeId, prototype.name, prototype.kind),
         x: entry[0],
         y: entry[1],
         rotation: entry[2] ?? 0,

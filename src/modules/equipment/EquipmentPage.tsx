@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { automaticCategory, useAdminOverrides } from "../../admin/equipment/useAdminOverrides";
 import { EQUIPMENT_ADMIN_PATH, modulePath } from "../../routes";
@@ -24,6 +24,7 @@ export function EquipmentPage({ adminMode = false }: { adminMode?: boolean }) {
   const deferredQuery = useDeferredValue(query);
   const selectedCategories = searchParams.getAll("category");
   const selectedId = searchParams.get("item");
+  const locateSelected = searchParams.get("locate") === "1";
   const sort = searchParams.get("sort") === "category" ? "category" : "name";
 
   const setParams = useCallback((mutate: (params: URLSearchParams) => void) => {
@@ -124,6 +125,16 @@ export function EquipmentPage({ adminMode = false }: { adminMode?: boolean }) {
   const appliedOverrides = useMemo(() => new Set(catalog?.overrides?.appliedItemIds ?? []), [catalog]);
   const selectedVisibleCount = filteredIds.filter((id) => selectedAdminIds.has(id)).length;
   const allVisibleSelected = filteredIds.length > 0 && selectedVisibleCount === filteredIds.length;
+
+  useEffect(() => {
+    if (!catalog || !locateSelected || !selectedId || !filteredIds.includes(selectedId)) return;
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(`catalog-item-${encodeURIComponent(selectedId)}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      setParams((next) => next.delete("locate"));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [catalog, filteredIds, locateSelected, selectedId, setParams]);
 
   const toggleAdminSelection = (id: string) => {
     setSelectedAdminIds((current) => {
@@ -288,7 +299,7 @@ export function EquipmentPage({ adminMode = false }: { adminMode?: boolean }) {
                 const adminSelected = selectedAdminIds.has(id);
                 const hasOverride = adminMode ? Boolean(admin.draft[id]) : item.edited || appliedOverrides.has(id);
                 return (
-                  <article className={`equipment-card${selectedId === id ? " is-selected" : ""}${adminMode ? " is-admin" : ""}${adminSelected ? " is-admin-selected" : ""}${category === HIDDEN_CATEGORY ? " is-hidden" : ""}`} key={id}>
+                  <article id={`catalog-item-${encodeURIComponent(id)}`} className={`equipment-card${selectedId === id ? " is-selected" : ""}${adminMode ? " is-admin" : ""}${adminSelected ? " is-admin-selected" : ""}${category === HIDDEN_CATEGORY ? " is-hidden" : ""}`} key={id}>
                     {adminMode && (
                       <label className="admin-card-select" title="Добавить предмет в групповой выбор">
                         <input type="checkbox" checked={adminSelected} onChange={() => toggleAdminSelection(id)} />
@@ -298,7 +309,7 @@ export function EquipmentPage({ adminMode = false }: { adminMode?: boolean }) {
                     <button className="equipment-card-main" type="button" onClick={() => selectItem(id)} aria-haspopup="dialog">
                       <span className="equipment-card-top">
                         <span>{category}</span>
-                        {hasOverride && <i title="Предмет присутствует в overrides">EDT</i>}
+                        {adminMode && hasOverride && <i title="Предмет присутствует в overrides">EDT</i>}
                       </span>
                       <ItemSprite item={item} />
                       <strong>{capitalizeName(item.name)}</strong>

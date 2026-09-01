@@ -112,6 +112,20 @@ describe("map overlays", () => {
     expect(pointDisplayName({ ...point, label: "Aurora Medical Clinic" })).toBe("Aurora Medical Clinic");
   });
 
+  it("keeps plain editor markers in the service group", () => {
+    const overlay: MapOverlay = {
+      schemaVersion: 4,
+      mapPath: "/Maps/test.yml",
+      prototypes: {
+        RMCBlockerVehicle: { name: "vehicle blocker", kind: "marker" },
+      },
+      occurrences: { RMCBlockerVehicle: [[1.5, 2.5]] },
+      insertMaps: {},
+    };
+
+    expect(flattenOverlay(overlay)[0].group).toBe("misc-other");
+  });
+
   it("calculates grouped communication tower probability", () => {
     const tower: OverlayPoint = {
       key: "tower:1",
