@@ -47,6 +47,7 @@ export type CatalogItem = {
   category?: string;
   image?: string;
   edited?: boolean;
+  directlyVended?: boolean;
   types?: string[];
   tags?: string[];
   componentTypes?: string[];

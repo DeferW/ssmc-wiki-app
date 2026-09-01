@@ -260,6 +260,81 @@ function cachedMarkerIcon(
   return value;
 }
 
+const DATA_POINT_ICON_CACHE = new Map<string, CachedMarkerIcon>();
+
+function cachedDataPointIcon(
+  category: "item" | "object",
+  selected: boolean,
+  screenRadius: number,
+  devicePixelRatio: number,
+): CachedMarkerIcon {
+  const radius = Math.round(screenRadius * 4) / 4;
+  const ratio = Math.max(1, devicePixelRatio);
+  const key = `${category}:${selected ? 1 : 0}:${radius}:${ratio.toFixed(2)}`;
+  const cached = DATA_POINT_ICON_CACHE.get(key);
+  if (cached) return cached;
+  const requestedHalfSize = Math.ceil(radius * 1.55 + 4);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(requestedHalfSize * 2 * ratio);
+  canvas.height = canvas.width;
+  const halfSize = canvas.width / ratio / 2;
+  const context = canvas.getContext("2d")!;
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  context.translate(halfSize, halfSize);
+  context.rotate(Math.PI / 4);
+  const color = CATEGORY_COLOR[category];
+  context.strokeStyle = selected ? "#ffffff" : color;
+  context.fillStyle = selected ? `${color}42` : `${color}1f`;
+  context.lineWidth = selected ? 2.6 : 1.4;
+  context.fillRect(-radius, -radius, radius * 2, radius * 2);
+  context.strokeRect(-radius, -radius, radius * 2, radius * 2);
+  const value = { canvas, halfSize };
+  DATA_POINT_ICON_CACHE.set(key, value);
+  if (DATA_POINT_ICON_CACHE.size > 32) {
+    const oldest = DATA_POINT_ICON_CACHE.keys().next().value;
+    if (oldest !== undefined) DATA_POINT_ICON_CACHE.delete(oldest);
+  }
+  return value;
+}
+
+type CachedMapLabel = { canvas: HTMLCanvasElement; halfWidth: number; halfHeight: number };
+const MAP_LABEL_CACHE = new Map<string, CachedMapLabel>();
+
+function cachedMapLabel(text: string, color: string, selected: boolean, devicePixelRatio: number): CachedMapLabel {
+  const ratio = Math.max(1, devicePixelRatio);
+  const key = `${text}:${color}:${selected ? 1 : 0}:${ratio.toFixed(2)}`;
+  const cached = MAP_LABEL_CACHE.get(key);
+  if (cached) return cached;
+  const measure = document.createElement("canvas").getContext("2d")!;
+  measure.font = "700 17px IBM Plex Mono, monospace";
+  const width = Math.ceil(measure.measureText(text).width + 16);
+  const height = 32;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(width * ratio);
+  canvas.height = Math.ceil(height * ratio);
+  const halfWidth = canvas.width / ratio / 2;
+  const halfHeight = canvas.height / ratio / 2;
+  const context = canvas.getContext("2d")!;
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  context.globalAlpha = selected ? 1 : .88;
+  context.font = "700 17px IBM Plex Mono, monospace";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.lineJoin = "round";
+  context.lineWidth = selected ? 5.5 : 4.5;
+  context.strokeStyle = "rgba(0, 0, 0, .9)";
+  context.strokeText(text, halfWidth, halfHeight);
+  context.fillStyle = selected ? "#ffffff" : color;
+  context.fillText(text, halfWidth, halfHeight);
+  const value = { canvas, halfWidth, halfHeight };
+  MAP_LABEL_CACHE.set(key, value);
+  if (MAP_LABEL_CACHE.size > 128) {
+    const oldest = MAP_LABEL_CACHE.keys().next().value;
+    if (oldest !== undefined) MAP_LABEL_CACHE.delete(oldest);
+  }
+  return value;
+}
+
 function tileUrl(pattern: string, manifestUrl: string, revision: number, z: number, x: number, y: number): string {
   const url = new URL(pattern.replace("{z}", String(z)).replace("{x}", String(x)).replace("{y}", String(y)), manifestUrl);
   url.searchParams.set("v", new URL(manifestUrl).searchParams.get("v") ?? String(revision));
@@ -484,6 +559,12 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
     && (!["loot", "spawn", "marker"].includes(point.category) || layers.groups[point.group])
   )), [layers, points]);
 
+  const drawnPoints = useMemo(() => visiblePoints.filter((point) => (
+    (point.category !== "item" && point.category !== "object")
+    || point.highlighted
+    || point.key === selectedKey
+  )), [selectedKey, visiblePoints]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -599,7 +680,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       bottom: (size.height - view.y) / view.scale + markerRadius * 4,
     };
     const drawnDataTiles = new Set<string>();
-    for (const point of visiblePoints) {
+    for (const point of drawnPoints) {
       const pixel = worldToMapPixel(grid, point);
       if (pixel.x < bounds.left || pixel.x > bounds.right || pixel.y < bounds.top || pixel.y > bounds.bottom) continue;
       const selected = point.key === selectedKey;
@@ -610,33 +691,29 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         if (drawnDataTiles.has(tileKey) && !selected) continue;
         drawnDataTiles.add(tileKey);
         const radius = Math.max(6 / view.scale, (7.5 * layers.markerScale) / Math.sqrt(Math.max(view.scale, 0.08)));
-        const color = CATEGORY_COLOR[point.category];
-        context.save();
-        context.translate(pixel.x, pixel.y);
-        context.rotate(Math.PI / 4);
-        context.strokeStyle = selected ? "#ffffff" : color;
-        context.fillStyle = selected ? `${color}42` : `${color}1f`;
-        context.lineWidth = (selected ? 2.6 : 1.4) / view.scale;
-        context.fillRect(-radius, -radius, radius * 2, radius * 2);
-        context.strokeRect(-radius, -radius, radius * 2, radius * 2);
-        context.restore();
+        const cachedIcon = cachedDataPointIcon(point.category, selected, radius * view.scale, dpr);
+        const halfSize = cachedIcon.halfSize / view.scale;
+        context.drawImage(
+          cachedIcon.canvas,
+          pixel.x - halfSize,
+          pixel.y - halfSize,
+          halfSize * 2,
+          halfSize * 2,
+        );
         continue;
       }
 
       if (point.category === "label" && point.label) {
-        const fontSize = 17 / view.scale;
-        context.save();
-        context.globalAlpha = selected ? 1 : 0.88;
-        context.font = `700 ${fontSize}px IBM Plex Mono, monospace`;
-        context.textAlign = "center";
-        context.textBaseline = "middle";
-        context.lineJoin = "round";
-        context.lineWidth = (selected ? 5.5 : 4.5) / view.scale;
-        context.strokeStyle = "rgba(0, 0, 0, .9)";
-        context.strokeText(point.label, pixel.x, pixel.y);
-        context.fillStyle = selected ? "#ffffff" : CATEGORY_COLOR.label;
-        context.fillText(point.label, pixel.x, pixel.y);
-        context.restore();
+        const cachedLabel = cachedMapLabel(point.label, CATEGORY_COLOR.label, selected, dpr);
+        const halfWidth = cachedLabel.halfWidth / view.scale;
+        const halfHeight = cachedLabel.halfHeight / view.scale;
+        context.drawImage(
+          cachedLabel.canvas,
+          pixel.x - halfWidth,
+          pixel.y - halfHeight,
+          halfWidth * 2,
+          halfHeight * 2,
+        );
         continue;
       }
 
@@ -658,7 +735,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       );
     }
     context.restore();
-  }, [grid, hoverTile, insertLayers, layers, level, manifest.tileSize, maximum, overview, overviewUrls, selectedKey, size, tileRevision, view, visible, visiblePoints, visibleUrls]);
+  }, [drawnPoints, grid, hoverTile, insertLayers, layers, level, manifest.tileSize, maximum, overview, overviewUrls, selectedKey, size, tileRevision, view, visible, visibleUrls]);
 
   const mapPointAt = useCallback((screen: Point) => ({
     x: (screen.x - view.x) / view.scale,

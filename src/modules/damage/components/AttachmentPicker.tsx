@@ -9,12 +9,32 @@ export function AttachmentPicker({ catalog, compatibleItemIds, selectedId, onSel
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
+  const lockedIntegratedIds = useMemo(() => {
+    const result = new Set<string>();
+    for (const owner of Object.values(catalog.items)) {
+      const holder = owner.properties?.AttachableHolder;
+      const slots = holder?.slots;
+      if (!slots || typeof slots !== "object" || Array.isArray(slots)) continue;
+      for (const value of Object.values(slots)) {
+        if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+        const slot = value as Record<string, unknown>;
+        const attachmentId = slot.startingAttachable;
+        if (slot.locked !== true || typeof attachmentId !== "string") continue;
+        const attachment = catalog.items[attachmentId];
+        if (attachment && !attachment.directlyVended && !attachment.availability?.length) {
+          result.add(attachmentId);
+        }
+      }
+    }
+    return result;
+  }, [catalog]);
+
   const items = useMemo(() => (
     compatibleItemIds
       .map((id) => catalog.items[id])
-      .filter((item): item is CatalogItem => Boolean(item))
+      .filter((item): item is CatalogItem => Boolean(item) && !lockedIntegratedIds.has(item.id))
       .sort((a, b) => a.name.localeCompare(b.name, "ru"))
-  ), [catalog, compatibleItemIds]);
+  ), [catalog, compatibleItemIds, lockedIntegratedIds]);
 
   if (!items.length) return <p className="muted">Нет совместимых обвесов в каталоге.</p>;
 
