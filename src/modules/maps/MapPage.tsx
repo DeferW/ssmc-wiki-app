@@ -404,7 +404,11 @@ export function MapPage() {
     return counts;
   }, {}), [allObjectPoints]);
   const availableObjectGroups = useMemo(
-    () => (overlay?.objectGroups ?? []).filter((group) => objectGroupCounts[group.id]),
+    () => (overlay?.objectGroups ?? [])
+      .filter((group) => objectGroupCounts[group.id])
+      .map((group) => group.id === "vehicles-and-wheels"
+        ? { ...group, name: "Машины", detail: "размещённые на карте машины" }
+        : group),
     [objectGroupCounts, overlay?.objectGroups],
   );
   const highlightedObjectIds = useMemo(() => {
