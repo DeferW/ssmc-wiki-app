@@ -134,7 +134,7 @@
 .maps-item-section > summary { display: grid; min-height: 35px; grid-template-columns: 16px minmax(0, 1fr) auto 9px; align-items: center; gap: 7px; padding: 5px 7px; color: var(--muted-strong); cursor: pointer; list-style: none; }
 .maps-item-section > summary::-webkit-details-marker { display: none; }
 .maps-item-section > summary:hover { background: var(--surface-highlight); color: var(--text-strong); }
-.maps-item-section > summary input { width: 13px; height: 13px; margin: 0; accent-color: var(--accent); transform: translateY(-1px); }
+.maps-item-section > summary input { margin: 0; accent-color: var(--accent); }
 .maps-item-section > summary strong { overflow: hidden; font-size: .58rem; text-overflow: ellipsis; white-space: nowrap; }
 .maps-item-section > summary output { color: var(--muted); font-size: .5rem; }
 .maps-item-section[open] > summary .maps-layer-chevron { transform: rotate(225deg); }
