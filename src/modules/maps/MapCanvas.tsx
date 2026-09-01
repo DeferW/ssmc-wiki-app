@@ -50,6 +50,13 @@ const CATEGORY_COLOR: Record<OverlayPoint["category"], string> = {
   object: "#e9a052",
 };
 
+const GROUP_COLOR: Partial<Record<OverlayPoint["group"], string>> = {
+  "misc-creatures": "#ff737d",
+  "misc-other": "#d9a7ff",
+  "misc-spawns": "#ff8585",
+  "loot-supplies": "#ffd166",
+};
+
 const QUIET_MARKERS: Record<string, { glyph: string; color: string }> = {
   RMCCrashLandBarrier: { glyph: "H", color: "#e8efc7" },
   RMCBlockerVehicle: { glyph: "⊘", color: "#9bd5d2" },
@@ -461,13 +468,15 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         continue;
       }
 
+      const emphasized = point.group === "misc-other" || point.group === "misc-creatures";
+      const pointColor = GROUP_COLOR[point.group] ?? CATEGORY_COLOR[point.category];
       context.beginPath();
-      context.arc(pixel.x, pixel.y, markerRadius * (selected ? 1.45 : 1), 0, Math.PI * 2);
-      context.fillStyle = CATEGORY_COLOR[point.category];
-      context.globalAlpha = point.insertPath ? 0.72 : 0.92;
+      context.arc(pixel.x, pixel.y, markerRadius * (selected ? 1.45 : emphasized ? 1.16 : 1), 0, Math.PI * 2);
+      context.fillStyle = pointColor;
+      context.globalAlpha = point.insertPath ? 0.88 : 1;
       context.fill();
       context.globalAlpha = 1;
-      context.lineWidth = (selected ? 3 : 1) / view.scale;
+      context.lineWidth = (selected ? 3 : emphasized ? 1.7 : 1.15) / view.scale;
       context.strokeStyle = selected ? "#ffffff" : "rgba(0, 0, 0, .78)";
       context.stroke();
     }

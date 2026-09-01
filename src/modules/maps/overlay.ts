@@ -1,6 +1,7 @@
 import type { InsertPlacement, MapArea, MapAreaGrid, MapEntry, MapOverlay, MapStaticItemCatalog, MapTileFootprint, OverlayCategory, OverlayGroup, OverlayOccurrence, OverlayPoint, OverlayPrototype, Point } from "./types";
 
 const LOOT_COMPONENTS = new Set([
+  "AegisSpawner",
   "UniqueRandomSpawner",
   "ConditionalSpawner",
   "GunSpawner",
@@ -169,7 +170,7 @@ function categoryOf(id: string, prototype: OverlayPrototype, occurrence: Overlay
   if (/spawn.?mob|spawn.?rat|corpse|mouse|monkey|carp|blood|gibs?|oil/i.test(source)) return "spawn";
   if (/communications?.?tower|static.?comms|evac|lifeboat|teleport|warp|dropship|blocker|barrier|fog|poster|plant|arcade|cigarette|bedsheet|decal|chair/i.test(source)) return "marker";
   if (components.some((component) => LOOT_COMPONENTS.has(component))) return "loot";
-  if (prototype.kind === "spawner" && /intel|objective|folder|document|report|loot|gun|ammo|buckshot|attachment|goggles|pill|sentry|turret|tool|power.?cell|supply|equipment|gear|warhead/i.test(source)) return "loot";
+  if (prototype.kind === "spawner" && /aegis|crate|box|intel|objective|folder|document|report|loot|gun|ammo|buckshot|attachment|goggles|pill|sentry|turret|tool|power.?cell|supply|equipment|gear|warhead/i.test(source)) return "loot";
   return "marker";
 }
 

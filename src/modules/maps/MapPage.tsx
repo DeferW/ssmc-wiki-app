@@ -224,7 +224,7 @@ export function MapPage() {
   const [objectPanelOpen, setObjectPanelOpen] = useState(false);
   const [itemSearch, setItemSearch] = useState("");
   const [itemCategories, setItemCategories] = useState<Set<string>>(() => new Set());
-  const [activeItemId, setActiveItemId] = useState<string>();
+  const [activeItemIds, setActiveItemIds] = useState<Set<string>>(() => new Set());
   const [objectSearch, setObjectSearch] = useState("");
   const [objectGroups, setObjectGroups] = useState<Set<string>>(() => new Set());
   const [selected, setSelected] = useState<OverlayPoint>();
@@ -383,14 +383,13 @@ export function MapPage() {
     [itemCategories, searchableItems],
   );
   const highlightedItemIds = useMemo(() => {
-    if (activeItemId && itemCounts[activeItemId]) return new Set([activeItemId]);
-    if (!itemSearch.trim() && itemCategories.size === 0) return new Set<string>();
-    const ids = new Set(itemSearch.trim() ? searchableItems.map((item) => item.id) : []);
+    const ids = new Set([...activeItemIds].filter((id) => itemCounts[id]));
+    if (itemSearch.trim()) for (const item of searchableItems) ids.add(item.id);
     for (const item of availableItems) {
       if (itemCategories.has(item.category)) ids.add(item.id);
     }
     return ids;
-  }, [activeItemId, availableItems, itemCategories, itemCounts, itemSearch, searchableItems]);
+  }, [activeItemIds, availableItems, itemCategories, itemCounts, itemSearch, searchableItems]);
   const itemPoints = useMemo(
     () => allItemPoints.map((point) => ({ ...point, highlighted: highlightedItemIds.has(point.prototypeId) })),
     [allItemPoints, highlightedItemIds],
@@ -491,7 +490,6 @@ export function MapPage() {
     return { ...current, groups, loot: hasLoot, marker: hasMisc, spawn: hasMisc };
   });
   const toggleItemCategory = (category: string) => {
-    setActiveItemId(undefined);
     setItemCategories((current) => {
       const next = new Set(current);
       if (next.has(category)) next.delete(category); else next.add(category);
@@ -501,11 +499,11 @@ export function MapPage() {
   const clearItemFilters = () => {
     setItemSearch("");
     setItemCategories(new Set());
-    setActiveItemId(undefined);
+    setActiveItemIds(new Set());
   };
   const enableAllItems = () => {
     setItemSearch("");
-    setActiveItemId(undefined);
+    setActiveItemIds(new Set());
     setItemCategories(new Set(availableItemCategories
       .map(([category]) => category)
       .filter((category) => category !== "Другое" && category !== "Скрытые")));
@@ -602,7 +600,7 @@ export function MapPage() {
               onChange={(mapId) => {
               setSelected(undefined);
               setSelectionChoices([]);
-              setActiveItemId(undefined);
+              setActiveItemIds(new Set());
               setObjectSearch("");
               setObjectGroups(new Set());
               setInsertSelection({ scope: "", value: {} });
@@ -903,7 +901,7 @@ export function MapPage() {
           </section>
 
           <p className="maps-sidebar-hint">
-            Эти настройки общие для всех будущих инструментов рендера карт.
+            Эти настройки общие для всех инструментов рендера карт.
           </p>
         </aside>
 
@@ -956,16 +954,15 @@ export function MapPage() {
               value={itemSearch}
               onChange={(event) => {
                 setItemSearch(event.target.value);
-                setActiveItemId(undefined);
               }}
               placeholder="M41A, медицина, броня…"
             />
           </label>
           <div className="maps-items-summary">
-            <span>{activeItemId ? "Выбран один тип" : `В списке: ${itemResults.length}`}</span>
+            <span>{activeItemIds.size ? `Выбрано типов: ${activeItemIds.size}` : `В списке: ${itemResults.length}`}</span>
             <div className="maps-items-actions">
               <button type="button" onClick={enableAllItems}>Включить всё</button>
-              {(itemSearch || itemCategories.size > 0 || activeItemId) && (
+              {(itemSearch || itemCategories.size > 0 || activeItemIds.size > 0) && (
                 <button type="button" onClick={clearItemFilters}>Сбросить</button>
               )}
             </div>
@@ -989,11 +986,14 @@ export function MapPage() {
                   <div className="maps-item-results">
                     {categoryItems.map((item) => (
                       <button
-                        className={activeItemId === item.id ? "is-active" : ""}
+                        className={activeItemIds.has(item.id) ? "is-active" : ""}
                         type="button"
                         onClick={() => {
-                          setItemCategories(new Set());
-                          setActiveItemId((current) => current === item.id ? undefined : item.id);
+                          setActiveItemIds((current) => {
+                            const next = new Set(current);
+                            if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
+                            return next;
+                          });
                         }}
                         key={item.id}
                       >

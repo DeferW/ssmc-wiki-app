@@ -190,6 +190,26 @@ describe("map overlays", () => {
     expect(point.group).toBe("misc-spawns");
   });
 
+  it("puts the AEGIS crate spawner into supplies instead of service markers", () => {
+    const overlay: MapOverlay = {
+      schemaVersion: 6,
+      mapPath: "/Maps/test.yml",
+      prototypes: {
+        RMCAegisSpawner: {
+          name: "AEGIS crate spawner",
+          kind: "spawner",
+          components: { AegisSpawner: {} },
+        },
+      },
+      occurrences: { RMCAegisSpawner: [[1.5, 2.5]] },
+      insertMaps: {},
+    };
+
+    const [point] = flattenOverlay(overlay);
+    expect(point.category).toBe("loot");
+    expect(point.group).toBe("loot-supplies");
+  });
+
   it("uses the map scenario chance for conditional inserts", () => {
     expect(effectiveInsertProbability(1, "clfsmugglers", {
       nightmareScenarios: [{ scenarioName: "none", scenarioProbability: 1 }],
