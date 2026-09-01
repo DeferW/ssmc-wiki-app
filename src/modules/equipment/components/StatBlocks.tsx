@@ -67,7 +67,6 @@ function WeaponBlock({ stats }: { stats: JsonMap }) {
         ["Режимы огня", fireModes],
         ["Очередь", stats.burstSize != null ? `${formatNumber(stats.burstSize)} выстр.` : null],
         ["Ёмкость", provider.capacity],
-        ["Бронепробитие оружия", stats.weaponArmorPiercing],
         ["Множитель урона", stats.damageMultiplier != null ? `×${formatNumber(stats.damageMultiplier)}` : null],
         ["Отдача · в упоре", recoil.wielded],
         ["Отдача · с рук", recoil.unwielded],
