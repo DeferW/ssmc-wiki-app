@@ -222,6 +222,44 @@ function drawMarkerIcon(
   context.restore();
 }
 
+type CachedMarkerIcon = { canvas: HTMLCanvasElement; halfSize: number };
+const MARKER_ICON_CACHE = new Map<string, CachedMarkerIcon>();
+const MARKER_ICON_CACHE_LIMIT = 96;
+
+function cachedMarkerIcon(
+  icon: MarkerIcon,
+  color: string,
+  selected: boolean,
+  screenRadius: number,
+  devicePixelRatio: number,
+): CachedMarkerIcon {
+  const radius = Math.round(screenRadius * 4) / 4;
+  const ratio = Math.max(1, devicePixelRatio);
+  const key = `${icon}:${color}:${selected ? 1 : 0}:${radius}:${ratio.toFixed(2)}`;
+  const cached = MARKER_ICON_CACHE.get(key);
+  if (cached) {
+    MARKER_ICON_CACHE.delete(key);
+    MARKER_ICON_CACHE.set(key, cached);
+    return cached;
+  }
+
+  const requestedHalfSize = Math.ceil(radius * 1.8 + 4);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(requestedHalfSize * 2 * ratio);
+  canvas.height = canvas.width;
+  const halfSize = canvas.width / ratio / 2;
+  const context = canvas.getContext("2d")!;
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  drawMarkerIcon(context, icon, halfSize, halfSize, radius, color, selected, 1);
+  const value = { canvas, halfSize };
+  MARKER_ICON_CACHE.set(key, value);
+  if (MARKER_ICON_CACHE.size > MARKER_ICON_CACHE_LIMIT) {
+    const oldest = MARKER_ICON_CACHE.keys().next().value;
+    if (oldest !== undefined) MARKER_ICON_CACHE.delete(oldest);
+  }
+  return value;
+}
+
 function tileUrl(pattern: string, manifestUrl: string, revision: number, z: number, x: number, y: number): string {
   const url = new URL(pattern.replace("{z}", String(z)).replace("{x}", String(x)).replace("{y}", String(y)), manifestUrl);
   url.searchParams.set("v", new URL(manifestUrl).searchParams.get("v") ?? String(revision));
@@ -603,7 +641,21 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       }
 
       const style = markerStyle(point);
-      drawMarkerIcon(context, style.icon, pixel.x, pixel.y, markerRadius, style.color, selected, view.scale);
+      const cachedIcon = cachedMarkerIcon(
+        style.icon,
+        style.color,
+        selected,
+        markerRadius * view.scale,
+        dpr,
+      );
+      const halfSize = cachedIcon.halfSize / view.scale;
+      context.drawImage(
+        cachedIcon.canvas,
+        pixel.x - halfSize,
+        pixel.y - halfSize,
+        halfSize * 2,
+        halfSize * 2,
+      );
     }
     context.restore();
   }, [grid, hoverTile, insertLayers, layers, level, manifest.tileSize, maximum, overview, overviewUrls, selectedKey, size, tileRevision, view, visible, visiblePoints, visibleUrls]);
