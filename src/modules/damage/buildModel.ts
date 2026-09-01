@@ -82,11 +82,11 @@ function scaleDamage(damage: DamageTypeMap, ratio: number): DamageTypeMap {
   return Object.fromEntries(Object.entries(damage).map(([type, amount]) => [type, amount * ratio]));
 }
 
-function falloffThresholdsFrom(projectile: JsonMap | undefined): DamageFalloffThreshold[] {
+function falloffThresholdsFrom(projectile: JsonMap | undefined, rangeFlat = 0): DamageFalloffThreshold[] {
   const raw = isMap(projectile?.damageFalloff) ? projectile.damageFalloff.thresholds : undefined;
   if (!Array.isArray(raw)) return [];
   return raw.filter(isMap).map((entry) => ({
-    range: typeof entry.range === "number" ? entry.range : 0,
+    range: (typeof entry.range === "number" ? entry.range : 0) + rangeFlat,
     falloff: typeof entry.falloff === "number" ? entry.falloff : 0,
     ignoreModifiers: entry.ignoreModifiers === true,
   }));
@@ -181,12 +181,17 @@ export function deriveDamageBuild(
   const selectedAmmoMode = ammoModes[ammoModeIndex];
 
   const weaponStats = weapon?.weaponStats;
+  const weaponFalloff = isMap(weapon?.properties?.RMCWeaponDamageFalloff)
+    ? weapon.properties.RMCWeaponDamageFalloff
+    : undefined;
   const baseStats: WeaponModifiableStats | null = weapon ? {
     damageMultiplier: numberField(weaponStats, "damageMultiplier") ?? 1,
     accuracyWieldedMultiplier: numberField(isMap(weaponStats) ? weaponStats.accuracy : undefined, "wieldedMultiplier") ?? 1,
     scatterWielded: numberField(isMap(weaponStats) ? weaponStats.scatter : undefined, "wielded") ?? 0,
     recoilWielded: numberField(isMap(weaponStats) ? weaponStats.recoil : undefined, "wielded") ?? 0,
     shotsPerSecond: numberField(weaponStats, "shotsPerSecond") ?? 0,
+    damageFalloffMultiplier: numberField(weaponFalloff, "falloffMultiplier") ?? 1,
+    rangeFlat: numberField(weaponFalloff, "rangeFlat") ?? 0,
   } : null;
   const modifiedStats = baseStats
     ? foldAttachmentModifiers(baseStats, collectRangedModifierEntries(equippedAttachments, weapon?.tags ?? []))
@@ -201,10 +206,7 @@ export function deriveDamageBuild(
   const projectilesPerShot = typeof selectedProjectile?.projectilesPerShot === "number"
     ? Math.max(1, Math.floor(selectedProjectile.projectilesPerShot))
     : 1;
-  const weaponFalloffMultiplier = numberField(
-    isMap(weapon?.properties) ? weapon.properties.RMCWeaponDamageFalloff : undefined,
-    "falloffMultiplier",
-  ) ?? 1;
+  const weaponFalloffMultiplier = modifiedStats?.damageFalloffMultiplier ?? 1;
   const armorPiercing = typeof selectedAmmoMode?.armorPiercing === "number"
     ? selectedAmmoMode.armorPiercing
     : typeof selectedProjectile?.armorPiercing === "number" ? selectedProjectile.armorPiercing : 0;
@@ -228,7 +230,7 @@ export function deriveDamageBuild(
     baseStats,
     modifiedStats,
     effectiveDamage,
-    falloffThresholds: falloffThresholdsFrom(selectedProjectile),
+    falloffThresholds: falloffThresholdsFrom(selectedProjectile, modifiedStats?.rangeFlat ?? 0),
     weaponFalloffMultiplier,
     armorPiercing,
     overheat: overheatConfigFrom(weaponStats),

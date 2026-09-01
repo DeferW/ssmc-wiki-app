@@ -39,6 +39,8 @@ export type WeaponModifiableStats = {
   scatterWielded: number;
   recoilWielded: number;
   shotsPerSecond: number;
+  damageFalloffMultiplier: number;
+  rangeFlat: number;
 };
 
 // The calculator only ever compares wielded (aimed) fire, so unwieldedOnly
@@ -110,6 +112,8 @@ export function foldAttachmentModifiers(
   let scatterWielded = base.scatterWielded;
   let recoilWielded = base.recoilWielded;
   let fireDelay = base.shotsPerSecond > 0 ? 1 / base.shotsPerSecond : Infinity;
+  let damageFalloffMultiplier = base.damageFalloffMultiplier;
+  let rangeFlat = base.rangeFlat;
 
   for (const entry of entries) {
     damageMultiplier += entry.damageAddMult ?? 0;
@@ -117,10 +121,20 @@ export function foldAttachmentModifiers(
     scatterWielded = Math.max(scatterWielded + (entry.scatterFlat ?? 0), 0);
     recoilWielded = Math.max(recoilWielded + (entry.recoilFlat ?? 0), 0);
     fireDelay += entry.fireDelayFlat ?? 0;
+    damageFalloffMultiplier += entry.damageFalloffAddMult ?? 0;
+    rangeFlat += entry.rangeFlat ?? 0;
   }
 
   const shotsPerSecond = Number.isFinite(fireDelay) && fireDelay > 0 ? 1 / fireDelay : 0;
-  return { damageMultiplier, accuracyWieldedMultiplier, scatterWielded, recoilWielded, shotsPerSecond };
+  return {
+    damageMultiplier,
+    accuracyWieldedMultiplier,
+    scatterWielded,
+    recoilWielded,
+    shotsPerSecond,
+    damageFalloffMultiplier: Math.max(damageFalloffMultiplier, 0),
+    rangeFlat,
+  };
 }
 
 export type StatDirection = "higher-better" | "lower-better";

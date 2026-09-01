@@ -20,6 +20,8 @@ const M96S_BASE: WeaponModifiableStats = {
   scatterWielded: 0,
   recoilWielded: 1,
   shotsPerSecond: 0.667,
+  damageFalloffMultiplier: 1,
+  rangeFlat: 0,
 };
 const M96S_TAGS = ["CMM96SSniperRifle"];
 
@@ -141,5 +143,14 @@ describe("foldAttachmentModifiers", () => {
 
   it("leaves stats untouched with no attachments", () => {
     expect(foldAttachmentModifiers(M96S_BASE, [])).toEqual(M96S_BASE);
+  });
+
+  it("applies weapon range and falloff modifiers", () => {
+    const result = foldAttachmentModifiers(M96S_BASE, [
+      { damageFalloffAddMult: -0.2, rangeFlat: 1.5 },
+      { damageFalloffAddMult: 0.05, rangeFlat: 0.5 },
+    ]);
+    expect(result.damageFalloffMultiplier).toBeCloseTo(0.85, 10);
+    expect(result.rangeFlat).toBe(2);
   });
 });

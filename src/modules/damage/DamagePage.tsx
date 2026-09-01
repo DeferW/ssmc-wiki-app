@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useCatalog } from "../equipment/catalogStore";
-import { formatDamage, formatNumber, isMap } from "../equipment/format";
+import { formatNumber, isMap, readableId } from "../equipment/format";
 import type { CatalogItem, JsonMap } from "../equipment/types";
 import {
   collectRangedModifierEntries,
@@ -68,14 +68,32 @@ function aimedShotEffectFrom(projectile: JsonMap | undefined): AimedShotEffectCo
   };
 }
 
-function falloffThresholdsFrom(projectile: JsonMap | undefined): DamageFalloffThreshold[] {
+function falloffThresholdsFrom(projectile: JsonMap | undefined, rangeFlat = 0): DamageFalloffThreshold[] {
   const raw = isMap(projectile?.damageFalloff) ? projectile.damageFalloff.thresholds : undefined;
   if (!Array.isArray(raw)) return [];
   return raw.filter(isMap).map((entry) => ({
-    range: typeof entry.range === "number" ? entry.range : 0,
+    range: (typeof entry.range === "number" ? entry.range : 0) + rangeFlat,
     falloff: typeof entry.falloff === "number" ? entry.falloff : 0,
     ignoreModifiers: entry.ignoreModifiers === true,
   }));
+}
+
+function DamageBreakdown({ damage }: { damage: DamageTypeMap }) {
+  const labels: Record<string, string> = {
+    Blunt: "Дробящий",
+    Slash: "Режущий",
+    Piercing: "Колющий",
+    Heat: "Термический",
+    Caustic: "Кислотный",
+    Structural: "Структурный",
+  };
+  const entries = Object.entries(damage).filter(([, amount]) => amount !== 0);
+  if (!entries.length) return <>—</>;
+  return (
+    <span className="damage-type-values">
+      {entries.map(([type, amount]) => <span key={type}><small>{labels[type] ?? readableId(type)}</small><b>{formatNumber(amount)}</b></span>)}
+    </span>
+  );
 }
 
 function overheatConfigFrom(stats: JsonMap | undefined): OverheatConfig | undefined {
@@ -313,12 +331,17 @@ export function DamagePage() {
   }, [attachmentSlots, effectiveAttachmentBySlot, attachmentActiveBySlot, catalog]);
 
   const weaponStats = selectedWeapon?.weaponStats;
+  const weaponFalloff = isMap(selectedWeapon?.properties?.RMCWeaponDamageFalloff)
+    ? selectedWeapon.properties.RMCWeaponDamageFalloff
+    : undefined;
   const baseStats: WeaponModifiableStats | null = selectedWeapon ? {
     damageMultiplier: numberField(weaponStats, "damageMultiplier") ?? 1,
     accuracyWieldedMultiplier: numberField(isMap(weaponStats) ? weaponStats.accuracy : undefined, "wieldedMultiplier") ?? 1,
     scatterWielded: numberField(isMap(weaponStats) ? weaponStats.scatter : undefined, "wielded") ?? 0,
     recoilWielded: numberField(isMap(weaponStats) ? weaponStats.recoil : undefined, "wielded") ?? 0,
     shotsPerSecond: numberField(weaponStats, "shotsPerSecond") ?? 0,
+    damageFalloffMultiplier: numberField(weaponFalloff, "falloffMultiplier") ?? 1,
+    rangeFlat: numberField(weaponFalloff, "rangeFlat") ?? 0,
   } : null;
 
   const modifiedStats = baseStats
@@ -339,11 +362,8 @@ export function DamagePage() {
     damageTypeMapFrom(selectedAmmoMode?.damage ?? selectedProjectile?.effectiveDamage ?? selectedProjectile?.damage),
     damageRatio,
   );
-  const falloffThresholds = falloffThresholdsFrom(selectedProjectile);
-  const weaponFalloffMultiplier = numberField(
-    isMap(selectedWeapon?.properties) ? selectedWeapon.properties.RMCWeaponDamageFalloff : undefined,
-    "falloffMultiplier",
-  ) ?? 1;
+  const falloffThresholds = falloffThresholdsFrom(selectedProjectile, modifiedStats?.rangeFlat ?? 0);
+  const weaponFalloffMultiplier = modifiedStats?.damageFalloffMultiplier ?? 1;
   const armorPiercing = typeof selectedAmmoMode?.armorPiercing === "number"
     ? selectedAmmoMode.armorPiercing
     : typeof selectedProjectile?.armorPiercing === "number" ? selectedProjectile.armorPiercing : 0;
@@ -399,7 +419,7 @@ export function DamagePage() {
     : null;
 
   return (
-    <main className="damage-page damage-beta">
+    <main className="damage-page">
       <section className="damage-hero">
         <div>
           <p className="eyebrow">USCM // TTK CALCULATOR</p>
@@ -493,6 +513,8 @@ export function DamagePage() {
               <StatRow label="Отдача" from={baseStats.recoilWielded} to={modifiedStats.recoilWielded} direction="lower-better" format={(value) => formatNumber(value)} />
               <StatRow label="Скорострельность" from={baseStats.shotsPerSecond} to={modifiedStats.shotsPerSecond} direction="higher-better" format={(value) => `${formatNumber(value)} выстр./с`} />
               <StatRow label="Множитель урона" from={baseStats.damageMultiplier} to={modifiedStats.damageMultiplier} direction="higher-better" format={(value) => `×${formatNumber(value)}`} />
+              <StatRow label="Падение урона" from={baseStats.damageFalloffMultiplier} to={modifiedStats.damageFalloffMultiplier} direction="lower-better" format={(value) => `×${formatNumber(value)}`} />
+              <StatRow label="Дальность" from={baseStats.rangeFlat} to={modifiedStats.rangeFlat} direction="higher-better" format={(value) => `${value > 0 ? "+" : ""}${formatNumber(value)} т.`} />
             </dl>
           )}
 
@@ -528,17 +550,17 @@ export function DamagePage() {
                       <dl className="stat-grid">
                         <div>
                           <dt>Урон</dt>
-                          <dd>{formatDamage(scaleDamage(damageTypeMapFrom(selectedAmmoMode?.damage ?? projectile.effectiveDamage ?? projectile.damage), damageRatio)) ?? "—"}</dd>
+                          <dd><DamageBreakdown damage={scaleDamage(damageTypeMapFrom(selectedAmmoMode?.damage ?? projectile.effectiveDamage ?? projectile.damage), damageRatio)} /></dd>
                         </div>
                         {typeof projectile.projectilesPerShot === "number" && projectile.projectilesPerShot > 1 && (
                           <>
                             <div><dt>Снарядов за выстрел</dt><dd>{formatNumber(projectile.projectilesPerShot)}</dd></div>
                             <div>
                               <dt>Полный урон выстрела</dt>
-                              <dd>{formatDamage(scaleDamage(
-                                damageTypeMapFrom(selectedAmmoMode?.damage ?? projectile.effectiveDamage ?? projectile.damage),
-                                damageRatio * projectile.projectilesPerShot,
-                              )) ?? "—"}</dd>
+                              <dd><DamageBreakdown damage={scaleDamage(
+                                 damageTypeMapFrom(selectedAmmoMode?.damage ?? projectile.effectiveDamage ?? projectile.damage),
+                                 damageRatio * projectile.projectilesPerShot,
+                              )} /></dd>
                             </div>
                             {typeof projectile.spreadDegrees === "number" && (
                               <div><dt>Разброс снарядов</dt><dd>{formatNumber(projectile.spreadDegrees)}°</dd></div>

@@ -44,6 +44,16 @@ describe("falloffMultiplier", () => {
     expect(falloffMultiplier(100, 15, thresholds, 1)).toBeCloseTo(0.75, 10);
   });
 
+  it("applies the engine defaults used by ordinary pistol projectiles", () => {
+    const defaults = [
+      { range: 0, falloff: 1, ignoreModifiers: false },
+      { range: 22, falloff: 9999, ignoreModifiers: true },
+    ];
+    // A 36-damage 9 mm projectile loses one point per tile: at 7 tiles it
+    // retains 29 damage before the target's armor is applied.
+    expect(falloffMultiplier(36, 7, defaults, 1)).toBeCloseTo(29 / 36, 10);
+  });
+
   it("returns 1 for non-positive input damage", () => {
     expect(falloffMultiplier(0, 100, AR10_THRESHOLDS, 1)).toBe(1);
   });
