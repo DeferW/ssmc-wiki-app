@@ -1,14 +1,16 @@
+import type { ReactNode } from "react";
 import { ItemSprite } from "../../equipment/components/ItemSprite";
 import { capitalizeName } from "../../equipment/format";
 import type { CatalogItem } from "../../equipment/types";
 
-export function ItemSlot({ label, item, onOpen, onClear, compact = false, locked = false }: {
+export function ItemSlot({ label, item, onOpen, onClear, compact = false, locked = false, tooltip }: {
   label: string;
   item: CatalogItem | null;
   onOpen?: () => void;
   onClear?: () => void;
   compact?: boolean;
   locked?: boolean;
+  tooltip?: ReactNode;
 }) {
   if (!item) {
     return (
@@ -35,6 +37,7 @@ export function ItemSlot({ label, item, onOpen, onClear, compact = false, locked
       {onClear && (
         <button type="button" className="item-slot-clear" onClick={onClear} aria-label={`Убрать ${item.name}`}>×</button>
       )}
+      {tooltip}
     </div>
   );
 }

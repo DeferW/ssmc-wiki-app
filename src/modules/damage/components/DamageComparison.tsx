@@ -25,6 +25,7 @@ import {
 import { applyXenoAbilityBonuses, toggleXenoAbility, XENO_DEFENSIVE_ABILITIES } from "../xenoAbilities";
 import { WEAPON_GUN_STACKS } from "../weaponGunStacks";
 import { AmmoModePicker, AmmoPicker } from "./AmmoPicker";
+import { AttachmentEffectTooltip } from "./AttachmentEffectTooltip";
 import { AttachmentPicker } from "./AttachmentPicker";
 import { DistanceControl } from "./DistanceControl";
 import { ItemSlot } from "./ItemSlot";
@@ -116,11 +117,6 @@ function targetLabel(target: TargetSelection | null, mobCatalog: MobCatalog) {
   if (target.kind === "marine") return MARINE_PRESETS.find((entry) => entry.id === target.presetId)?.name ?? target.presetId;
   const caste = mobCatalog.xenoCastes[target.casteId];
   return caste ? xenoCasteLabel(caste) : target.casteId;
-}
-
-function attachmentSummary(build: DerivedDamageBuild) {
-  const names = build.equippedAttachments.map(({ item }) => item.name);
-  return names.length ? names.slice(0, 2).join(" · ") + (names.length > 2 ? ` · +${names.length - 2}` : "") : "Без обвесов";
 }
 
 function CompareChart({ builds, target, thresholds, hitDirection, selectedDistance }: {
@@ -355,12 +351,31 @@ export function DamageComparison({ catalog, mobCatalog, seed }: {
                 <article className={`compare-build series-${index + 1}${isOpen ? " is-open" : ""}`} key={build.state.id}>
                   <button type="button" className="compare-build-head" onClick={() => setExpandedBuildId(isOpen ? null : build.state.id)} aria-expanded={isOpen}>
                     <i className="compare-series-mark" aria-hidden="true" />
-                    <span className="compare-build-name"><small>СБОРКА {String(index + 1).padStart(2, "0")}</small><strong>{build.weapon?.name ?? "Оружие не выбрано"}</strong><em>{build.weapon ? `${ammoLabel(build)} · ${attachmentSummary(build)}` : "Нажмите, чтобы настроить"}</em></span>
+                    <span className="compare-build-name">
+                      <small>СБОРКА {String(index + 1).padStart(2, "0")}</small>
+                      <strong>{build.weapon?.name ?? "Оружие не выбрано"}</strong>
+                      <span className="compare-build-meta">
+                        <em>{build.weapon ? ammoLabel(build) : "Нажмите, чтобы настроить"}</em>
+                        {build.weapon && <em>{build.equippedAttachments.length} обв.</em>}
+                      </span>
+                    </span>
                     <span className="compare-build-quick"><strong>{result ? finite(result.firstShotDamage) : "—"}</strong><small>урон · {distance} т.</small></span>
                     <i className="compare-chevron" aria-hidden="true">⌄</i>
                   </button>
                   <div className="compare-build-body">
-                    <ItemSlot label="Выбрать оружие" item={build.weapon} onOpen={() => setPicker({ type: "weapon", buildId: build.state.id })} onClear={build.weapon ? () => clearWeapon(build.state.id) : undefined} />
+                    <div className="compare-build-primary">
+                      <section className="compare-build-control">
+                        <header><small>WEAPON</small><strong>Оружие</strong></header>
+                        <ItemSlot label="Выбрать оружие" item={build.weapon} onOpen={() => setPicker({ type: "weapon", buildId: build.state.id })} onClear={build.weapon ? () => clearWeapon(build.state.id) : undefined} />
+                      </section>
+                      <section className="compare-build-control">
+                        <header><small>AMMUNITION</small><strong>Боеприпасы</strong></header>
+                        {build.ammunition.length > 0
+                          ? <AmmoPicker ammunition={build.ammunition} selectedIndex={build.ammoIndex} onSelect={(ammoIndex) => updateBuild(build.state.id, (current) => ({ ...current, ammoIndex }))} />
+                          : <p className="compare-control-empty">Сначала выберите оружие.</p>}
+                        {build.ammoModes.length > 0 && <AmmoModePicker modes={build.ammoModes} selectedIndex={build.ammoModeIndex} onSelect={(ammoModeIndex) => updateBuild(build.state.id, (current) => ({ ...current, ammoModeIndex }))} />}
+                      </section>
+                    </div>
                     {build.weapon && build.attachmentSlots.length > 0 && (
                       <section className="damage-section attachment-section">
                         <header className="damage-section-header"><h3>Обвесы</h3><span>{build.attachmentSlots.length} слота</span></header>
@@ -372,7 +387,7 @@ export function DamageComparison({ catalog, mobCatalog, seed }: {
                             const active = Boolean(build.state.attachmentActiveBySlot[slot.id]);
                             return (
                               <div className="attachment-slot-wrap" key={slot.id}>
-                                <ItemSlot label={slot.name ?? slot.slotName ?? "Обвес"} item={item} compact locked={slot.locked} onOpen={slot.locked ? undefined : () => setPicker({ type: "attachment", buildId: build.state.id, slotId: slot.id })} onClear={item && !slot.locked ? () => clearAttachment(build.state.id, slot.id) : undefined} />
+                                <ItemSlot label={slot.name ?? slot.slotName ?? "Обвес"} item={item} compact locked={slot.locked} onOpen={slot.locked ? undefined : () => setPicker({ type: "attachment", buildId: build.state.id, slotId: slot.id })} onClear={item && !slot.locked ? () => clearAttachment(build.state.id, slot.id) : undefined} tooltip={item ? <AttachmentEffectTooltip item={item} compact /> : undefined} />
                                 {toggleable && <button type="button" className={`attachment-toggle${active ? " is-active" : ""}`} onClick={() => updateBuild(build.state.id, (current) => ({ ...current, attachmentActiveBySlot: { ...current.attachmentActiveBySlot, [slot.id]: !current.attachmentActiveBySlot[slot.id] } }))}>{active ? "Активен" : "Неактивен"}</button>}
                               </div>
                             );
@@ -380,8 +395,6 @@ export function DamageComparison({ catalog, mobCatalog, seed }: {
                         </div>
                       </section>
                     )}
-                    {build.ammunition.length > 0 && <><h3>Боеприпас</h3><AmmoPicker ammunition={build.ammunition} selectedIndex={build.ammoIndex} onSelect={(ammoIndex) => updateBuild(build.state.id, (current) => ({ ...current, ammoIndex }))} /></>}
-                    {build.ammoModes.length > 0 && <><h3>Режим боеприпаса</h3><AmmoModePicker modes={build.ammoModes} selectedIndex={build.ammoModeIndex} onSelect={(ammoModeIndex) => updateBuild(build.state.id, (current) => ({ ...current, ammoModeIndex }))} /></>}
                     {build.modifiedStats && (
                       <dl className="stat-grid compare-build-stats">
                         <div><dt>Точность</dt><dd>×{formatNumber(build.modifiedStats.accuracyWieldedMultiplier)}</dd></div>

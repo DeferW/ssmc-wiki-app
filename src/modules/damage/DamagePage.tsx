@@ -33,6 +33,7 @@ import { TargetPicker } from "./components/TargetPicker";
 import { TargetSlot } from "./components/TargetSlot";
 import { WeaponPicker } from "./components/WeaponPicker";
 import { DamageComparison, damageBuildSeed } from "./components/DamageComparison";
+import { AttachmentEffectTooltip } from "./components/AttachmentEffectTooltip";
 
 type PickerState = { type: "weapon" } | { type: "attachment"; slotId: string } | { type: "target" } | null;
 
@@ -398,7 +399,7 @@ export function DamagePage() {
     : null;
 
   return (
-    <main className="damage-page">
+    <main className="damage-page damage-beta">
       <section className="damage-hero">
         <div>
           <p className="eyebrow">USCM // TTK CALCULATOR</p>
@@ -467,6 +468,7 @@ export function DamagePage() {
                         locked={slot.locked}
                         onOpen={slot.locked ? undefined : () => setPicker({ type: "attachment", slotId })}
                         onClear={item && !slot.locked ? () => clearAttachment(slotId) : undefined}
+                        tooltip={item ? <AttachmentEffectTooltip item={item} compact /> : undefined}
                       />
                       {toggleable && (
                         <button
