@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { CATALOG_DATA_ROOT } from "../config";
 import type { CatalogItem } from "../types";
 
@@ -9,27 +9,29 @@ export function ItemSprite({ item, compact = false, eager = false }: {
   compact?: boolean;
   eager?: boolean;
 }) {
+  if (!item.image) {
+    return <span className={`sprite-placeholder${compact ? " is-compact" : ""}`} aria-hidden="true">?</span>;
+  }
+  const source = new URL(item.image, CATALOG_DATA_ROOT).toString();
+  return <SpriteImage key={source} source={source} compact={compact} eager={eager} />;
+}
+
+function SpriteImage({ source, compact, eager }: { source: string; compact: boolean; eager: boolean }) {
   const [attempt, setAttempt] = useState(0);
   const [failed, setFailed] = useState(false);
-  const source = useMemo(() => {
-    if (!item.image) return "";
-    const url = new URL(item.image, CATALOG_DATA_ROOT);
+  const retrySource = (() => {
+    const url = new URL(source);
     if (attempt > 0) url.searchParams.set("sprite_retry", String(attempt));
     return url.toString();
-  }, [attempt, item.image]);
+  })();
 
-  useEffect(() => {
-    setAttempt(0);
-    setFailed(false);
-  }, [item.image]);
-
-  if (!item.image || failed) {
+  if (failed) {
     return <span className={`sprite-placeholder${compact ? " is-compact" : ""}`} aria-hidden="true">?</span>;
   }
   return (
     <span className={`sprite-frame${compact ? " is-compact" : ""}`}>
       <img
-        src={source}
+        src={retrySource}
         alt=""
         loading={eager || compact ? "eager" : "lazy"}
         decoding="async"

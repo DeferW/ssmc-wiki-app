@@ -14,6 +14,24 @@ export type DamageUrlState = {
   distance: number;
 };
 
+export type DamageBuildUrlState = Pick<DamageUrlState,
+  | "weaponId"
+  | "ammoIndex"
+  | "ammoModeIndex"
+  | "attachmentBySlot"
+  | "attachmentActiveBySlot"
+>;
+
+export type DamageComparisonUrlState = Pick<DamageUrlState,
+  | "target"
+  | "targetMatured"
+  | "hitDirection"
+  | "activeAbilities"
+  | "distance"
+> & {
+  builds: DamageBuildUrlState[];
+};
+
 const DEFAULT_DISTANCE = 5;
 const MIN_DISTANCE = 0;
 const MAX_DISTANCE = 40;
@@ -88,5 +106,72 @@ export function writeDamageUrlState(state: DamageUrlState): URLSearchParams {
   if (state.hitDirection !== "front") params.set("direction", state.hitDirection);
   for (const ability of [...state.activeAbilities].sort()) params.append("ability", ability);
   if (state.distance !== DEFAULT_DISTANCE) params.set("distance", String(state.distance));
+  return params;
+}
+
+function encodeBuild(build: DamageBuildUrlState): string {
+  const serialized = JSON.stringify({
+    w: build.weaponId,
+    a: build.ammoIndex,
+    m: build.ammoModeIndex,
+    t: build.attachmentBySlot,
+    v: build.attachmentActiveBySlot,
+  });
+  const bytes = new TextEncoder().encode(serialized);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/u, "");
+}
+
+function decodeBuild(value: string): DamageBuildUrlState | null {
+  try {
+    const padded = value.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    const parsed = JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>;
+    const attachments = parsed.t && typeof parsed.t === "object" ? parsed.t as Record<string, unknown> : {};
+    const active = parsed.v && typeof parsed.v === "object" ? parsed.v as Record<string, unknown> : {};
+    return {
+      weaponId: typeof parsed.w === "string" ? parsed.w : null,
+      ammoIndex: typeof parsed.a === "number" && Number.isInteger(parsed.a) && parsed.a >= 0 ? parsed.a : 0,
+      ammoModeIndex: typeof parsed.m === "number" && Number.isInteger(parsed.m) && parsed.m >= 0 ? parsed.m : 0,
+      attachmentBySlot: Object.fromEntries(Object.entries(attachments).filter((entry): entry is [string, string] => typeof entry[1] === "string")),
+      attachmentActiveBySlot: Object.fromEntries(Object.entries(active).filter((entry): entry is [string, boolean] => entry[1] === true)),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function readDamageComparisonUrlState(params: URLSearchParams): DamageComparisonUrlState | null {
+  if (params.get("view") !== "compare") return null;
+  const common = readDamageUrlState(params);
+  const builds = params.getAll("build").map(decodeBuild).filter((build): build is DamageBuildUrlState => build != null).slice(0, 4);
+  if (builds.length < 2) return null;
+  return {
+    builds,
+    target: common.target,
+    targetMatured: common.targetMatured,
+    hitDirection: common.hitDirection,
+    activeAbilities: common.activeAbilities,
+    distance: common.distance,
+  };
+}
+
+export function writeDamageComparisonUrlState(state: DamageComparisonUrlState): URLSearchParams {
+  const params = writeDamageUrlState({
+    weaponId: null,
+    ammoIndex: 0,
+    ammoModeIndex: 0,
+    attachmentBySlot: {},
+    attachmentActiveBySlot: {},
+    target: state.target,
+    targetMatured: state.targetMatured,
+    hitDirection: state.hitDirection,
+    activeAbilities: state.activeAbilities,
+    distance: state.distance,
+  });
+  params.set("view", "compare");
+  for (const build of state.builds.slice(0, 4)) params.append("build", encodeBuild(build));
   return params;
 }

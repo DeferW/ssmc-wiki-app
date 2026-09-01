@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { ItemSprite } from "../../equipment/components/ItemSprite";
 import { capitalizeName } from "../../equipment/format";
 import type { Catalog, CatalogItem } from "../../equipment/types";
+import { lockedIntegratedAttachmentIds } from "../attachmentEligibility";
 
 export function AttachmentPicker({ catalog, compatibleItemIds, selectedId, onSelect }: {
   catalog: Catalog;
@@ -9,25 +10,7 @@ export function AttachmentPicker({ catalog, compatibleItemIds, selectedId, onSel
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
-  const lockedIntegratedIds = useMemo(() => {
-    const result = new Set<string>();
-    for (const owner of Object.values(catalog.items)) {
-      const holder = owner.properties?.AttachableHolder;
-      const slots = holder?.slots;
-      if (!slots || typeof slots !== "object" || Array.isArray(slots)) continue;
-      for (const value of Object.values(slots)) {
-        if (!value || typeof value !== "object" || Array.isArray(value)) continue;
-        const slot = value as Record<string, unknown>;
-        const attachmentId = slot.startingAttachable;
-        if (slot.locked !== true || typeof attachmentId !== "string") continue;
-        const attachment = catalog.items[attachmentId];
-        if (attachment && !attachment.directlyVended && !attachment.availability?.length) {
-          result.add(attachmentId);
-        }
-      }
-    }
-    return result;
-  }, [catalog]);
+  const lockedIntegratedIds = useMemo(() => lockedIntegratedAttachmentIds(catalog), [catalog]);
 
   const items = useMemo(() => (
     compatibleItemIds

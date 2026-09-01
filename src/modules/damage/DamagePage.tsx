@@ -13,12 +13,14 @@ import {
 import type { EquippedAttachment, StatDirection, WeaponModifiableStats } from "./attachmentModifiers";
 import { aimedShotAbilityFrom } from "./aimedShot";
 import type { AimedShotEffectConfig } from "./aimedShot";
+import { isCompatibleAttachment, lockedIntegratedAttachmentIds } from "./attachmentEligibility";
 import type { DamageFalloffThreshold, DamageTypeMap, HitDirection, HoloTargetingConfig, OverheatConfig } from "./damageMath";
 import { useMobCatalog } from "./mobCatalogStore";
 import { targetArmorFrom, targetSizeFrom, targetThresholdsFrom } from "./target";
 import type { TargetSelection } from "./target";
 import { applyXenoAbilityBonuses, toggleXenoAbility, XENO_DEFENSIVE_ABILITIES } from "./xenoAbilities";
 import { WEAPON_GUN_STACKS } from "./weaponGunStacks";
+import { canDamageAnyTarget } from "./weaponEligibility";
 import { readDamageUrlState, writeDamageUrlState } from "./urlState";
 import { AimedShotCard } from "./components/AimedShotCard";
 import { AmmoModePicker, AmmoPicker, ammoProjectiles } from "./components/AmmoPicker";
@@ -30,6 +32,7 @@ import { ResultPanel } from "./components/ResultPanel";
 import { TargetPicker } from "./components/TargetPicker";
 import { TargetSlot } from "./components/TargetSlot";
 import { WeaponPicker } from "./components/WeaponPicker";
+import { DamageComparison, damageBuildSeed } from "./components/DamageComparison";
 
 type PickerState = { type: "weapon" } | { type: "attachment"; slotId: string } | { type: "target" } | null;
 
@@ -160,6 +163,7 @@ export function DamagePage() {
   const { mobCatalog, error: mobError, loading: mobLoading } = useMobCatalog();
   const [searchParams, setSearchParams] = useSearchParams();
   const [initialUrlState] = useState(() => readDamageUrlState(searchParams));
+  const [viewMode, setViewMode] = useState<"single" | "compare">(() => searchParams.get("view") === "compare" ? "compare" : "single");
   const [selectedWeaponId, setSelectedWeaponId] = useState<string | null>(initialUrlState.weaponId);
   const [selectedAmmoIndex, setSelectedAmmoIndex] = useState(initialUrlState.ammoIndex);
   const [selectedAmmoModeIndex, setSelectedAmmoModeIndex] = useState(initialUrlState.ammoModeIndex);
@@ -172,34 +176,10 @@ export function DamagePage() {
   const [distance, setDistance] = useState(initialUrlState.distance);
   const [picker, setPicker] = useState<PickerState>(null);
 
-  useEffect(() => {
-    setSearchParams(writeDamageUrlState({
-      weaponId: selectedWeaponId,
-      ammoIndex: selectedAmmoIndex,
-      ammoModeIndex: selectedAmmoModeIndex,
-      attachmentBySlot,
-      attachmentActiveBySlot,
-      target,
-      targetMatured,
-      hitDirection,
-      activeAbilities,
-      distance,
-    }), { replace: true });
-  }, [
-    activeAbilities,
-    attachmentActiveBySlot,
-    attachmentBySlot,
-    distance,
-    hitDirection,
-    selectedAmmoIndex,
-    selectedAmmoModeIndex,
-    selectedWeaponId,
-    setSearchParams,
-    target,
-    targetMatured,
-  ]);
-
-  const selectedWeapon = selectedWeaponId && catalog ? catalog.items[selectedWeaponId] : null;
+  const selectedWeaponCandidate = selectedWeaponId && catalog ? catalog.items[selectedWeaponId] : null;
+  const selectedWeapon = selectedWeaponCandidate?.category === "Оружие" && canDamageAnyTarget(selectedWeaponCandidate)
+    ? selectedWeaponCandidate
+    : null;
   const attachmentSlots = useMemo(() => {
     if (!selectedWeapon) return [];
     const holder = selectedWeapon.properties?.AttachableHolder;
@@ -215,18 +195,69 @@ export function DamagePage() {
       };
     });
   }, [selectedWeapon]);
+  const lockedIntegratedIds = useMemo(
+    () => catalog ? lockedIntegratedAttachmentIds(catalog) : new Set<string>(),
+    [catalog],
+  );
+  const effectiveAttachmentBySlot = useMemo(() => {
+    if (!catalog) return {};
+    const result: Record<string, string> = {};
+    for (const slot of attachmentSlots) {
+      if (slot.locked) continue;
+      const slotId = slot.id ?? slot.slotId;
+      const itemId = slotId ? attachmentBySlot[slotId] : undefined;
+      if (slotId && itemId && isCompatibleAttachment(catalog, slot, itemId, lockedIntegratedIds)) {
+        result[slotId] = itemId;
+      }
+    }
+    return result;
+  }, [attachmentBySlot, attachmentSlots, catalog, lockedIntegratedIds]);
 
   const ammunition = useMemo(() => {
     const raw = selectedWeapon?.weaponStats?.ammunition;
     return Array.isArray(raw) ? raw.filter(isMap) : [];
   }, [selectedWeapon]);
-  const selectedAmmo: JsonMap | undefined = ammunition[selectedAmmoIndex];
+  const effectiveAmmoIndex = selectedAmmoIndex >= 0 && selectedAmmoIndex < ammunition.length ? selectedAmmoIndex : 0;
+  const selectedAmmo: JsonMap | undefined = ammunition[effectiveAmmoIndex];
   const projectiles = useMemo(() => ammoProjectiles(selectedAmmo), [selectedAmmo]);
   const ammoModes = useMemo(() => {
     const raw = selectedWeapon?.weaponStats?.ammoModes;
     return Array.isArray(raw) ? raw.filter(isMap) : [];
   }, [selectedWeapon]);
-  const selectedAmmoMode = ammoModes[selectedAmmoModeIndex];
+  const effectiveAmmoModeIndex = selectedAmmoModeIndex >= 0 && selectedAmmoModeIndex < ammoModes.length
+    ? selectedAmmoModeIndex
+    : 0;
+  const selectedAmmoMode = ammoModes[effectiveAmmoModeIndex];
+
+  useEffect(() => {
+    if (!catalog || viewMode !== "single") return;
+    setSearchParams(writeDamageUrlState({
+      weaponId: selectedWeapon?.id ?? null,
+      ammoIndex: effectiveAmmoIndex,
+      ammoModeIndex: effectiveAmmoModeIndex,
+      attachmentBySlot: effectiveAttachmentBySlot,
+      attachmentActiveBySlot,
+      target,
+      targetMatured,
+      hitDirection,
+      activeAbilities,
+      distance,
+    }), { replace: true });
+  }, [
+    activeAbilities,
+    attachmentActiveBySlot,
+    catalog,
+    distance,
+    effectiveAmmoIndex,
+    effectiveAmmoModeIndex,
+    effectiveAttachmentBySlot,
+    hitDirection,
+    selectedWeapon,
+    setSearchParams,
+    target,
+    targetMatured,
+    viewMode,
+  ]);
 
   const selectWeapon = (id: string) => {
     setSelectedWeaponId(id);
@@ -273,12 +304,12 @@ export function DamagePage() {
       const slotId = slot.id ?? slot.slotId;
       const itemId = slot.locked
         ? slot.startingItemId ?? slot.installedItemIds?.[0]
-        : slotId ? attachmentBySlot[slotId] : undefined;
+        : slotId ? effectiveAttachmentBySlot[slotId] : undefined;
       const item = itemId ? catalog.items[itemId] : undefined;
       if (item) result.push({ item, active: slotId ? Boolean(attachmentActiveBySlot[slotId]) : false });
     }
     return result;
-  }, [attachmentSlots, attachmentBySlot, attachmentActiveBySlot, catalog]);
+  }, [attachmentSlots, effectiveAttachmentBySlot, attachmentActiveBySlot, catalog]);
 
   const weaponStats = selectedWeapon?.weaponStats;
   const baseStats: WeaponModifiableStats | null = selectedWeapon ? {
@@ -299,7 +330,7 @@ export function DamagePage() {
   const damageRatio = baseStats && modifiedStats && baseStats.damageMultiplier > 0
     ? modifiedStats.damageMultiplier / baseStats.damageMultiplier
     : 1;
-  const selectedProjectile = projectiles[0] as JsonMap | undefined;
+  const selectedProjectile = projectiles[0];
   const projectilesPerShot = typeof selectedProjectile?.projectilesPerShot === "number"
     ? Math.max(1, Math.floor(selectedProjectile.projectilesPerShot))
     : 1;
@@ -380,6 +411,11 @@ export function DamagePage() {
         </div>
       </section>
 
+      <div className="damage-view-switch" role="tablist" aria-label="Режим калькулятора">
+        <button type="button" role="tab" aria-selected={viewMode === "single"} className={viewMode === "single" ? "is-active" : ""} onClick={() => setViewMode("single")}>Одна сборка</button>
+        <button type="button" role="tab" aria-selected={viewMode === "compare"} className={viewMode === "compare" ? "is-active" : ""} onClick={() => setViewMode("compare")}>Сравнение</button>
+      </div>
+
       {loading && !catalog && <div className="status-panel" role="status"><span>DATABASE MESSAGE</span><strong>Синхронизация</strong><p>Загружаю каталог снаряжения…</p></div>}
       {error && !catalog && (
         <div className="status-panel" role="status">
@@ -388,7 +424,7 @@ export function DamagePage() {
         </div>
       )}
 
-      <div className="damage-workspace">
+      {viewMode === "single" ? <div className="damage-workspace">
       {catalog && (
         <section className="damage-loadout damage-weapon-card">
           <DamagePanelHeader
@@ -418,7 +454,7 @@ export function DamagePage() {
                   const slotId = slot.id ?? slot.slotId ?? "";
                   const itemId = slot.locked
                     ? slot.startingItemId ?? slot.installedItemIds?.[0]
-                    : attachmentBySlot[slotId];
+                    : effectiveAttachmentBySlot[slotId];
                   const item: CatalogItem | null = itemId ? catalog.items[itemId] ?? null : null;
                   const toggleable = item ? isToggleableAttachment(item) && !isGunAttachment(item) : false;
                   const active = Boolean(attachmentActiveBySlot[slotId]);
@@ -475,11 +511,11 @@ export function DamagePage() {
             ammunition.length > 0 ? (
               <>
                 <h3>Боеприпас</h3>
-                <AmmoPicker ammunition={ammunition} selectedIndex={selectedAmmoIndex} onSelect={setSelectedAmmoIndex} />
+                <AmmoPicker ammunition={ammunition} selectedIndex={effectiveAmmoIndex} onSelect={setSelectedAmmoIndex} />
                 {ammoModes.length > 0 && (
                   <>
                     <h3>Режим боеприпаса</h3>
-                    <AmmoModePicker modes={ammoModes} selectedIndex={selectedAmmoModeIndex} onSelect={setSelectedAmmoModeIndex} />
+                    <AmmoModePicker modes={ammoModes} selectedIndex={effectiveAmmoModeIndex} onSelect={setSelectedAmmoModeIndex} />
                   </>
                 )}
 
@@ -730,26 +766,41 @@ export function DamagePage() {
           )}
         </section>
       )}
-      </div>
+      </div> : catalog && mobCatalog ? (
+        <DamageComparison catalog={catalog} mobCatalog={mobCatalog} seed={damageBuildSeed({
+          weaponId: selectedWeapon?.id ?? null,
+          ammoIndex: effectiveAmmoIndex,
+          ammoModeIndex: effectiveAmmoModeIndex,
+          attachmentBySlot: effectiveAttachmentBySlot,
+          attachmentActiveBySlot,
+          target,
+          targetMatured,
+          hitDirection,
+          activeAbilities,
+          distance,
+        })} />
+      ) : (
+        <div className="status-panel" role="status"><span>DATABASE MESSAGE</span><strong>Синхронизация</strong><p>Загружаю данные для сравнения…</p></div>
+      )}
 
-      {picker?.type === "weapon" && catalog && (
+      {viewMode === "single" && picker?.type === "weapon" && catalog && (
         <PickerModal title="Выбор оружия" onClose={() => setPicker(null)}>
-          <WeaponPicker catalog={catalog} selectedId={selectedWeaponId} onSelect={selectWeapon} />
+          <WeaponPicker catalog={catalog} selectedId={selectedWeapon?.id ?? null} onSelect={selectWeapon} />
         </PickerModal>
       )}
 
-      {picker?.type === "attachment" && catalog && activePickerSlot && (
+      {viewMode === "single" && picker?.type === "attachment" && catalog && activePickerSlot && (
         <PickerModal title={activePickerSlot.name ?? activePickerSlot.slotName ?? "Обвес"} onClose={() => setPicker(null)}>
           <AttachmentPicker
             catalog={catalog}
             compatibleItemIds={activePickerSlot.compatibleItemIds ?? []}
-            selectedId={attachmentBySlot[picker.slotId] ?? null}
+            selectedId={effectiveAttachmentBySlot[picker.slotId] ?? null}
             onSelect={(id) => selectAttachment(picker.slotId, id)}
           />
         </PickerModal>
       )}
 
-      {picker?.type === "target" && catalog && mobCatalog && (
+      {viewMode === "single" && picker?.type === "target" && catalog && mobCatalog && (
         <PickerModal title="Выбор цели" onClose={() => setPicker(null)}>
           <TargetPicker catalog={catalog} mobCatalog={mobCatalog} selected={target} onSelect={selectTarget} />
         </PickerModal>
