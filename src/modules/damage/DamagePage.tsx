@@ -200,7 +200,21 @@ export function DamagePage() {
   ]);
 
   const selectedWeapon = selectedWeaponId && catalog ? catalog.items[selectedWeaponId] : null;
-  const attachmentSlots = useMemo(() => selectedWeapon?.attachmentSlots ?? [], [selectedWeapon]);
+  const attachmentSlots = useMemo(() => {
+    if (!selectedWeapon) return [];
+    const holder = selectedWeapon.properties?.AttachableHolder;
+    const rawSlots = isMap(holder?.slots) ? holder.slots : {};
+    return (selectedWeapon.attachmentSlots ?? []).map((slot) => {
+      const slotId = slot.id ?? slot.slotId ?? "";
+      const rawSlot = isMap(rawSlots[slotId]) ? rawSlots[slotId] : {};
+      return {
+        ...slot,
+        locked: slot.locked ?? rawSlot.locked === true,
+        startingItemId: slot.startingItemId
+          ?? (typeof rawSlot.startingAttachable === "string" ? rawSlot.startingAttachable : slot.installedItemIds?.[0]),
+      };
+    });
+  }, [selectedWeapon]);
 
   const ammunition = useMemo(() => {
     const raw = selectedWeapon?.weaponStats?.ammunition;
@@ -257,7 +271,9 @@ export function DamagePage() {
     const result: EquippedAttachment[] = [];
     for (const slot of attachmentSlots) {
       const slotId = slot.id ?? slot.slotId;
-      const itemId = slotId ? attachmentBySlot[slotId] : undefined;
+      const itemId = slot.locked
+        ? slot.startingItemId ?? slot.installedItemIds?.[0]
+        : slotId ? attachmentBySlot[slotId] : undefined;
       const item = itemId ? catalog.items[itemId] : undefined;
       if (item) result.push({ item, active: slotId ? Boolean(attachmentActiveBySlot[slotId]) : false });
     }
@@ -400,7 +416,10 @@ export function DamagePage() {
               <div className="attachment-rack">
                 {attachmentSlots.map((slot) => {
                   const slotId = slot.id ?? slot.slotId ?? "";
-                  const item: CatalogItem | null = attachmentBySlot[slotId] ? catalog.items[attachmentBySlot[slotId]] ?? null : null;
+                  const itemId = slot.locked
+                    ? slot.startingItemId ?? slot.installedItemIds?.[0]
+                    : attachmentBySlot[slotId];
+                  const item: CatalogItem | null = itemId ? catalog.items[itemId] ?? null : null;
                   const toggleable = item ? isToggleableAttachment(item) && !isGunAttachment(item) : false;
                   const active = Boolean(attachmentActiveBySlot[slotId]);
                   return (
@@ -409,8 +428,9 @@ export function DamagePage() {
                         label={slot.name ?? slot.slotName ?? "Обвес"}
                         item={item}
                         compact
-                        onOpen={() => setPicker({ type: "attachment", slotId })}
-                        onClear={item ? () => clearAttachment(slotId) : undefined}
+                        locked={slot.locked}
+                        onOpen={slot.locked ? undefined : () => setPicker({ type: "attachment", slotId })}
+                        onClear={item && !slot.locked ? () => clearAttachment(slotId) : undefined}
                       />
                       {toggleable && (
                         <button

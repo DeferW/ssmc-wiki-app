@@ -37,6 +37,8 @@ export type CompatibilitySlot = {
   installedItemIds?: string[];
   loadedItemIds?: string[];
   weaponIds?: string[];
+  locked?: boolean;
+  startingItemId?: string;
 };
 
 export type CatalogItem = {

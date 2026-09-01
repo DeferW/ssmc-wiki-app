@@ -52,6 +52,10 @@
 .item-slot { position: relative; display: flex; min-width: 0; flex-direction: column; align-items: stretch; }
 .item-slot.is-empty, .item-slot-main { display: flex; width: 100%; min-width: 0; border: 1px solid var(--line); background: color-mix(in srgb, var(--surface-raised) 62%, transparent); color: inherit; cursor: pointer; }
 .item-slot.is-empty:hover, .item-slot-main:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 5%, var(--surface-raised)); }
+.item-slot-main:disabled, .item-slot.is-empty:disabled { cursor: default; }
+.item-slot-main.is-locked { position: relative; padding-bottom: 24px; border-color: color-mix(in srgb, var(--warning) 45%, var(--line)); }
+.item-slot-main.is-locked:hover { border-color: color-mix(in srgb, var(--warning) 45%, var(--line)); background: color-mix(in srgb, var(--surface-raised) 62%, transparent); }
+.item-slot-lock-badge { position: absolute; right: 5px; bottom: 5px; left: 5px; overflow: hidden; color: var(--warning); font-size: .45rem; font-weight: 800; letter-spacing: .035em; line-height: 1.2; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
 .primary-slot-row .item-slot.is-empty, .primary-slot-row .item-slot-main { height: 104px; flex-direction: row; align-items: center; justify-content: flex-start; gap: 15px; padding: 12px 42px 12px 14px; }
 .primary-slot-row .item-slot.is-empty { border-style: dashed; }
 .item-slot-plus { display: grid; flex: 0 0 auto; width: 46px; height: 46px; place-items: center; border: 1px solid var(--line-strong); color: var(--accent); font-size: 1.4rem; line-height: 1; }
