@@ -17,19 +17,17 @@ export const CHEM_DISPENSER_AMOUNTS = [40, 30, 20, 10, 5] as const satisfies rea
 export const CHEM_DISPENSER_ENERGY_PER_UNIT = 0.1;
 
 export type MixturePreset = {
-  id: "unga-standard" | "unga-light";
+  id: "unga-standard";
   name: string;
-  shortName: string;
-  doseNote: string;
+  buttonLabel: string;
   components: Array<{ reagentId: string; amount: number; filler?: boolean }>;
 };
 
 export const UNGA_PRESETS: readonly MixturePreset[] = [
   {
     id: "unga-standard",
-    name: "Унга · обычная",
-    shortName: "Обычная унга",
-    doseNote: "2 укола по 60u: 21,6u > порога 15u",
+    name: "Унга",
+    buttonLabel: "Унга · до 80u без передоза",
     components: [
       { reagentId: "CMMeralyne", amount: 180 },
       { reagentId: "CMDermaline", amount: 180 },
@@ -39,22 +37,6 @@ export const UNGA_PRESETS: readonly MixturePreset[] = [
       { reagentId: "CMDexalinPlus", amount: 20 },
       { reagentId: "RMCIron", amount: 40, filler: true },
       { reagentId: "RMCSugar", amount: 40, filler: true },
-    ],
-  },
-  {
-    id: "unga-light",
-    name: "Унга · для больших инъекторов",
-    shortName: "Щадящая унга",
-    doseNote: "2 укола по 60u: 17,4u > порога 15u",
-    components: [
-      { reagentId: "CMMeralyne", amount: 145 },
-      { reagentId: "CMDermaline", amount: 145 },
-      { reagentId: "CMKelotane", amount: 200 },
-      { reagentId: "CMBicaridine", amount: 200 },
-      { reagentId: "CMTricordrazine", amount: 200 },
-      { reagentId: "CMDexalinPlus", amount: 20 },
-      { reagentId: "RMCIron", amount: 45, filler: true },
-      { reagentId: "RMCSugar", amount: 45, filler: true },
     ],
   },
 ] as const;
@@ -303,6 +285,61 @@ function optimalRunGroups(
   return groups.sort((left, right) => right - left);
 }
 
+function batchRecipeSignature(batch: PlannedBatch) {
+  return JSON.stringify({
+    targetAmount: batch.targetAmount,
+    totalInput: batch.totalInput,
+    totalOutput: batch.totalOutput,
+    inputs: batch.inputs,
+    byproducts: batch.byproducts,
+    minTemperature: batch.minTemperature,
+    warnings: batch.warnings,
+  });
+}
+
+function preparationRecipeSignature(preparation: PlannedPreparation): string {
+  return JSON.stringify({
+    reagentId: preparation.reagentId,
+    reactionId: preparation.reactionId,
+    requestedAmount: preparation.requestedAmount,
+    producedAmount: preparation.producedAmount,
+    surplusAmount: preparation.surplusAmount,
+    batches: preparation.batches.map(batchRecipeSignature),
+    preparations: preparation.preparations.map(preparationRecipeSignature),
+  });
+}
+
+function mergeEquivalentPreparations(preparations: PlannedPreparation[]): PlannedPreparation[] {
+  const groups: Array<{ signature: string; items: PlannedPreparation[] }> = [];
+  for (const preparation of preparations) {
+    const signature = preparationRecipeSignature(preparation);
+    const previous = groups[groups.length - 1];
+    if (previous?.signature === signature) previous.items.push(preparation);
+    else groups.push({ signature, items: [preparation] });
+  }
+
+  return groups.map(({ items }) => {
+    if (items.length === 1) return items[0];
+    const first = items[0];
+    const batchCount = items.reduce((total, item) => total + item.batches.length, 0);
+    let batchNumber = 0;
+    const batches = items.flatMap((item) => item.batches.map((batch) => ({
+      ...batch,
+      key: `${batch.key}:repeat:${batchNumber + 1}`,
+      batchNumber: ++batchNumber,
+      batchCount,
+    })));
+    return {
+      ...first,
+      requestedAmount: roundAmount(items.reduce((total, item) => total + item.requestedAmount, 0)),
+      producedAmount: roundAmount(items.reduce((total, item) => total + item.producedAmount, 0)),
+      surplusAmount: roundAmount(items.reduce((total, item) => total + item.surplusAmount, 0)),
+      preparations: mergeEquivalentPreparations(items.flatMap((item) => item.preparations)),
+      batches,
+    };
+  });
+}
+
 function planPreparation(
   context: PlannerContext,
   reagentId: string,
@@ -396,7 +433,7 @@ function planPreparation(
   // Prepare intermediates per destination tank. Aggregating them into one
   // large batch would force the player to measure and redistribute the result
   // before the next reaction instead of continuing in the same tank.
-  const preparations = batches.flatMap((batch) => batch.inputs
+  const preparations = mergeEquivalentPreparations(batches.flatMap((batch) => batch.inputs
     .filter((input) => input.prepared)
     .map((input) => planPreparation(
       context,
@@ -405,7 +442,7 @@ function planPreparation(
       TANK_CAPACITY,
       beakerCapacity,
       [...stack, reagentId],
-    )));
+    ))));
 
   const producedAmount = roundAmount(quantumRuns * targetQuantum);
   return {

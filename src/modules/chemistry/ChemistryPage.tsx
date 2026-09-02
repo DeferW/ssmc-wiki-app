@@ -426,21 +426,6 @@ function ReagentCombobox({
 
   return (
     <div className="chem-planner-search">
-      <span className="chem-mixture-presets" aria-label="Готовые смеси">
-        {UNGA_PRESETS.map((preset) => (
-          <button
-            type="button"
-            className={preset.id === mixtureId ? "is-active" : ""}
-            aria-pressed={preset.id === mixtureId}
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => onMixtureChange(preset.id === mixtureId ? null : preset.id)}
-            key={preset.id}
-          >
-            <strong>{preset.shortName}</strong>
-            <small>{preset.doseNote}</small>
-          </button>
-        ))}
-      </span>
       <input
         type="search"
         role="combobox"
@@ -473,6 +458,20 @@ function ReagentCombobox({
         onKeyDown={handleKeyDown}
         placeholder={selectedMixture ? selectedMixture.name : "Введите минимум 2 символа…"}
       />
+      <span className="chem-mixture-presets" aria-label="Готовые смеси">
+        {UNGA_PRESETS.map((preset) => (
+          <button
+            type="button"
+            className={preset.id === mixtureId ? "is-active" : ""}
+            aria-pressed={preset.id === mixtureId}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => onMixtureChange(preset.id === mixtureId ? null : preset.id)}
+            key={preset.id}
+          >
+            {preset.buttonLabel}
+          </button>
+        ))}
+      </span>
       {open && normalizedQuery.length >= 2 && (
         <div className="chem-planner-suggestions" id="chem-reagent-suggestions" role="listbox">
           {matches.length > 0 ? matches.map((item, index) => (

@@ -122,12 +122,13 @@ describe("chemistry preparation planner", () => {
 
     expect(plan.producedAmount).toBe(1620);
     expect(plan.target.batches.map((batch) => batch.targetAmount)).toEqual([810, 810]);
-    expect(plan.target.preparations).toHaveLength(2);
-    for (const bicaridine of plan.target.preparations) {
-      const inaprovaline = bicaridine.preparations[0];
-      expect(bicaridine.requestedAmount).toBe(bicaridine.producedAmount);
-      expect(inaprovaline?.requestedAmount).toBe(inaprovaline?.producedAmount);
-    }
+    expect(plan.target.preparations).toHaveLength(1);
+    const bicaridine = plan.target.preparations[0];
+    const inaprovaline = bicaridine.preparations[0];
+    expect(bicaridine.batches.map((batch) => batch.targetAmount)).toEqual([270, 270]);
+    expect(bicaridine.requestedAmount).toBe(bicaridine.producedAmount);
+    expect(inaprovaline.batches).toHaveLength(2);
+    expect(inaprovaline.requestedAmount).toBe(inaprovaline.producedAmount);
   });
 
   it("rounds up complete reaction quanta instead of rounding ingredients", () => {
