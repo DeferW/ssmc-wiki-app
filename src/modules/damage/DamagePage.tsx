@@ -14,8 +14,9 @@ import type { EquippedAttachment, StatDirection, WeaponModifiableStats } from ".
 import { aimedShotAbilityFrom } from "./aimedShot";
 import type { AimedShotEffectConfig } from "./aimedShot";
 import { isCompatibleAttachment, lockedIntegratedAttachmentIds } from "./attachmentEligibility";
-import type { DamageFalloffThreshold, DamageTypeMap, HitDirection, HoloTargetingConfig, OverheatConfig } from "./damageMath";
+import type { DamageTypeMap, HitDirection, HoloTargetingConfig, OverheatConfig } from "./damageMath";
 import { useMobCatalog } from "./mobCatalogStore";
+import { damageFalloffFrom, falloffThresholdsFrom } from "./projectileFalloff";
 import { targetArmorFrom, targetSizeFrom, targetThresholdsFrom } from "./target";
 import type { TargetSelection } from "./target";
 import { applyXenoAbilityBonuses, toggleXenoAbility, XENO_DEFENSIVE_ABILITIES } from "./xenoAbilities";
@@ -65,21 +66,6 @@ function aimedShotEffectFrom(projectile: JsonMap | undefined): AimedShotEffectCo
     slowDuration: typeof raw.slowDuration === "number" ? raw.slowDuration : undefined,
     superSlowDuration: typeof raw.superSlowDuration === "number" ? raw.superSlowDuration : undefined,
   };
-}
-
-function damageFalloffFrom(projectile: JsonMap | undefined): JsonMap | undefined {
-  if (isMap(projectile?.damageFalloff)) return projectile.damageFalloff;
-  return undefined;
-}
-
-function falloffThresholdsFrom(projectile: JsonMap | undefined, rangeFlat = 0): DamageFalloffThreshold[] {
-  const raw = damageFalloffFrom(projectile)?.thresholds;
-  if (!Array.isArray(raw)) return [];
-  return raw.filter(isMap).map((entry) => ({
-    range: (typeof entry.range === "number" ? entry.range : 0) + rangeFlat,
-    falloff: typeof entry.falloff === "number" ? entry.falloff : 0,
-    ignoreModifiers: entry.ignoreModifiers === true,
-  }));
 }
 
 function DamageBreakdown({ damage }: { damage: DamageTypeMap }) {

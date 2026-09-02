@@ -144,7 +144,8 @@ function CompareChart({ builds, target, thresholds, hitDirection, selectedDistan
   const plotWidth = width - left - right;
   const plotHeight = height - top - bottom;
   const x = (distance: number) => left + (distance / 40) * plotWidth;
-  const y = (ttk: number) => top + plotHeight - (ttk / maxTtk) * plotHeight;
+  // A shorter TTK is better, so smaller values are drawn higher on the chart.
+  const y = (ttk: number) => top + (ttk / maxTtk) * plotHeight;
   const guideX = x(selectedDistance);
   const activeSeries = series.filter((entry) => entry.build.weapon);
   const hoverIndex = hoverDistance == null ? -1 : GRAPH_DISTANCES.indexOf(hoverDistance);
@@ -181,10 +182,11 @@ function CompareChart({ builds, target, thresholds, hitDirection, selectedDistan
       onPointerLeave={() => setHoverDistance(null)}
     >
       <text className="compare-chart-axis-title" x={left} y={11}>TTK, СЕК.</text>
+      <text className="compare-chart-quality-note" x={width - right} y={11} textAnchor="end">ВЫШЕ — ЛУЧШЕ · TTK МЕНЬШЕ</text>
       {[0, .25, .5, .75, 1].map((ratio) => (
         <g key={ratio}>
           <line className="compare-chart-grid" x1={left} x2={width - right} y1={top + plotHeight * ratio} y2={top + plotHeight * ratio} />
-          <text x={left - 8} y={top + plotHeight * ratio + 4} textAnchor="end">{formatNumber(maxTtk * (1 - ratio))}</text>
+          <text x={left - 8} y={top + plotHeight * ratio + 4} textAnchor="end">{formatNumber(maxTtk * ratio)}</text>
         </g>
       ))}
       {GRAPH_DISTANCES.filter((distance) => distance % 10 === 0).map((distance) => (

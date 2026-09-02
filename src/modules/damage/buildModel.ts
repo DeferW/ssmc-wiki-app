@@ -13,6 +13,7 @@ import type {
   HoloTargetingConfig,
   OverheatConfig,
 } from "./damageMath";
+import { falloffThresholdsFrom } from "./projectileFalloff";
 import { ammoProjectiles } from "./components/AmmoPicker";
 
 export type DamageBuildState = {
@@ -80,16 +81,6 @@ function damageTypeMapFrom(value: unknown): DamageTypeMap {
 
 function scaleDamage(damage: DamageTypeMap, ratio: number): DamageTypeMap {
   return Object.fromEntries(Object.entries(damage).map(([type, amount]) => [type, amount * ratio]));
-}
-
-function falloffThresholdsFrom(projectile: JsonMap | undefined, rangeFlat = 0): DamageFalloffThreshold[] {
-  const raw = isMap(projectile?.damageFalloff) ? projectile.damageFalloff.thresholds : undefined;
-  if (!Array.isArray(raw)) return [];
-  return raw.filter(isMap).map((entry) => ({
-    range: (typeof entry.range === "number" ? entry.range : 0) + rangeFlat,
-    falloff: typeof entry.falloff === "number" ? entry.falloff : 0,
-    ignoreModifiers: entry.ignoreModifiers === true,
-  }));
 }
 
 function overheatConfigFrom(stats: JsonMap | undefined): OverheatConfig | undefined {
