@@ -204,6 +204,24 @@
     },
     "RMCBoxMRE": {
       "category": "Другое"
+    },
+    "RMCSmartGunMountedLoaded": {
+      "category": "Скрытые"
+    },
+    "PowerCellMedium": {
+      "category": "Другое"
+    },
+    "DonkcoLighter": {
+      "category": "Другое"
+    },
+    "CMMedicalUpgradeKitFilledCommando": {
+      "category": "Медицина"
+    },
+    "CMBottleTricordrazine": {
+      "category": "Медицина"
+    },
+    "RMCVialTricordrazine": {
+      "category": "Медицина"
     }
   }
 }
