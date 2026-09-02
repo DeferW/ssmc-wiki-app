@@ -125,6 +125,7 @@ function CompareChart({ builds, target, thresholds, hitDirection, selectedDistan
   hitDirection: HitDirection;
   selectedDistance: number;
 }) {
+  const [hoverDistance, setHoverDistance] = useState<number | null>(null);
   const series = builds.map((build) => ({
     build,
     values: GRAPH_DISTANCES.map((distance) => {
@@ -145,13 +146,40 @@ function CompareChart({ builds, target, thresholds, hitDirection, selectedDistan
   const x = (distance: number) => left + (distance / 40) * plotWidth;
   const y = (ttk: number) => top + plotHeight - (ttk / maxTtk) * plotHeight;
   const guideX = x(selectedDistance);
+  const activeSeries = series.filter((entry) => entry.build.weapon);
+  const hoverIndex = hoverDistance == null ? -1 : GRAPH_DISTANCES.indexOf(hoverDistance);
+  const hoverX = hoverDistance == null ? null : x(hoverDistance);
+  const tooltipWidth = 230;
+  const tooltipHeight = 29 + activeSeries.length * 18;
+  const tooltipX = hoverX == null
+    ? 0
+    : Math.min(
+      width - right - tooltipWidth - 8,
+      Math.max(left + 8, hoverX + 13 + tooltipWidth <= width - right ? hoverX + 13 : hoverX - tooltipWidth - 13),
+    );
+  const tooltipY = top + 8;
 
   if (!series.some((entry) => entry.build.weapon && entry.values.some((value) => value != null))) {
     return <div className="compare-chart-empty">Выберите оружие и цель — график появится автоматически.</div>;
   }
 
   return (
-    <svg className="compare-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Сравнение времени до смерти цели по дистанции">
+    <svg
+      className="compare-chart"
+      viewBox={`0 0 ${width} ${height}`}
+      role="img"
+      aria-label="Сравнение времени до смерти цели по дистанции"
+      onPointerMove={(event) => {
+        const bounds = event.currentTarget.getBoundingClientRect();
+        const pointerX = ((event.clientX - bounds.left) / bounds.width) * width;
+        const rawDistance = Math.max(0, Math.min(40, ((pointerX - left) / plotWidth) * 40));
+        const nearestDistance = GRAPH_DISTANCES.reduce((nearest, candidate) => (
+          Math.abs(candidate - rawDistance) < Math.abs(nearest - rawDistance) ? candidate : nearest
+        ));
+        setHoverDistance(nearestDistance);
+      }}
+      onPointerLeave={() => setHoverDistance(null)}
+    >
       <text className="compare-chart-axis-title" x={left} y={11}>TTK, СЕК.</text>
       {[0, .25, .5, .75, 1].map((ratio) => (
         <g key={ratio}>
@@ -173,6 +201,34 @@ function CompareChart({ builds, target, thresholds, hitDirection, selectedDistan
           points={values.flatMap((value, pointIndex) => value == null ? [] : [`${x(GRAPH_DISTANCES[pointIndex])},${y(value)}`]).join(" ")}
         />
       ) : null)}
+      {hoverX != null && hoverIndex >= 0 && (
+        <g className="compare-chart-hover" pointerEvents="none">
+          <line className="compare-chart-hover-guide" x1={hoverX} x2={hoverX} y1={top} y2={top + plotHeight} />
+          {series.map(({ build, values }, index) => {
+            const value = values[hoverIndex];
+            return build.weapon && value != null ? (
+              <circle key={build.state.id} className={`compare-chart-point series-${index + 1}`} cx={hoverX} cy={y(value)} r="4" />
+            ) : null;
+          })}
+          <g className="compare-chart-tooltip">
+            <rect x={tooltipX} y={tooltipY} width={tooltipWidth} height={tooltipHeight} rx="2" />
+            <text className="compare-chart-tooltip-title" x={tooltipX + 11} y={tooltipY + 18}>{hoverDistance} ТАЙЛОВ</text>
+            {activeSeries.map(({ build, values }, rowIndex) => {
+              const seriesIndex = series.findIndex((entry) => entry.build.state.id === build.state.id);
+              const value = values[hoverIndex];
+              const weaponName = build.weapon!.name.length > 22 ? `${build.weapon!.name.slice(0, 21)}…` : build.weapon!.name;
+              const rowY = tooltipY + 38 + rowIndex * 18;
+              return (
+                <g key={build.state.id}>
+                  <circle className={`compare-chart-tooltip-swatch series-${seriesIndex + 1}`} cx={tooltipX + 12} cy={rowY - 4} r="3" />
+                  <text className="compare-chart-tooltip-name" x={tooltipX + 21} y={rowY}>{weaponName}</text>
+                  <text className="compare-chart-tooltip-value" x={tooltipX + tooltipWidth - 10} y={rowY} textAnchor="end">{value == null ? "—" : finite(value, " с")}</text>
+                </g>
+              );
+            })}
+          </g>
+        </g>
+      )}
     </svg>
   );
 }
