@@ -2,6 +2,7 @@ import type {
   ChemistryCatalog,
   ChemistryEffect,
   ChemistryReaction,
+  BeakerCapacity,
   PlannedBatch,
   PlannedPreparation,
   PreparationPlan,
@@ -9,8 +10,10 @@ import type {
 } from "./types";
 import { formatReagentName } from "./format";
 
-export const BEAKER_CAPACITY = 100;
-export const CHEM_MASTER_AMOUNTS = [100, 50, 30, 25, 20, 15, 10, 5, 1] as const;
+export const TANK_CAPACITY = 1000;
+export const BEAKER_CAPACITIES = [300, 120, 60] as const satisfies readonly BeakerCapacity[];
+export const CHEM_DISPENSER_AMOUNTS = [40, 30, 20, 10, 5] as const satisfies readonly TransferMode[];
+export const CHEM_DISPENSER_ENERGY_PER_UNIT = 0.1;
 
 type PlannerContext = {
   names: Map<string, string>;
@@ -18,10 +21,6 @@ type PlannerContext = {
 };
 
 const EPSILON = 1e-7;
-
-function closeTo(left: number, right: number) {
-  return Math.abs(left - right) < EPSILON;
-}
 
 function roundAmount(value: number) {
   return Math.round(value * 1000) / 1000;
@@ -51,13 +50,16 @@ function decimalDenominator(value: number) {
 }
 
 function reactionScaleQuantum(reaction: ChemistryReaction) {
-  return reaction.reactants.reduce(
+  const integerScale = [...reaction.reactants, ...reaction.products].reduce(
     (current, reactant) => leastCommonMultiple(
       current,
       decimalDenominator(reactant.amount),
     ),
     1,
   );
+  // The medbay dispenser cannot measure less than 5u. Scaling the complete
+  // reaction by five also keeps fractional recipes on measurable quantities.
+  return integerScale * 5;
 }
 
 function productFor(reaction: ChemistryReaction, reagentId: string) {
@@ -135,15 +137,27 @@ function effectWarning(effect: ChemistryEffect) {
   return type ? `Дополнительный эффект реакции: ${type}.` : "";
 }
 
-function batchActionCount(reaction: ChemistryReaction, scale: number) {
-  let occupied = 0;
-  let actions = 0;
+function batchActionCount(
+  reaction: ChemistryReaction,
+  scale: number,
+  beakerCapacity: BeakerCapacity,
+  recipes: ReadonlyMap<string, ChemistryReaction>,
+) {
+  let pours = 0;
+  let buttonPresses = 0;
   for (const reactant of reaction.reactants) {
+    // An intermediate reagent is prepared directly in the destination tank;
+    // it is already the first ingredient and does not require another pour.
+    if (recipes.has(reactant.id)) continue;
     const amount = roundAmount(reactant.amount * scale);
-    actions += transferModes(amount, BEAKER_CAPACITY - occupied).length;
-    occupied += amount;
+    const loads = transferLoads(amount, beakerCapacity);
+    pours += loads.length;
+    buttonPresses += loads.reduce(
+      (total, load) => total + fixedTransferModes(load).length,
+      0,
+    );
   }
-  return actions;
+  return { pours, buttonPresses };
 }
 
 function optimalRunGroups(
@@ -151,32 +165,61 @@ function optimalRunGroups(
   scaleQuantum: number,
   quantumRuns: number,
   maxQuantumRuns: number,
+  beakerCapacity: BeakerCapacity,
+  recipes: ReadonlyMap<string, ChemistryReaction>,
 ) {
-  type Candidate = { actions: number; groups: number[] };
-  const best: Array<Candidate | undefined> = Array(quantumRuns + 1);
-  best[0] = { actions: 0, groups: [] };
+  type Candidate = {
+    pours: number;
+    buttonPresses: number;
+    balance: number;
+    groups: number[];
+  };
+  const groupCount = Math.ceil(quantumRuns / maxQuantumRuns);
+  const best = Array.from(
+    { length: quantumRuns + 1 },
+    () => Array<Candidate | undefined>(groupCount + 1),
+  );
+  best[0][0] = { pours: 0, buttonPresses: 0, balance: 0, groups: [] };
 
   for (let totalRuns = 1; totalRuns <= quantumRuns; totalRuns += 1) {
-    const maximumCurrent = Math.min(totalRuns, maxQuantumRuns);
-    for (let currentRuns = 1; currentRuns <= maximumCurrent; currentRuns += 1) {
-      const previous = best[totalRuns - currentRuns];
-      if (!previous) continue;
-      const candidate: Candidate = {
-        actions: previous.actions + batchActionCount(reaction, currentRuns * scaleQuantum),
-        groups: [...previous.groups, currentRuns],
-      };
-      const stored = best[totalRuns];
-      if (
-        !stored
-        || candidate.actions < stored.actions
-        || (candidate.actions === stored.actions && candidate.groups.length < stored.groups.length)
-      ) {
-        best[totalRuns] = candidate;
+    for (let usedGroups = 1; usedGroups <= groupCount; usedGroups += 1) {
+      const maximumCurrent = Math.min(totalRuns, maxQuantumRuns);
+      for (let currentRuns = 1; currentRuns <= maximumCurrent; currentRuns += 1) {
+        const previous = best[totalRuns - currentRuns][usedGroups - 1];
+        if (!previous) continue;
+        const actions = batchActionCount(
+          reaction,
+          currentRuns * scaleQuantum,
+          beakerCapacity,
+          recipes,
+        );
+        const candidate: Candidate = {
+          pours: previous.pours + actions.pours,
+          buttonPresses: previous.buttonPresses + actions.buttonPresses,
+          balance: previous.balance + currentRuns ** 2,
+          groups: [...previous.groups, currentRuns],
+        };
+        const stored = best[totalRuns][usedGroups];
+        if (
+          !stored
+          || candidate.pours < stored.pours
+          || (
+            candidate.pours === stored.pours
+            && candidate.balance < stored.balance
+          )
+          || (
+            candidate.pours === stored.pours
+            && candidate.balance === stored.balance
+            && candidate.buttonPresses < stored.buttonPresses
+          )
+        ) {
+          best[totalRuns][usedGroups] = candidate;
+        }
       }
     }
   }
 
-  const groups = best[quantumRuns]?.groups ?? [];
+  const groups = best[quantumRuns][groupCount]?.groups ?? [];
   return groups.sort((left, right) => right - left);
 }
 
@@ -185,6 +228,7 @@ function planPreparation(
   reagentId: string,
   requestedAmount: number,
   capacity: number,
+  beakerCapacity: BeakerCapacity,
   stack: string[],
 ): PlannedPreparation {
   const reaction = context.recipes.get(reagentId);
@@ -224,6 +268,8 @@ function planPreparation(
     scaleQuantum,
     quantumRuns,
     maxQuantumRuns,
+    beakerCapacity,
+    context.recipes,
   );
 
   const batches: PlannedBatch[] = runGroups.map((runs, batchIndex) => {
@@ -236,14 +282,15 @@ function planPreparation(
         amount,
         prepared: context.recipes.has(reactant.id),
       };
-    });
+    }).sort((left, right) => Number(right.prepared) - Number(left.prepared));
     const targetAmount = roundAmount(targetProduct.amount * scale);
     return {
       key: `${[...stack, reagentId].join("/")}:${batchIndex}`,
       batchNumber: batchIndex + 1,
       batchCount: runGroups.length,
-      vessel: "beaker" as const,
+      vessel: "tank" as const,
       capacity,
+      beakerCapacity,
       targetAmount,
       totalInput: roundAmount(reaction.reactants.reduce(
         (total, reactant) => total + reactant.amount * scale,
@@ -283,7 +330,8 @@ function planPreparation(
     context,
     inputReagentId,
     inputAmount,
-    BEAKER_CAPACITY,
+    TANK_CAPACITY,
+    beakerCapacity,
     [...stack, reagentId],
   ));
 
@@ -329,35 +377,48 @@ export function buildPreparationPlan(
   catalog: ChemistryCatalog,
   reagentId: string,
   requestedAmount: number,
+  beakerCapacity: BeakerCapacity = 300,
 ): PreparationPlan {
   if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
     throw new Error("Укажите положительный объём вещества.");
+  }
+  if (!BEAKER_CAPACITIES.includes(beakerCapacity)) {
+    throw new Error("Выберите доступную мензурку: 60u, 120u или 300u.");
   }
   const context = createPlannerContext(catalog);
   const target = planPreparation(
     context,
     reagentId,
     requestedAmount,
-    BEAKER_CAPACITY,
+    TANK_CAPACITY,
+    beakerCapacity,
     [],
   );
+  const sourceTotals = collectSourceTotals(target);
   return {
     requestedAmount,
     producedAmount: target.producedAmount,
     surplusAmount: target.surplusAmount,
+    energyCost: roundAmount(sourceTotals.reduce(
+      (total, source) => total + (source.reagentId === "Water"
+        ? 0
+        : source.amount * CHEM_DISPENSER_ENERGY_PER_UNIT),
+      0,
+    )),
+    beakerCapacity,
     target,
-    sourceTotals: collectSourceTotals(target),
+    sourceTotals,
   };
 }
 
-export function fixedTransferModes(amount: number): number[] {
-  if (!Number.isInteger(amount) || amount < 0) {
-    throw new Error(`Химмастер не может отмерить ${amount}u доступными режимами.`);
+export function fixedTransferModes(amount: number): TransferMode[] {
+  if (!Number.isInteger(amount) || amount < 0 || amount % 5 !== 0) {
+    throw new Error(`Химраздатчик не может отмерить ${amount}u доступными режимами.`);
   }
-  const plans: Array<number[] | undefined> = Array(amount + 1);
+  const plans: Array<TransferMode[] | undefined> = Array(amount + 1);
   plans[0] = [];
   for (let current = 1; current <= amount; current += 1) {
-    for (const mode of CHEM_MASTER_AMOUNTS) {
+    for (const mode of CHEM_DISPENSER_AMOUNTS) {
       const previous = current - mode;
       if (previous < 0) continue;
       const previousPlan = plans[previous];
@@ -372,8 +433,21 @@ export function fixedTransferModes(amount: number): number[] {
   return (plans[amount] ?? []).sort((left, right) => right - left);
 }
 
-export function transferModes(amount: number, freeCapacity: number): TransferMode[] {
-  if (closeTo(amount, freeCapacity)) return ["ALL"];
+export function transferLoads(amount: number, capacity: BeakerCapacity): number[] {
+  if (!Number.isInteger(amount) || amount < 0 || amount % 5 !== 0) {
+    throw new Error(`Химраздатчик не может отмерить ${amount}u доступными режимами.`);
+  }
+  const loads: number[] = [];
+  let remaining = amount;
+  while (remaining > 0) {
+    const load = Math.min(capacity, remaining);
+    loads.push(load);
+    remaining -= load;
+  }
+  return loads;
+}
+
+export function transferModes(amount: number): TransferMode[] {
   return fixedTransferModes(amount);
 }
 
@@ -385,7 +459,7 @@ export function formatTransferModes(modes: TransferMode[]) {
     else groups.push({ mode, count: 1 });
   }
   return groups.flatMap(({ mode, count }) => {
-    if (mode === 1 && count > 1) return [String(count)];
-    return Array.from({ length: count }, () => String(mode));
+    if (count > 1) return [`${mode} × ${count}`];
+    return [String(mode)];
   }).join(" + ");
 }

@@ -3,11 +3,12 @@ import { readChemistryUrlState, updateChemistryUrl } from "./urlState";
 
 describe("chemistry URL state", () => {
   it("reads a shared planner setup", () => {
-    const state = readChemistryUrlState(new URLSearchParams("view=planner&reagent=Bicaridine&amount=350&run=1"));
+    const state = readChemistryUrlState(new URLSearchParams("view=planner&reagent=Bicaridine&amount=350&beaker=120&run=1"));
     expect(state).toMatchObject({
       view: "planner",
       plannerReagentId: "Bicaridine",
       requestedAmount: "350",
+      beakerCapacity: 120,
       shouldBuild: true,
     });
   });
@@ -29,6 +30,7 @@ describe("chemistry URL state", () => {
       view: "catalog",
       sectionId: "ordnance",
       requestedAmount: "100",
+      beakerCapacity: 300,
     });
   });
 });

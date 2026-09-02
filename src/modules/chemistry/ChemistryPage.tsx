@@ -5,12 +5,15 @@ import { CHEMISTRY_CATALOG_URL, CHEMISTRY_SECTIONS } from "./config";
 import { describeEffect, describePlantEffect, type EffectDescription, type EffectTier } from "./effects";
 import { formatReagentName } from "./format";
 import {
+  BEAKER_CAPACITIES,
   buildPreparationPlan,
   craftableReagentIds,
   formatTransferModes,
+  transferLoads,
   transferModes,
 } from "./planner";
 import type {
+  BeakerCapacity,
   ChemistryCatalog,
   ChemistryCatalogEntry,
   ChemistryReaction,
@@ -234,16 +237,30 @@ function ReagentCard({
 
 function InputInstruction({ batch, inputIndex, repeatCount = 1 }: { batch: PlannedBatch; inputIndex: number; repeatCount?: number }) {
   const input = batch.inputs[inputIndex];
-  const prepared = input.prepared ? "приготовленный " : "";
-  const occupiedBefore = batch.inputs
-    .slice(0, inputIndex)
-    .reduce((total, current) => total + current.amount, 0);
-  const modes = transferModes(input.amount, batch.capacity - occupiedBefore);
+  if (input.prepared) {
+    return (
+      <li>
+        {repeatCount > 1 ? "Оставьте или распределите " : "Оставьте в этом баке "}
+        <strong>{amount(input.amount)} {formatReagentName(input.name, input.reagentId)}</strong>
+        {repeatCount > 1 ? ` в каждый из ${repeatCount} баков` : ""}. Это уже приготовленный компонент следующей реакции.
+      </li>
+    );
+  }
+  const loads = transferLoads(input.amount, batch.beakerCapacity);
   return (
     <li>
-      В химмастере выберите {prepared}<strong>{formatReagentName(input.name, input.reagentId)}</strong> и
-      {repeatCount > 1 ? ` в каждую из ${repeatCount} мензурок перенесите ` : " перенесите "}{amount(input.amount)}:
-      <code className="chem-mode-sequence">{formatTransferModes(modes)}</code>
+      В химраздатчике выберите <strong>{formatReagentName(input.name, input.reagentId)}</strong>.
+      {repeatCount > 1 ? ` Для каждого из ${repeatCount} баков перенесите ` : " Перенесите в бак "}
+      <strong>{amount(input.amount)}</strong>
+      {loads.length > 1 ? ` за ${loads.length} переливания` : ""}:
+      <span className="chem-transfer-loads">
+        {loads.map((load, index) => (
+          <code className="chem-mode-sequence" key={`${load}:${index}`}>
+            {amount(load)} · {formatTransferModes(transferModes(load))}
+          </code>
+        ))}
+      </span>
+      После каждого заполнения выливайте мензурку в бак.
     </li>
   );
 }
@@ -272,7 +289,7 @@ function PreparationBlock({
       </header>
       {preparation.preparations.length > 0 && (
         <div className="chem-nested-preparations">
-          <p>Сначала подготовьте общий запас промежуточных реагентов:</p>
+          <p>Сначала приготовьте промежуточные реагенты. По возможности оставляйте их в том же баке — это уже первый компонент следующей реакции.</p>
           {preparation.preparations.map((nested) => (
             <PreparationBlock
               preparation={nested}
@@ -286,15 +303,19 @@ function PreparationBlock({
         <article className="chem-batch" key={batch.key}>
           <h4>
             {count > 1
-              ? `Мензурки ${first}–${last} из ${batch.batchCount}`
-              : `Мензурка ${first} из ${batch.batchCount}`}
+              ? `Баки ${first}–${last} из ${batch.batchCount}`
+              : `Бак ${first} из ${batch.batchCount}`}
             <span>{count > 1 ? `${count} × ` : ""}{amount(batch.targetAmount)} {formatReagentName(preparation.name, preparation.reagentId)}</span>
           </h4>
           <ol>
             <li>
-              {count > 1
-                ? `Подготовьте ${count} чистых мензурок на 100u. Выполняйте один шаг сразу для всей группы, не переключая реагент после каждой мензурки.`
-                : "Возьмите чистую мензурку на 100u и установите её в химмастер."}
+              {batch.inputs.some((input) => input.prepared)
+                ? count > 1
+                  ? `Продолжайте приготовление в этих ${count} баках, используя мензурку на ${batch.beakerCapacity}u. Выполняйте один шаг сразу для всей группы.`
+                  : `Продолжайте приготовление в баке с промежуточным реагентом, используя мензурку на ${batch.beakerCapacity}u.`
+                : count > 1
+                  ? `Подготовьте ${count} чистых баков на 1000u и мензурку на ${batch.beakerCapacity}u. Выполняйте один шаг сразу для всей группы баков.`
+                  : `Подготовьте чистый бак на 1000u и мензурку на ${batch.beakerCapacity}u.`}
             </li>
             {batch.inputs.map((input, inputIndex) => (
               <InputInstruction batch={batch} inputIndex={inputIndex} repeatCount={count} key={batch.key + ":" + input.reagentId} />
@@ -303,11 +324,11 @@ function PreparationBlock({
               <li>Нагрейте смесь минимум до <strong>{numberFormat.format(batch.minTemperature)} K</strong>.</li>
             )}
             <li>
-              {count > 1 ? "В каждой мензурке получится " : "Получится "}<strong>{amount(batch.targetAmount)} {formatReagentName(preparation.name, preparation.reagentId)}</strong>
+              {count > 1 ? "В каждом баке получится " : "В баке получится "}<strong>{amount(batch.targetAmount)} {formatReagentName(preparation.name, preparation.reagentId)}</strong>
               {batch.byproducts.length > 0 && (
                 <> и {batch.byproducts.map((item) => amount(item.amount) + " " + formatReagentName(item.name, item.reagentId)).join(", ")}</>
               )}.
-              {!root && " Загрузите результат в буфер химмастера для следующего этапа."}
+              {!root && " Оставьте результат в баке для следующего этапа приготовления."}
             </li>
           </ol>
           {batch.warnings.map((warning) => (
@@ -455,17 +476,21 @@ function Planner({
   catalog,
   reagentId,
   requestedAmount,
+  beakerCapacity,
   shouldBuild,
   onReagentChange,
   onAmountChange,
+  onBeakerCapacityChange,
   onBuild,
 }: {
   catalog: ChemistryCatalog;
   reagentId: string;
   requestedAmount: string;
+  beakerCapacity: BeakerCapacity;
   shouldBuild: boolean;
   onReagentChange: (id: string) => void;
   onAmountChange: (value: string) => void;
+  onBeakerCapacityChange: (value: BeakerCapacity) => void;
   onBuild: () => void;
 }) {
   const craftableIds = useMemo(() => craftableReagentIds(catalog), [catalog]);
@@ -474,11 +499,11 @@ function Planner({
   const calculation = useMemo<{ plan: PreparationPlan | null; error: string }>(() => {
     if (!shouldBuild) return { plan: null, error: "" };
     try {
-      return { plan: buildPreparationPlan(catalog, reagentId, Number(requestedAmount)), error: "" };
+      return { plan: buildPreparationPlan(catalog, reagentId, Number(requestedAmount), beakerCapacity), error: "" };
     } catch (caught) {
       return { plan: null, error: caught instanceof Error ? caught.message : "Не удалось построить план." };
     }
-  }, [catalog, reagentId, requestedAmount, shouldBuild]);
+  }, [beakerCapacity, catalog, reagentId, requestedAmount, shouldBuild]);
   const { plan } = calculation;
   const error = submitError || calculation.error;
 
@@ -523,14 +548,21 @@ function Planner({
             <b>u</b>
           </span>
         </label>
-        <div className="chem-vessel-note"><strong>Мензурка 100u</strong><small>Большие объёмы автоматически делятся на оптимальные порции</small></div>
+        <label>
+          <span>Мензурка</span>
+          <select className="chem-beaker-select" value={beakerCapacity} onChange={(event) => onBeakerCapacityChange(Number(event.target.value) as BeakerCapacity)}>
+            {BEAKER_CAPACITIES.map((capacity) => (
+              <option value={capacity} key={capacity}>{capacity}u{capacity === 300 ? " · рекомендуется" : ""}</option>
+            ))}
+          </select>
+        </label>
         <button type="submit">[ ПОСТРОИТЬ МАРШРУТ ]</button>
       </form>
 
       <aside className="chem-planner-note">
-        <strong>РЕЖИМЫ ХИММАСТЕРА</strong>
-        <span>1 · 5 · 10 · 15 · 20 · 25 · 30 · 50 · 100 · ALL</span>
-        <p>ALL заполняет оставшийся объём 100u-мензурки. План использует его только при точной дозировке.</p>
+        <strong>RMCChemDispenserMedbay</strong>
+        <span>Режимы выдачи: 5 · 10 · 20 · 30 · 40</span>
+        <p>1u реагента расходует 0,1 энергии, вода бесплатна. Запас восстанавливается каждые 52,5 секунды; фактический максимум и восстановление зависят от онлайна и числа подключённых раздатчиков.</p>
       </aside>
 
       {error && <div className="chem-status is-error">{error}</div>}
@@ -540,7 +572,7 @@ function Planner({
             <div><span>ЗАПРОШЕНО</span><strong>{amount(plan.requestedAmount)}</strong></div>
             <div><span>БУДЕТ ПОЛУЧЕНО</span><strong>{amount(plan.producedAmount)}</strong></div>
             <div><span>ИЗЛИШЕК</span><strong>{amount(plan.surplusAmount)}</strong></div>
-            <div><span>ФИНАЛЬНЫХ ПОРЦИЙ</span><strong>{plan.target.batches.length}</strong></div>
+            <div><span>НУЖНО БАКОВ</span><strong>{plan.target.batches.length}</strong></div>
           </header>
           <section className="chem-source-totals">
             <h3>Всего исходных реагентов</h3>
@@ -549,7 +581,7 @@ function Planner({
                 <span key={source.reagentId}><strong>{amount(source.amount)}</strong> {formatReagentName(source.name, source.reagentId)}</span>
               ))}
             </div>
-            <p>Исходными считаются элементы, вода и вещества без производящего рецепта. Некоторые потребуется получить вне химмастера.</p>
+            <p>Оценочный расход химраздатчика: <strong>{numberFormat.format(plan.energyCost)} энергии</strong>. Вода энергию не расходует. Исходными считаются элементы, вода и вещества без производящего рецепта.</p>
           </section>
           <PreparationBlock preparation={plan.target} root />
         </div>
@@ -769,9 +801,11 @@ export function ChemistryPage() {
           catalog={catalog}
           reagentId={urlState.plannerReagentId}
           requestedAmount={urlState.requestedAmount}
+          beakerCapacity={urlState.beakerCapacity}
           shouldBuild={urlState.shouldBuild}
           onReagentChange={(id) => setUrlFields({ reagent: id || null, run: null })}
           onAmountChange={(value) => setUrlFields({ amount: value === "100" ? null : value, run: null })}
+          onBeakerCapacityChange={(capacity) => setUrlFields({ beaker: capacity === 300 ? null : String(capacity), run: null })}
           onBuild={() => setUrlFields({ run: "1" })}
         />
       )}

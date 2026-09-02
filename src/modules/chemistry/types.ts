@@ -71,7 +71,9 @@ export type ChemistryCatalog = {
   reactions: Record<string, ChemistryReaction>;
 };
 
-export type TransferMode = number | "ALL";
+export type BeakerCapacity = 60 | 120 | 300;
+
+export type TransferMode = 5 | 10 | 20 | 30 | 40;
 
 export type PlannedSource = {
   kind: "source";
@@ -97,8 +99,9 @@ export type PlannedBatch = {
   key: string;
   batchNumber: number;
   batchCount: number;
-  vessel: "beaker";
+  vessel: "tank";
   capacity: number;
+  beakerCapacity: BeakerCapacity;
   targetAmount: number;
   totalInput: number;
   totalOutput: number;
@@ -124,6 +127,8 @@ export type PreparationPlan = {
   requestedAmount: number;
   producedAmount: number;
   surplusAmount: number;
+  energyCost: number;
+  beakerCapacity: BeakerCapacity;
   target: PlannedPreparation;
   sourceTotals: PlannedSource[];
 };

@@ -4,6 +4,7 @@ import {
   craftableReagentIds,
   fixedTransferModes,
   formatTransferModes,
+  transferLoads,
   transferModes,
 } from "./planner";
 import type { ChemistryCatalog, ChemistryReaction } from "./types";
@@ -55,51 +56,59 @@ function reaction(
   };
 }
 
-describe("ChemMaster transfer modes", () => {
+describe("medbay chemical dispenser transfer modes", () => {
   it("uses the minimum number of fixed button presses", () => {
-    expect(fixedTransferModes(40)).toEqual([30, 10]);
-    expect(fixedTransferModes(75)).toEqual([50, 25]);
+    expect(fixedTransferModes(40)).toEqual([40]);
+    expect(fixedTransferModes(75)).toEqual([40, 30, 5]);
   });
 
-  it("uses ALL only when the requested reagent fills the remaining volume", () => {
-    expect(transferModes(75, 75)).toEqual(["ALL"]);
-    expect(transferModes(75, 100)).toEqual([50, 25]);
+  it("rejects amounts that cannot be dispensed in 5u increments", () => {
+    expect(() => transferModes(31)).toThrow(/не может отмерить/u);
   });
 
-  it("formats button presses as a readable sum", () => {
-    expect(formatTransferModes(fixedTransferModes(28))).toBe("25 + 3");
-    expect(formatTransferModes(fixedTransferModes(31))).toBe("30 + 1");
+  it("formats repeated presses compactly", () => {
+    expect(formatTransferModes(fixedTransferModes(300))).toBe("40 × 7 + 20");
+  });
+
+  it("splits transfers by the selected beaker capacity", () => {
+    expect(transferLoads(650, 300)).toEqual([300, 300, 50]);
+    expect(transferLoads(240, 120)).toEqual([120, 120]);
   });
 });
 
 describe("chemistry preparation planner", () => {
-  it("splits 400u into four 100u beaker batches", () => {
+  it("prepares 900u in one tank through a 300u beaker", () => {
     const data = catalogWith([
-      reaction("Product", [["A", 1], ["B", 1]], [["Product", 2]]),
+      reaction("Product", [["A", 1], ["B", 1], ["C", 1]], [["Product", 3]]),
     ]);
-    const plan = buildPreparationPlan(data, "Product", 400);
+    const plan = buildPreparationPlan(data, "Product", 900);
 
-    expect(plan.target.batches).toHaveLength(4);
-    expect(plan.target.batches.map((batch) => batch.targetAmount)).toEqual([
-      100, 100, 100, 100,
-    ]);
+    expect(plan.target.batches).toHaveLength(1);
+    expect(plan.target.batches[0]).toMatchObject({
+      vessel: "tank",
+      capacity: 1000,
+      beakerCapacity: 300,
+      targetAmount: 900,
+    });
+    expect(plan.target.batches[0].inputs.map((input) => input.amount)).toEqual([300, 300, 300]);
     expect(plan.sourceTotals).toEqual([
-      { kind: "source", reagentId: "A", name: "A", amount: 200 },
-      { kind: "source", reagentId: "B", name: "B", amount: 200 },
+      { kind: "source", reagentId: "A", name: "A", amount: 300 },
+      { kind: "source", reagentId: "B", name: "B", amount: 300 },
+      { kind: "source", reagentId: "C", name: "C", amount: 300 },
     ]);
+    expect(plan.energyCost).toBe(90);
   });
 
-  it("keeps every final and intermediate batch in 100u beakers", () => {
+  it("keeps every final and intermediate reaction in 1000u tanks", () => {
     const data = catalogWith([
       reaction("Intermediate", [["A", 1], ["B", 1]], [["Intermediate", 2]]),
       reaction("Product", [["Intermediate", 1], ["C", 1]], [["Product", 2]]),
     ]);
     const plan = buildPreparationPlan(data, "Product", 400);
 
-    expect(plan.target.batches.every((batch) => batch.vessel === "beaker")).toBe(true);
+    expect(plan.target.batches.every((batch) => batch.vessel === "tank")).toBe(true);
     const intermediate = plan.target.preparations[0];
-    expect(intermediate?.batches).toHaveLength(2);
-    expect(intermediate?.batches.every((batch) => batch.vessel === "beaker")).toBe(true);
+    expect(intermediate?.batches.every((batch) => batch.vessel === "tank")).toBe(true);
   });
 
   it("rounds up complete reaction quanta instead of rounding ingredients", () => {
@@ -112,26 +121,29 @@ describe("chemistry preparation planner", () => {
     ]);
     const plan = buildPreparationPlan(data, "Product", 25);
 
-    expect(plan.producedAmount).toBe(40);
-    expect(plan.surplusAmount).toBe(15);
-    expect(plan.target.batches).toHaveLength(2);
-    expect(plan.target.batches[0].inputs.map((input) => input.amount)).toEqual([10, 10, 51]);
+    expect(plan.producedAmount).toBe(100);
+    expect(plan.surplusAmount).toBe(75);
+    expect(plan.target.batches).toHaveLength(1);
+    expect(plan.target.batches[0].inputs.map((input) => input.amount)).toEqual([50, 50, 255]);
     expect(craftableReagentIds(data)).not.toContain("Catalyst");
   });
 
-  it("chooses batch sizes with fewer ChemMaster button presses", () => {
+  it("balances 1500u across two tanks when the pour count is equal", () => {
     const data = catalogWith([
       reaction("Product", [["A", 1], ["B", 1], ["C", 1]], [["Product", 3]]),
     ]);
-    const plan = buildPreparationPlan(data, "Product", 300);
-    const actionCount = plan.target.batches.reduce((total, batch) => (
-      total + batch.inputs.reduce((batchTotal, input, index) => {
-        const occupied = batch.inputs.slice(0, index).reduce((sum, current) => sum + current.amount, 0);
-        return batchTotal + transferModes(input.amount, 100 - occupied).length;
-      }, 0)
-    ), 0);
+    const plan = buildPreparationPlan(data, "Product", 1500);
 
-    expect(actionCount).toBeLessThan(20);
-    expect(plan.target.batches.every((batch) => batch.totalInput <= 100)).toBe(true);
+    expect(plan.target.batches.map((batch) => batch.targetAmount)).toEqual([750, 750]);
+    expect(plan.target.batches.every((batch) => batch.totalInput <= 1000)).toBe(true);
+  });
+
+  it("deviates from an equal split when that saves beaker pours", () => {
+    const data = catalogWith([
+      reaction("Product", [["A", 1], ["B", 1]], [["Product", 2]]),
+    ]);
+    const plan = buildPreparationPlan(data, "Product", 1300);
+
+    expect(plan.target.batches.map((batch) => batch.targetAmount)).toEqual([700, 600]);
   });
 });
