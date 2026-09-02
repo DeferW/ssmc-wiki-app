@@ -83,12 +83,7 @@ function scaleDamage(damage: DamageTypeMap, ratio: number): DamageTypeMap {
 }
 
 function falloffThresholdsFrom(projectile: JsonMap | undefined, rangeFlat = 0): DamageFalloffThreshold[] {
-  const explicit = isMap(projectile?.damageFalloff) ? projectile.damageFalloff : undefined;
-  const projectileId = String(projectile?.projectileId ?? "");
-  const raw = explicit?.thresholds ?? (/bullet/i.test(projectileId) ? [
-    { range: 0, falloff: 1, ignoreModifiers: false },
-    { range: 22, falloff: 9999, ignoreModifiers: true },
-  ] : undefined);
+  const raw = isMap(projectile?.damageFalloff) ? projectile.damageFalloff.thresholds : undefined;
   if (!Array.isArray(raw)) return [];
   return raw.filter(isMap).map((entry) => ({
     range: (typeof entry.range === "number" ? entry.range : 0) + rangeFlat,

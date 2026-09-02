@@ -1,3 +1,5 @@
+import { useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { isMap } from "../../equipment/format";
 import type { CatalogItem, JsonMap } from "../../equipment/types";
 
@@ -118,15 +120,14 @@ export function attachmentEffectLines(item: CatalogItem): AttachmentEffectLine[]
   return lines;
 }
 
-export function AttachmentEffectTooltip({ item, compact = false }: { item: CatalogItem; compact?: boolean }) {
+function AttachmentEffectContent({ item, compact = false }: { item: CatalogItem; compact?: boolean }) {
   const lines = attachmentEffectLines(item);
-  const visible = compact ? lines.slice(0, 3) : lines.slice(0, 7);
   return (
     <div className={`attachment-effect-tooltip${compact ? " is-compact" : ""}`} role="tooltip">
       <strong>Что изменяет</strong>
-      {visible.length ? (
+      {lines.length ? (
         <ul>
-          {visible.map((line, index) => (
+          {lines.map((line, index) => (
             <li className={`is-${line.tone}`} key={`${line.label}:${line.value}:${index}`}>
               <span>{line.label}</span><b>{line.value}</b>
               {line.condition && <small>{line.condition}</small>}
@@ -134,7 +135,53 @@ export function AttachmentEffectTooltip({ item, compact = false }: { item: Catal
           ))}
         </ul>
       ) : <p>Не изменяет основные параметры стрельбы.</p>}
-      {lines.length > visible.length && <em>Ещё эффектов: {lines.length - visible.length}</em>}
+    </div>
+  );
+}
+
+export function AttachmentTooltipTrigger({ item, compact = false, className, children }: {
+  item: CatalogItem;
+  compact?: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
+  const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+
+  const updateCursor = (event: MouseEvent<HTMLElement>) => setCursor({ x: event.clientX, y: event.clientY });
+
+  useLayoutEffect(() => {
+    if (!cursor || !tooltipRef.current) return;
+    const margin = 12;
+    const gap = 16;
+    const rect = tooltipRef.current.getBoundingClientRect();
+    const left = Math.max(margin, Math.min(cursor.x + gap, window.innerWidth - rect.width - margin));
+    const below = cursor.y + gap;
+    const top = below + rect.height <= window.innerHeight - margin
+      ? below
+      : Math.max(margin, cursor.y - rect.height - gap);
+    setPosition({ left, top });
+  }, [cursor]);
+
+  return (
+    <div
+      className={className}
+      onMouseEnter={updateCursor}
+      onMouseMove={updateCursor}
+      onMouseLeave={() => { setCursor(null); setPosition(null); }}
+    >
+      {children}
+      {cursor && createPortal(
+        <div
+          className="attachment-tooltip-portal"
+          ref={tooltipRef}
+          style={{ left: position?.left ?? cursor.x + 16, top: position?.top ?? cursor.y + 16 }}
+        >
+          <AttachmentEffectContent item={item} compact={compact} />
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

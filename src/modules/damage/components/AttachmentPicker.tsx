@@ -3,7 +3,7 @@ import { ItemSprite } from "../../equipment/components/ItemSprite";
 import { capitalizeName } from "../../equipment/format";
 import type { Catalog, CatalogItem } from "../../equipment/types";
 import { lockedIntegratedAttachmentIds } from "../attachmentEligibility";
-import { AttachmentEffectTooltip, attachmentEffectLines } from "./AttachmentEffectTooltip";
+import { AttachmentTooltipTrigger, attachmentEffectLines } from "./AttachmentEffectTooltip";
 
 export function AttachmentPicker({ catalog, compatibleItemIds, selectedId, onSelect }: {
   catalog: Catalog;
@@ -23,11 +23,11 @@ export function AttachmentPicker({ catalog, compatibleItemIds, selectedId, onSel
   if (!items.length) return <p className="muted">Нет совместимых обвесов в каталоге.</p>;
 
   return (
-    <div className="weapon-grid" role="listbox" aria-label="Выбор обвеса">
+    <div className="weapon-grid attachment-grid" role="listbox" aria-label="Выбор обвеса">
       {items.map((item) => {
         const effects = attachmentEffectLines(item);
         return (
-          <div className="attachment-choice" key={item.id}>
+          <AttachmentTooltipTrigger item={item} className="attachment-choice" key={item.id}>
             <button
               type="button"
               className={`weapon-card${selectedId === item.id ? " is-selected" : ""}`}
@@ -36,13 +36,14 @@ export function AttachmentPicker({ catalog, compatibleItemIds, selectedId, onSel
               onClick={() => onSelect(item.id)}
             >
               <ItemSprite item={item} />
-              <strong>{capitalizeName(item.name)}</strong>
-              <small className="attachment-choice-summary">
-                {effects[0] ? `${effects[0].label} ${effects[0].value}` : "Без изменения стрельбы"}
-              </small>
+              <span className="attachment-choice-copy">
+                <strong>{capitalizeName(item.name)}</strong>
+                <small className="attachment-choice-summary">
+                  {effects[0] ? `${effects[0].label} ${effects[0].value}` : "Без изменения стрельбы"}
+                </small>
+              </span>
             </button>
-            <AttachmentEffectTooltip item={item} />
-          </div>
+          </AttachmentTooltipTrigger>
         );
       })}
     </div>

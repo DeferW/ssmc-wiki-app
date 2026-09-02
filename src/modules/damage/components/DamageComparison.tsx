@@ -25,7 +25,6 @@ import {
 import { applyXenoAbilityBonuses, toggleXenoAbility, XENO_DEFENSIVE_ABILITIES } from "../xenoAbilities";
 import { WEAPON_GUN_STACKS } from "../weaponGunStacks";
 import { AmmoModePicker, AmmoPicker } from "./AmmoPicker";
-import { AttachmentEffectTooltip } from "./AttachmentEffectTooltip";
 import { AttachmentPicker } from "./AttachmentPicker";
 import { DistanceControl } from "./DistanceControl";
 import { ItemSlot } from "./ItemSlot";
@@ -128,9 +127,13 @@ function CompareChart({ builds, target, thresholds, hitDirection, selectedDistan
 }) {
   const series = builds.map((build) => ({
     build,
-    values: GRAPH_DISTANCES.map((distance) => simulateBuild(build, distance, target, thresholds, hitDirection)?.firstShotDamage ?? 0),
+    values: GRAPH_DISTANCES.map((distance) => {
+      const result = simulateBuild(build, distance, target, thresholds, hitDirection);
+      return result && Number.isFinite(result.timeToDeadSeconds) ? result.timeToDeadSeconds : null;
+    }),
   }));
-  const maxDamage = Math.max(1, ...series.flatMap((entry) => entry.values));
+  const finiteValues = series.flatMap((entry) => entry.values).filter((value): value is number => value != null);
+  const maxTtk = Math.max(1, ...finiteValues);
   const width = 720;
   const height = 280;
   const left = 45;
@@ -140,19 +143,20 @@ function CompareChart({ builds, target, thresholds, hitDirection, selectedDistan
   const plotWidth = width - left - right;
   const plotHeight = height - top - bottom;
   const x = (distance: number) => left + (distance / 40) * plotWidth;
-  const y = (damage: number) => top + plotHeight - (damage / maxDamage) * plotHeight;
+  const y = (ttk: number) => top + plotHeight - (ttk / maxTtk) * plotHeight;
   const guideX = x(selectedDistance);
 
-  if (!series.some((entry) => entry.build.weapon && entry.values.some((value) => value > 0))) {
+  if (!series.some((entry) => entry.build.weapon && entry.values.some((value) => value != null))) {
     return <div className="compare-chart-empty">Выберите оружие и цель — график появится автоматически.</div>;
   }
 
   return (
-    <svg className="compare-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Сравнение урона сборок по дистанции">
+    <svg className="compare-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Сравнение времени до смерти цели по дистанции">
+      <text className="compare-chart-axis-title" x={left} y={11}>TTK, СЕК.</text>
       {[0, .25, .5, .75, 1].map((ratio) => (
         <g key={ratio}>
           <line className="compare-chart-grid" x1={left} x2={width - right} y1={top + plotHeight * ratio} y2={top + plotHeight * ratio} />
-          <text x={left - 8} y={top + plotHeight * ratio + 4} textAnchor="end">{formatNumber(maxDamage * (1 - ratio))}</text>
+          <text x={left - 8} y={top + plotHeight * ratio + 4} textAnchor="end">{formatNumber(maxTtk * (1 - ratio))}</text>
         </g>
       ))}
       {GRAPH_DISTANCES.filter((distance) => distance % 10 === 0).map((distance) => (
@@ -166,7 +170,7 @@ function CompareChart({ builds, target, thresholds, hitDirection, selectedDistan
         <polyline
           key={build.state.id}
           className={`compare-chart-line series-${index + 1}`}
-          points={values.map((value, pointIndex) => `${x(GRAPH_DISTANCES[pointIndex])},${y(value)}`).join(" ")}
+          points={values.flatMap((value, pointIndex) => value == null ? [] : [`${x(GRAPH_DISTANCES[pointIndex])},${y(value)}`]).join(" ")}
         />
       ) : null)}
     </svg>
@@ -387,7 +391,7 @@ export function DamageComparison({ catalog, mobCatalog, seed }: {
                             const active = Boolean(build.state.attachmentActiveBySlot[slot.id]);
                             return (
                               <div className="attachment-slot-wrap" key={slot.id}>
-                                <ItemSlot label={slot.name ?? slot.slotName ?? "Обвес"} item={item} compact locked={slot.locked} onOpen={slot.locked ? undefined : () => setPicker({ type: "attachment", buildId: build.state.id, slotId: slot.id })} onClear={item && !slot.locked ? () => clearAttachment(build.state.id, slot.id) : undefined} tooltip={item ? <AttachmentEffectTooltip item={item} compact /> : undefined} />
+                                <ItemSlot label={slot.name ?? slot.slotName ?? "Обвес"} item={item} compact locked={slot.locked} onOpen={slot.locked ? undefined : () => setPicker({ type: "attachment", buildId: build.state.id, slotId: slot.id })} onClear={item && !slot.locked ? () => clearAttachment(build.state.id, slot.id) : undefined} tooltipItem={item ?? undefined} />
                                 {toggleable && <button type="button" className={`attachment-toggle${active ? " is-active" : ""}`} onClick={() => updateBuild(build.state.id, (current) => ({ ...current, attachmentActiveBySlot: { ...current.attachmentActiveBySlot, [slot.id]: !current.attachmentActiveBySlot[slot.id] } }))}>{active ? "Активен" : "Неактивен"}</button>}
                               </div>
                             );
@@ -418,7 +422,7 @@ export function DamageComparison({ catalog, mobCatalog, seed }: {
         <section className="compare-results">
           <header className="compare-section-title"><div><small>FIRE SOLUTION</small><h2>Результат</h2></div><span>{distance} тайлов</span></header>
           <DistanceControl distance={distance} onChange={setDistance} />
-          <div className="compare-legend" aria-label="Легенда графика">
+          <div className="compare-legend" aria-label="Легенда графика TTK">
             {derivedBuilds.map((build, index) => <span className={`series-${index + 1}`} key={build.state.id}><i aria-hidden="true" />{String(index + 1).padStart(2, "0")} · {build.weapon?.name ?? "Не выбрано"}</span>)}
           </div>
           <CompareChart builds={derivedBuilds} target={targetArmor} thresholds={thresholds} hitDirection={hitDirection} selectedDistance={distance} />

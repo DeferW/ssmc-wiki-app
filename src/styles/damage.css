@@ -263,6 +263,7 @@
 .compare-legend i, .compare-result-row > span:first-child i { display: inline-block; flex: 0 0 auto; width: 15px; height: 2px; background: var(--series-color); }
 .compare-chart { display: block; width: 100%; border: 1px solid var(--line); }
 .compare-chart text { fill: var(--muted); font-size: 10px; }
+.compare-chart .compare-chart-axis-title { fill: var(--accent); font-size: 9px; font-weight: 800; letter-spacing: .08em; }
 .compare-chart-grid { stroke: var(--line); stroke-width: 1; }
 .compare-chart-guide { stroke: var(--text-strong); stroke-width: 1; stroke-dasharray: 3 4; opacity: .65; }
 .compare-chart-line { fill: none; stroke-width: 3; vector-effect: non-scaling-stroke; }
@@ -303,14 +304,17 @@
 .damage-page .attachment-rack .item-slot-copy strong { font-size: .55rem; }
 .damage-page .stat-grid > div { min-height: 31px; padding-block: 6px; }
 
-.attachment-choice { position: relative; min-width: 0; height: 180px; }
-.attachment-choice > .weapon-card { width: 100%; height: 100%; }
-.attachment-choice-summary { display: block; width: 100%; margin-top: auto; overflow: hidden; color: var(--muted); font-size: .52rem; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
-.attachment-effect-tooltip { position: absolute; inset: 5px; z-index: 6; display: grid; align-content: start; gap: 7px; overflow: auto; padding: 10px; border: 1px solid var(--line-strong); background: color-mix(in srgb, var(--surface-highlight) 96%, black); box-shadow: 0 8px 24px rgba(0, 0, 0, .55); opacity: 0; pointer-events: none; scrollbar-color: var(--line-strong) transparent; scrollbar-width: thin; transform: translateY(4px); transition: opacity 120ms ease, transform 120ms ease; }
-.attachment-choice:hover > .attachment-effect-tooltip,
-.attachment-choice:focus-within > .attachment-effect-tooltip,
-.item-slot:hover > .attachment-effect-tooltip,
-.item-slot:focus-within > .attachment-effect-tooltip { opacity: 1; pointer-events: auto; transform: translateY(0); }
+.attachment-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+.attachment-choice { min-width: 0; height: 112px; }
+.attachment-choice > .weapon-card { display: grid; width: 100%; height: 100%; grid-template-columns: 58px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 12px; align-items: start; padding: 10px; }
+.attachment-choice > .weapon-card .sprite-frame,
+.attachment-choice > .weapon-card .sprite-placeholder { width: 58px; height: 58px; margin: 0; grid-column: 1; grid-row: 1; }
+.attachment-choice > .weapon-card .sprite-frame img { width: 50px; height: 50px; }
+.attachment-choice-copy { display: grid; min-width: 0; align-self: stretch; grid-column: 2; grid-row: 1; grid-template-rows: auto 1fr; gap: 7px; text-align: left; }
+.attachment-choice-copy strong { align-self: start; margin: 0; font-size: .68rem; line-height: 1.28; }
+.attachment-choice-summary { display: block; min-width: 0; margin: 0; padding-top: 7px; overflow: hidden; border-top: 1px solid var(--line); color: var(--muted); font-size: .52rem; line-height: 1.35; text-overflow: ellipsis; white-space: normal; }
+.attachment-tooltip-portal { position: fixed; z-index: 140; width: min(360px, calc(100vw - 24px)); pointer-events: none; }
+.attachment-effect-tooltip { display: grid; width: 100%; align-content: start; gap: 7px; padding: 11px; border: 1px solid var(--line-strong); background: color-mix(in srgb, var(--surface-highlight) 97%, black); box-shadow: 0 10px 32px rgba(0, 0, 0, .68); }
 .attachment-effect-tooltip > strong { color: var(--text-strong); font-size: .58rem; letter-spacing: .07em; text-transform: uppercase; }
 .attachment-effect-tooltip ul { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
 .attachment-effect-tooltip li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; color: var(--text); font-size: .54rem; line-height: 1.3; }
@@ -319,9 +323,9 @@
 .attachment-effect-tooltip li.is-worse b { color: var(--danger); }
 .attachment-effect-tooltip li small { grid-column: 1 / -1; color: var(--muted); font-size: .47rem; }
 .attachment-effect-tooltip p, .attachment-effect-tooltip em { margin: 0; color: var(--muted); font-size: .5rem; font-style: normal; line-height: 1.4; }
-.item-slot > .attachment-effect-tooltip.is-compact { inset: 3px; padding: 7px; }
-.item-slot > .attachment-effect-tooltip.is-compact li { font-size: .48rem; }
-.item-slot > .attachment-effect-tooltip.is-compact li small { font-size: .43rem; }
+.attachment-effect-tooltip.is-compact { padding: 9px; }
+.attachment-effect-tooltip.is-compact li { font-size: .48rem; }
+.attachment-effect-tooltip.is-compact li small { font-size: .43rem; }
 
 .damage-page .compare-target,
 .damage-page .compare-builds,
@@ -420,10 +424,11 @@
   .compare-result-row { grid-template-columns: minmax(120px, 1.4fr) repeat(3, minmax(48px, .6fr)); }
   .compare-result-row > span:nth-child(3) { display: none; }
   .damage-type-values { width: 100%; margin-left: 0; }
-  .attachment-choice { height: 170px; }
+  .attachment-grid { grid-template-columns: minmax(0, 1fr); }
+  .attachment-choice { height: 108px; }
 }
 
 @media (hover: none) {
-  .attachment-effect-tooltip { display: none; }
+  .attachment-tooltip-portal { display: none; }
   .attachment-choice-summary { white-space: normal; }
 }

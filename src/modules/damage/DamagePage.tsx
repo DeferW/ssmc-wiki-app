@@ -33,7 +33,6 @@ import { TargetPicker } from "./components/TargetPicker";
 import { TargetSlot } from "./components/TargetSlot";
 import { WeaponPicker } from "./components/WeaponPicker";
 import { DamageComparison, damageBuildSeed } from "./components/DamageComparison";
-import { AttachmentEffectTooltip } from "./components/AttachmentEffectTooltip";
 
 type PickerState = { type: "weapon" } | { type: "attachment"; slotId: string } | { type: "target" } | null;
 
@@ -70,14 +69,6 @@ function aimedShotEffectFrom(projectile: JsonMap | undefined): AimedShotEffectCo
 
 function damageFalloffFrom(projectile: JsonMap | undefined): JsonMap | undefined {
   if (isMap(projectile?.damageFalloff)) return projectile.damageFalloff;
-  const projectileId = String(projectile?.projectileId ?? "");
-  if (/bullet/i.test(projectileId)) return {
-    thresholds: [
-      { range: 0, falloff: 1, ignoreModifiers: false },
-      { range: 22, falloff: 9999, ignoreModifiers: true },
-    ],
-    minRemainingDamageMult: 0.05,
-  };
   return undefined;
 }
 
@@ -552,7 +543,7 @@ export function DamagePage() {
                         locked={slot.locked}
                         onOpen={slot.locked ? undefined : () => setPicker({ type: "attachment", slotId })}
                         onClear={item && !slot.locked ? () => clearAttachment(slotId) : undefined}
-                        tooltip={item ? <AttachmentEffectTooltip item={item} compact /> : undefined}
+                        tooltipItem={item ?? undefined}
                       />
                       {toggleable && (
                         <button
