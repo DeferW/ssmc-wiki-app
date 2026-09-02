@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildPreparationPlan,
+  buildMixturePlan,
   craftableReagentIds,
   fixedTransferModes,
   formatTransferModes,
@@ -66,8 +67,8 @@ describe("medbay chemical dispenser transfer modes", () => {
     expect(() => transferModes(31)).toThrow(/не может отмерить/u);
   });
 
-  it("formats repeated presses compactly", () => {
-    expect(formatTransferModes(fixedTransferModes(300))).toBe("40 × 7 + 20");
+  it("writes every press explicitly", () => {
+    expect(formatTransferModes(fixedTransferModes(130))).toBe("40 + 40 + 40 + 10");
   });
 
   it("splits transfers by the selected beaker capacity", () => {
@@ -163,5 +164,27 @@ describe("chemistry preparation planner", () => {
     const plan = buildPreparationPlan(data, "Product", 1300);
 
     expect(plan.target.batches.map((batch) => batch.targetAmount)).toEqual([700, 600]);
+  });
+});
+
+describe("unga mixture presets", () => {
+  it("keeps the standard 1000u composition in one tank", () => {
+    const plan = buildMixturePlan(catalogWith([]), "unga-standard", 1000);
+
+    expect(plan.target.batches).toHaveLength(1);
+    expect(plan.producedAmount).toBe(1000);
+    expect(plan.mixtureComponents?.find((item) => item.reagentId === "CMMeralyne")?.amount).toBe(180);
+  });
+
+  it("combines a source shared by several component recipes into one transfer", () => {
+    const data = catalogWith([
+      reaction("CMMeralyne", [["Shared", 1], ["A", 1]], [["CMMeralyne", 2]]),
+      reaction("CMDermaline", [["Shared", 1], ["B", 1]], [["CMDermaline", 2]]),
+    ]);
+    const plan = buildMixturePlan(data, "unga-standard", 1000);
+
+    expect(plan.sourceTotals.filter((item) => item.reagentId === "Shared")).toEqual([
+      { kind: "source", reagentId: "Shared", name: "Shared", amount: 180 },
+    ]);
   });
 });

@@ -87,14 +87,21 @@
 .chem-plant-metabolism { border-color: var(--line-strong); }
 
 .chem-planner { display: grid; gap: 16px; }
-.chem-planner-form { display: grid; align-items: end; gap: 12px; padding: 18px; border: 1px solid var(--line); background: var(--surface); grid-template-columns: minmax(220px, 1.4fr) 180px minmax(240px, 1fr) auto; }
+.chem-planner-form { display: grid; align-items: end; gap: 12px; padding: 18px; border: 1px solid var(--line); background: var(--surface); grid-template-columns: minmax(480px, 2fr) 180px minmax(180px, .8fr) auto; }
 .chem-planner-form > label { display: grid; gap: 8px; min-width: 0; margin: 0; }
 .chem-planner-form > label > span:first-child { color: var(--muted); font-size: .62rem; letter-spacing: .06em; text-transform: uppercase; }
 .chem-planner-search, .chem-amount-input, .chem-beaker-select { min-width: 0; height: 45px; border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); }
-.chem-planner-search { position: relative; }
+.chem-planner-search { position: relative; display: grid; grid-template-columns: auto minmax(120px, 1fr); }
 .chem-planner-search > input { width: 100%; height: 100%; padding: 0 10px; border: 0; outline: 0; background: transparent; color: var(--text); }
+.chem-planner-search > input:disabled { color: var(--warning); cursor: not-allowed; opacity: 1; }
 .chem-planner-search > input::-webkit-search-cancel-button { display: none; }
 .chem-planner-search:focus-within { border-color: var(--accent); }
+.chem-mixture-presets { display: flex; min-width: 0; gap: 3px; padding: 3px; border-right: 1px solid var(--line); }
+.chem-mixture-presets button { display: grid; width: 148px; min-width: 0; align-content: center; gap: 2px; padding: 3px 6px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer; text-align: left; }
+.chem-mixture-presets button:hover { border-color: var(--accent); color: var(--text); }
+.chem-mixture-presets button.is-active { border-color: var(--warning); background: color-mix(in srgb, var(--warning) 7%, var(--surface)); color: var(--warning); }
+.chem-mixture-presets strong { overflow: hidden; font-size: .5rem; line-height: 1.05; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.chem-mixture-presets small { overflow: hidden; color: inherit; font-size: .39rem; line-height: 1.1; text-overflow: ellipsis; white-space: nowrap; }
 .chem-planner-suggestions { position: absolute; z-index: 20; top: calc(100% + 5px); right: -1px; left: -1px; display: grid; max-height: 330px; overflow-y: auto; border: 1px solid var(--line-strong); background: var(--bg); box-shadow: 0 14px 28px rgba(0, 0, 0, .46); }
 .chem-planner-suggestions button { display: grid; min-height: 0; gap: 3px; padding: 9px 10px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--muted-strong); cursor: pointer; text-align: left; }
 .chem-planner-suggestions button:last-of-type { border-bottom: 0; }
@@ -118,12 +125,12 @@
 .chem-plan-summary div:last-child { border: 0; }
 .chem-plan-summary span { color: var(--muted); font-size: .58rem; }
 .chem-plan-summary strong { color: var(--text-strong); font-size: 1.05rem; }
-.chem-source-totals { padding: 16px; border: 1px solid var(--line); background: var(--surface); }
-.chem-source-totals h3 { margin: 0 0 12px; color: var(--accent-soft); font-size: .8rem; text-transform: uppercase; }
-.chem-source-totals > div { display: flex; flex-wrap: wrap; gap: 7px; }
-.chem-source-totals > div span { padding: 7px 9px; border: 1px solid var(--line); color: var(--muted-strong); font-size: .68rem; }
-.chem-source-totals > div strong { color: var(--text); }
-.chem-source-totals p { margin: 12px 0 0; color: var(--muted); font-size: .62rem; line-height: 1.5; }
+.chem-source-totals, .chem-mixture-composition { padding: 16px; border: 1px solid var(--line); background: var(--surface); }
+.chem-source-totals h3, .chem-mixture-composition h3 { margin: 0 0 12px; color: var(--accent-soft); font-size: .8rem; text-transform: uppercase; }
+.chem-source-totals > div, .chem-mixture-composition > div { display: flex; flex-wrap: wrap; gap: 7px; }
+.chem-source-totals > div span, .chem-mixture-composition > div span { padding: 7px 9px; border: 1px solid var(--line); color: var(--muted-strong); font-size: .68rem; }
+.chem-source-totals > div strong, .chem-mixture-composition > div strong { color: var(--text); }
+.chem-source-totals p, .chem-mixture-composition p { margin: 12px 0 0; color: var(--muted); font-size: .62rem; line-height: 1.5; }
 .chem-source-totals p strong { color: var(--warning); }
 .chem-preparation { border: 1px solid var(--line-strong); background: rgba(5, 11, 7, .92); }
 .chem-preparation > header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 16px; border-bottom: 1px solid var(--line); }
@@ -173,6 +180,10 @@
   .chem-reaction-separator { transform: rotate(90deg); text-align: center; }
   .chem-metabolism > header { align-items: flex-start; flex-direction: column; }
   .chem-planner-form { grid-template-columns: 1fr; }
+  .chem-planner-search { height: auto; grid-template-columns: 1fr; }
+  .chem-mixture-presets { border-right: 0; border-bottom: 1px solid var(--line); }
+  .chem-mixture-presets button { width: 50%; flex: 1 1 0; }
+  .chem-planner-search > input { height: 45px; }
   .chem-plan-summary { grid-template-columns: 1fr 1fr; }
   .chem-plan-summary div:nth-child(2) { border-right: 0; }
   .chem-plan-summary div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }

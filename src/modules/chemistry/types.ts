@@ -131,4 +131,5 @@ export type PreparationPlan = {
   beakerCapacity: BeakerCapacity;
   target: PlannedPreparation;
   sourceTotals: PlannedSource[];
+  mixtureComponents?: PlannedSource[];
 };

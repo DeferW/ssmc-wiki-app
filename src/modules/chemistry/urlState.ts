@@ -1,4 +1,5 @@
 import { CHEMISTRY_SECTIONS } from "./config";
+import type { MixturePreset } from "./planner";
 import type { BeakerCapacity, ChemistrySectionId } from "./types";
 
 export type ChemistryUrlState = {
@@ -7,6 +8,7 @@ export type ChemistryUrlState = {
   query: string;
   openReagentId: string | null;
   plannerReagentId: string;
+  mixtureId: MixturePreset["id"] | null;
   requestedAmount: string;
   beakerCapacity: BeakerCapacity;
   shouldBuild: boolean;
@@ -17,9 +19,11 @@ const DEFAULT_AMOUNT = "100";
 const EMPTY_AMOUNT = "_";
 const DEFAULT_BEAKER_CAPACITY: BeakerCapacity = 300;
 const sectionIds = new Set<ChemistrySectionId>(CHEMISTRY_SECTIONS.map((section) => section.id));
+const mixtureIds = new Set<MixturePreset["id"]>(["unga-standard", "unga-light"]);
 
 export function readChemistryUrlState(params: URLSearchParams): ChemistryUrlState {
   const rawSection = params.get("section") as ChemistrySectionId | null;
+  const rawMixture = params.get("mix") as MixturePreset["id"] | null;
   const rawAmount = params.get("amount");
   return {
     view: params.get("view") === "planner" ? "planner" : "catalog",
@@ -27,6 +31,7 @@ export function readChemistryUrlState(params: URLSearchParams): ChemistryUrlStat
     query: params.get("q") ?? "",
     openReagentId: params.get("item"),
     plannerReagentId: params.get("reagent") ?? "",
+    mixtureId: rawMixture && mixtureIds.has(rawMixture) ? rawMixture : null,
     requestedAmount: rawAmount === EMPTY_AMOUNT
       ? ""
       : rawAmount !== null && /^\d+$/u.test(rawAmount) ? rawAmount : DEFAULT_AMOUNT,
@@ -39,7 +44,7 @@ export function readChemistryUrlState(params: URLSearchParams): ChemistryUrlStat
 
 export function updateChemistryUrl(
   current: URLSearchParams,
-  changes: Partial<Record<"view" | "section" | "q" | "item" | "reagent" | "amount" | "beaker" | "run", string | null>>,
+  changes: Partial<Record<"view" | "section" | "q" | "item" | "reagent" | "mix" | "amount" | "beaker" | "run", string | null>>,
 ): URLSearchParams {
   const next = new URLSearchParams(current);
   for (const [key, value] of Object.entries(changes)) {

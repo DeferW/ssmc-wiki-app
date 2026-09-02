@@ -5,6 +5,7 @@ import type {
   BeakerCapacity,
   PlannedBatch,
   PlannedPreparation,
+  PlannedSource,
   PreparationPlan,
   TransferMode,
 } from "./types";
@@ -14,6 +15,49 @@ export const TANK_CAPACITY = 1000;
 export const BEAKER_CAPACITIES = [300, 120, 60] as const satisfies readonly BeakerCapacity[];
 export const CHEM_DISPENSER_AMOUNTS = [40, 30, 20, 10, 5] as const satisfies readonly TransferMode[];
 export const CHEM_DISPENSER_ENERGY_PER_UNIT = 0.1;
+
+export type MixturePreset = {
+  id: "unga-standard" | "unga-light";
+  name: string;
+  shortName: string;
+  doseNote: string;
+  components: Array<{ reagentId: string; amount: number; filler?: boolean }>;
+};
+
+export const UNGA_PRESETS: readonly MixturePreset[] = [
+  {
+    id: "unga-standard",
+    name: "Унга · обычная",
+    shortName: "Обычная унга",
+    doseNote: "2 укола по 60u: 21,6u > порога 15u",
+    components: [
+      { reagentId: "CMMeralyne", amount: 180 },
+      { reagentId: "CMDermaline", amount: 180 },
+      { reagentId: "CMKelotane", amount: 180 },
+      { reagentId: "CMBicaridine", amount: 180 },
+      { reagentId: "CMTricordrazine", amount: 180 },
+      { reagentId: "CMDexalinPlus", amount: 20 },
+      { reagentId: "RMCIron", amount: 40, filler: true },
+      { reagentId: "RMCSugar", amount: 40, filler: true },
+    ],
+  },
+  {
+    id: "unga-light",
+    name: "Унга · для больших инъекторов",
+    shortName: "Щадящая унга",
+    doseNote: "2 укола по 60u: 17,4u > порога 15u",
+    components: [
+      { reagentId: "CMMeralyne", amount: 145 },
+      { reagentId: "CMDermaline", amount: 145 },
+      { reagentId: "CMKelotane", amount: 200 },
+      { reagentId: "CMBicaridine", amount: 200 },
+      { reagentId: "CMTricordrazine", amount: 200 },
+      { reagentId: "CMDexalinPlus", amount: 20 },
+      { reagentId: "RMCIron", amount: 45, filler: true },
+      { reagentId: "RMCSugar", amount: 45, filler: true },
+    ],
+  },
+] as const;
 
 type PlannerContext = {
   names: Map<string, string>;
@@ -439,6 +483,265 @@ export function buildPreparationPlan(
   };
 }
 
+type MixtureTankDraft = {
+  targetAmount: number;
+  totalInput: number;
+  inputs: PlannedSource[];
+  components: PlannedSource[];
+};
+
+function addSourceAmount(
+  totals: Map<string, { name: string; amount: number }>,
+  reagentId: string,
+  name: string,
+  amount: number,
+) {
+  const stored = totals.get(reagentId) ?? { name, amount: 0 };
+  stored.amount = roundAmount(stored.amount + amount);
+  totals.set(reagentId, stored);
+}
+
+function expandMixtureReagent(
+  context: PlannerContext,
+  reagentId: string,
+  amount: number,
+  totals: Map<string, { name: string; amount: number }>,
+  stack: string[] = [],
+) {
+  const reaction = context.recipes.get(reagentId);
+  const product = reaction && productFor(reaction, reagentId);
+  if (!reaction || !product || product.amount <= 0) {
+    addSourceAmount(
+      totals,
+      reagentId,
+      context.names.get(reagentId) ?? reagentId,
+      amount,
+    );
+    return;
+  }
+  if (stack.includes(reagentId)) {
+    throw new Error(`Обнаружен циклический рецепт: ${[...stack, reagentId].join(" → ")}.`);
+  }
+
+  const scale = amount / product.amount;
+  for (const reactant of reaction.reactants) {
+    const returned = reaction.products.find((candidate) => candidate.id === reactant.id)?.amount ?? 0;
+    const required = Math.max(0, reactant.amount - returned) * scale;
+    if (required <= EPSILON) continue;
+    expandMixtureReagent(
+      context,
+      reactant.id,
+      required,
+      totals,
+      [...stack, reagentId],
+    );
+  }
+}
+
+function ceilToDispensableAmount(value: number) {
+  return Math.ceil((value - EPSILON) / 5) * 5;
+}
+
+function mixtureTankDraft(
+  context: PlannerContext,
+  preset: MixturePreset,
+  targetAmount: number,
+): MixtureTankDraft {
+  const scale = targetAmount / 1000;
+  const components = preset.components.map((component) => ({
+    kind: "source" as const,
+    reagentId: component.reagentId,
+    name: context.names.get(component.reagentId) ?? component.reagentId,
+    amount: roundAmount(component.amount * scale),
+  }));
+  const rawSources = new Map<string, { name: string; amount: number }>();
+  for (const component of components) {
+    expandMixtureReagent(
+      context,
+      component.reagentId,
+      component.amount,
+      rawSources,
+    );
+  }
+  const inputs = [...rawSources.entries()].map(([reagentId, source]) => ({
+    kind: "source" as const,
+    reagentId,
+    name: source.name,
+    amount: ceilToDispensableAmount(source.amount),
+  }));
+
+  let totalInput = inputs.reduce((sum, input) => sum + input.amount, 0);
+  let excess = roundAmount(totalInput - targetAmount);
+  // Iron and sugar are the adjustable blood-restoration filler from the guide.
+  // Spend that allowance first when 5u rounding of recipe ingredients would
+  // otherwise overfill the tank.
+  for (const filler of [...preset.components].reverse().filter((component) => component.filler)) {
+    if (excess <= 0) break;
+    const component = components.find((candidate) => candidate.reagentId === filler.reagentId);
+    const input = inputs.find((candidate) => candidate.reagentId === filler.reagentId);
+    if (!component || !input) continue;
+    const allowance = Math.floor((filler.amount * scale + EPSILON) / 5) * 5;
+    const reduction = Math.min(allowance, excess);
+    input.amount = roundAmount(input.amount - reduction);
+    component.amount = roundAmount(component.amount - reduction);
+    excess = roundAmount(excess - reduction);
+  }
+
+  const filteredInputs = inputs.filter((input) => input.amount > 0);
+  totalInput = roundAmount(filteredInputs.reduce((sum, input) => sum + input.amount, 0));
+  return { targetAmount: totalInput, totalInput, inputs: filteredInputs, components };
+}
+
+function mixtureTankGroups(
+  context: PlannerContext,
+  preset: MixturePreset,
+  requestedAmount: number,
+  beakerCapacity: BeakerCapacity,
+) {
+  const totalUnits = Math.ceil((requestedAmount - EPSILON) / 5);
+  const maxUnits = TANK_CAPACITY / 5;
+  const minimumGroups = Math.ceil(totalUnits / maxUnits);
+  const drafts = new Map<number, MixtureTankDraft | null>();
+  const draftFor = (units: number) => {
+    if (!drafts.has(units)) {
+      const draft = mixtureTankDraft(context, preset, units * 5);
+      drafts.set(units, draft.totalInput <= TANK_CAPACITY ? draft : null);
+    }
+    return drafts.get(units) ?? null;
+  };
+
+  type Candidate = { pours: number; presses: number; balance: number; groups: number[] };
+  for (let groupCount = minimumGroups; groupCount <= minimumGroups + 4; groupCount += 1) {
+    const best = Array.from(
+      { length: totalUnits + 1 },
+      () => Array<Candidate | undefined>(groupCount + 1),
+    );
+    best[0][0] = { pours: 0, presses: 0, balance: 0, groups: [] };
+    for (let total = 1; total <= totalUnits; total += 1) {
+      for (let used = 1; used <= groupCount; used += 1) {
+        for (let current = 1; current <= Math.min(total, maxUnits); current += 1) {
+          const previous = best[total - current][used - 1];
+          const draft = draftFor(current);
+          if (!previous || !draft) continue;
+          const pours = draft.inputs.reduce(
+            (sum, input) => sum + transferLoads(input.amount, beakerCapacity).length,
+            0,
+          );
+          const presses = draft.inputs.reduce((sum, input) => (
+            sum + transferLoads(input.amount, beakerCapacity).reduce(
+              (loadSum, load) => loadSum + fixedTransferModes(load).length,
+              0,
+            )
+          ), 0);
+          const candidate: Candidate = {
+            pours: previous.pours + pours,
+            presses: previous.presses + presses,
+            balance: previous.balance + current ** 2,
+            groups: [...previous.groups, current],
+          };
+          const stored = best[total][used];
+          if (
+            !stored
+            || candidate.pours < stored.pours
+            || (candidate.pours === stored.pours && candidate.balance < stored.balance)
+            || (
+              candidate.pours === stored.pours
+              && candidate.balance === stored.balance
+              && candidate.presses < stored.presses
+            )
+          ) {
+            best[total][used] = candidate;
+          }
+        }
+      }
+    }
+    const result = best[totalUnits][groupCount];
+    if (result) return result.groups.map((units) => draftFor(units)!);
+  }
+  throw new Error("Не удалось распределить смесь по бакам на 1000u.");
+}
+
+export function buildMixturePlan(
+  catalog: ChemistryCatalog,
+  presetId: MixturePreset["id"],
+  requestedAmount: number,
+  beakerCapacity: BeakerCapacity = 300,
+): PreparationPlan {
+  if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
+    throw new Error("Укажите положительный объём смеси.");
+  }
+  const preset = UNGA_PRESETS.find((candidate) => candidate.id === presetId);
+  if (!preset) throw new Error("Неизвестная готовая смесь.");
+  if (!BEAKER_CAPACITIES.includes(beakerCapacity)) {
+    throw new Error("Выберите доступную мензурку: 60u, 120u или 300u.");
+  }
+
+  const context = createPlannerContext(catalog);
+  const drafts = mixtureTankGroups(context, preset, requestedAmount, beakerCapacity)
+    .sort((left, right) => right.targetAmount - left.targetAmount);
+  const batches: PlannedBatch[] = drafts.map((draft, index) => ({
+    key: `${preset.id}:${index}`,
+    batchNumber: index + 1,
+    batchCount: drafts.length,
+    vessel: "tank",
+    capacity: TANK_CAPACITY,
+    beakerCapacity,
+    targetAmount: draft.targetAmount,
+    totalInput: draft.totalInput,
+    totalOutput: draft.targetAmount,
+    inputs: draft.inputs.map((input) => ({ ...input, prepared: false })),
+    byproducts: [],
+    warnings: [],
+  }));
+  const sourceMap = new Map<string, { name: string; amount: number }>();
+  const componentMap = new Map<string, { name: string; amount: number }>();
+  for (const draft of drafts) {
+    for (const input of draft.inputs) {
+      addSourceAmount(sourceMap, input.reagentId, input.name, input.amount);
+    }
+    for (const component of draft.components) {
+      addSourceAmount(componentMap, component.reagentId, component.name, component.amount);
+    }
+  }
+  const sourceTotals = [...sourceMap.entries()].map(([reagentId, source]) => ({
+    kind: "source" as const,
+    reagentId,
+    ...source,
+  }));
+  const mixtureComponents = [...componentMap.entries()].map(([reagentId, component]) => ({
+    kind: "source" as const,
+    reagentId,
+    ...component,
+  }));
+  const producedAmount = roundAmount(batches.reduce((sum, batch) => sum + batch.targetAmount, 0));
+  const target: PlannedPreparation = {
+    kind: "preparation",
+    reagentId: preset.id,
+    name: preset.name,
+    requestedAmount,
+    producedAmount,
+    surplusAmount: roundAmount(producedAmount - requestedAmount),
+    reactionId: `custom:${preset.id}`,
+    preparations: [],
+    batches,
+  };
+  return {
+    requestedAmount,
+    producedAmount,
+    surplusAmount: target.surplusAmount,
+    energyCost: roundAmount(sourceTotals.reduce(
+      (total, source) => total + (source.reagentId === "Water"
+        ? 0
+        : source.amount * CHEM_DISPENSER_ENERGY_PER_UNIT),
+      0,
+    )),
+    beakerCapacity,
+    target,
+    sourceTotals,
+    mixtureComponents,
+  };
+}
+
 export function fixedTransferModes(amount: number): TransferMode[] {
   if (!Number.isInteger(amount) || amount < 0 || amount % 5 !== 0) {
     throw new Error(`Химраздатчик не может отмерить ${amount}u доступными режимами.`);
@@ -487,7 +790,6 @@ export function formatTransferModes(modes: TransferMode[]) {
     else groups.push({ mode, count: 1 });
   }
   return groups.flatMap(({ mode, count }) => {
-    if (count > 1) return [`${mode} × ${count}`];
-    return [String(mode)];
+    return Array.from({ length: count }, () => String(mode));
   }).join(" + ");
 }

@@ -6,12 +6,15 @@ import { describeEffect, describePlantEffect, type EffectDescription, type Effec
 import { formatReagentName } from "./format";
 import {
   BEAKER_CAPACITIES,
+  buildMixturePlan,
   buildPreparationPlan,
   craftableReagentIds,
   formatTransferModes,
   transferLoads,
   transferModes,
+  UNGA_PRESETS,
 } from "./planner";
+import type { MixturePreset } from "./planner";
 import type {
   BeakerCapacity,
   ChemistryCatalog,
@@ -365,14 +368,19 @@ function ReagentCombobox({
   ids,
   reagents,
   value,
+  mixtureId,
   onChange,
+  onMixtureChange,
 }: {
   ids: string[];
   reagents: Record<string, ChemistryReagent>;
   value: string;
+  mixtureId: MixturePreset["id"] | null;
   onChange: (id: string) => void;
+  onMixtureChange: (id: MixturePreset["id"] | null) => void;
 }) {
-  const selectedName = formatReagentName(reagents[value]?.name, value);
+  const selectedMixture = UNGA_PRESETS.find((preset) => preset.id === mixtureId);
+  const selectedName = selectedMixture?.name ?? formatReagentName(reagents[value]?.name, value);
   const [query, setQuery] = useState(selectedName);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -418,6 +426,21 @@ function ReagentCombobox({
 
   return (
     <div className="chem-planner-search">
+      <span className="chem-mixture-presets" aria-label="Готовые смеси">
+        {UNGA_PRESETS.map((preset) => (
+          <button
+            type="button"
+            className={preset.id === mixtureId ? "is-active" : ""}
+            aria-pressed={preset.id === mixtureId}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => onMixtureChange(preset.id === mixtureId ? null : preset.id)}
+            key={preset.id}
+          >
+            <strong>{preset.shortName}</strong>
+            <small>{preset.doseNote}</small>
+          </button>
+        ))}
+      </span>
       <input
         type="search"
         role="combobox"
@@ -426,6 +449,7 @@ function ReagentCombobox({
         aria-controls="chem-reagent-suggestions"
         aria-activedescendant={open && matches[activeIndex] ? `chem-suggestion-${matches[activeIndex].id}` : undefined}
         autoComplete="off"
+        disabled={Boolean(selectedMixture)}
         value={query}
         onChange={(event) => {
           const nextQuery = event.target.value;
@@ -447,7 +471,7 @@ function ReagentCombobox({
           if (!value) setQuery("");
         }}
         onKeyDown={handleKeyDown}
-        placeholder="Введите минимум 2 символа…"
+        placeholder={selectedMixture ? selectedMixture.name : "Введите минимум 2 символа…"}
       />
       {open && normalizedQuery.length >= 2 && (
         <div className="chem-planner-suggestions" id="chem-reagent-suggestions" role="listbox">
@@ -475,20 +499,24 @@ function ReagentCombobox({
 function Planner({
   catalog,
   reagentId,
+  mixtureId,
   requestedAmount,
   beakerCapacity,
   shouldBuild,
   onReagentChange,
+  onMixtureChange,
   onAmountChange,
   onBeakerCapacityChange,
   onBuild,
 }: {
   catalog: ChemistryCatalog;
   reagentId: string;
+  mixtureId: MixturePreset["id"] | null;
   requestedAmount: string;
   beakerCapacity: BeakerCapacity;
   shouldBuild: boolean;
   onReagentChange: (id: string) => void;
+  onMixtureChange: (id: MixturePreset["id"] | null) => void;
   onAmountChange: (value: string) => void;
   onBeakerCapacityChange: (value: BeakerCapacity) => void;
   onBuild: () => void;
@@ -499,17 +527,22 @@ function Planner({
   const calculation = useMemo<{ plan: PreparationPlan | null; error: string }>(() => {
     if (!shouldBuild) return { plan: null, error: "" };
     try {
-      return { plan: buildPreparationPlan(catalog, reagentId, Number(requestedAmount), beakerCapacity), error: "" };
+      return {
+        plan: mixtureId
+          ? buildMixturePlan(catalog, mixtureId, Number(requestedAmount), beakerCapacity)
+          : buildPreparationPlan(catalog, reagentId, Number(requestedAmount), beakerCapacity),
+        error: "",
+      };
     } catch (caught) {
       return { plan: null, error: caught instanceof Error ? caught.message : "Не удалось построить план." };
     }
-  }, [beakerCapacity, catalog, reagentId, requestedAmount, shouldBuild]);
+  }, [beakerCapacity, catalog, mixtureId, reagentId, requestedAmount, shouldBuild]);
   const { plan } = calculation;
   const error = submitError || calculation.error;
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (!reagentId) {
+    if (!reagentId && !mixtureId) {
       setSubmitError("Выберите вещество из списка рекомендаций.");
       return;
     }
@@ -523,11 +556,13 @@ function Planner({
         <label>
           <span>Вещество</span>
           <ReagentCombobox
-            key={reagentId || "empty"}
+            key={`${mixtureId ?? "reagent"}:${reagentId || "empty"}`}
             ids={craftableIds}
             reagents={reagents}
             value={reagentId}
+            mixtureId={mixtureId}
             onChange={(id) => { setSubmitError(""); onReagentChange(id); }}
+            onMixtureChange={(id) => { setSubmitError(""); onMixtureChange(id); }}
           />
         </label>
         <label>
@@ -583,6 +618,17 @@ function Planner({
             </div>
             <p>Оценочный расход химраздатчика: <strong>{numberFormat.format(plan.energyCost)} энергии</strong>. Вода энергию не расходует. Исходными считаются элементы, вода и вещества без производящего рецепта.</p>
           </section>
+          {plan.mixtureComponents && (
+            <section className="chem-mixture-composition">
+              <h3>Состав готовой смеси</h3>
+              <div>
+                {plan.mixtureComponents.map((component) => (
+                  <span key={component.reagentId}><strong>{amount(component.amount)}</strong> {formatReagentName(component.name, component.reagentId)}</span>
+                ))}
+              </div>
+              <p>Расчёт передозировки выполнен по двум введениям по 60u. Порог Мералина и Дермалина — 15u, критический порог — 25u.</p>
+            </section>
+          )}
           <PreparationBlock preparation={plan.target} root />
         </div>
       )}
@@ -800,10 +846,12 @@ export function ChemistryPage() {
         <Planner
           catalog={catalog}
           reagentId={urlState.plannerReagentId}
+          mixtureId={urlState.mixtureId}
           requestedAmount={urlState.requestedAmount}
           beakerCapacity={urlState.beakerCapacity}
           shouldBuild={urlState.shouldBuild}
-          onReagentChange={(id) => setUrlFields({ reagent: id || null, run: null })}
+          onReagentChange={(id) => setUrlFields({ reagent: id || null, mix: null, run: null })}
+          onMixtureChange={(id) => setUrlFields({ mix: id, reagent: null, run: null })}
           onAmountChange={(value) => setUrlFields({ amount: value === "100" ? null : value, run: null })}
           onBeakerCapacityChange={(capacity) => setUrlFields({ beaker: capacity === 300 ? null : String(capacity), run: null })}
           onBuild={() => setUrlFields({ run: "1" })}
