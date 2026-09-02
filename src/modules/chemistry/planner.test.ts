@@ -111,6 +111,24 @@ describe("chemistry preparation planner", () => {
     expect(intermediate?.batches.every((batch) => batch.vessel === "tank")).toBe(true);
   });
 
+  it("rounds the final recipe so every nested intermediate is consumed exactly", () => {
+    const data = catalogWith([
+      reaction("Inaprovaline", [["Oxygen", 1], ["Carbon", 1], ["Sugar", 1]], [["Inaprovaline", 3]]),
+      reaction("Bicaridine", [["Inaprovaline", 1], ["Carbon", 1]], [["Bicaridine", 2]]),
+      reaction("Meralyne", [["Bicaridine", 1], ["Carbon", 1], ["Water", 1]], [["Meralyne", 3]]),
+    ]);
+    const plan = buildPreparationPlan(data, "Meralyne", 1560);
+
+    expect(plan.producedAmount).toBe(1620);
+    expect(plan.target.batches.map((batch) => batch.targetAmount)).toEqual([810, 810]);
+    expect(plan.target.preparations).toHaveLength(2);
+    for (const bicaridine of plan.target.preparations) {
+      const inaprovaline = bicaridine.preparations[0];
+      expect(bicaridine.requestedAmount).toBe(bicaridine.producedAmount);
+      expect(inaprovaline?.requestedAmount).toBe(inaprovaline?.producedAmount);
+    }
+  });
+
   it("rounds up complete reaction quanta instead of rounding ingredients", () => {
     const data = catalogWith([
       reaction(

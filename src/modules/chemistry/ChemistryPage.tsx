@@ -289,12 +289,12 @@ function PreparationBlock({
       </header>
       {preparation.preparations.length > 0 && (
         <div className="chem-nested-preparations">
-          <p>Сначала приготовьте промежуточные реагенты. По возможности оставляйте их в том же баке — это уже первый компонент следующей реакции.</p>
-          {preparation.preparations.map((nested) => (
+          <p>Сначала приготовьте промежуточные реагенты для каждого следующего бака. Оставляйте результат на месте — это уже первый компонент следующей реакции.</p>
+          {preparation.preparations.map((nested, index) => (
             <PreparationBlock
               preparation={nested}
               depth={depth + 1}
-              key={preparation.reagentId + ":" + nested.reagentId + ":preparation"}
+              key={`${preparation.reagentId}:${nested.reagentId}:preparation:${index}`}
             />
           ))}
         </div>

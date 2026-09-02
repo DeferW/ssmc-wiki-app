@@ -18,6 +18,7 @@ export const CHEM_DISPENSER_ENERGY_PER_UNIT = 0.1;
 type PlannerContext = {
   names: Map<string, string>;
   recipes: Map<string, ChemistryReaction>;
+  scaleQuanta: Map<string, number>;
 };
 
 const EPSILON = 1e-7;
@@ -49,21 +50,56 @@ function decimalDenominator(value: number) {
   return denominator / greatestCommonDivisor(numerator, denominator);
 }
 
-function reactionScaleQuantum(reaction: ChemistryReaction) {
-  const integerScale = [...reaction.reactants, ...reaction.products].reduce(
+function integerReactionScale(reaction: ChemistryReaction) {
+  return [...reaction.reactants, ...reaction.products].reduce(
     (current, reactant) => leastCommonMultiple(
       current,
       decimalDenominator(reactant.amount),
     ),
     1,
   );
-  // The medbay dispenser cannot measure less than 5u. Scaling the complete
-  // reaction by five also keeps fractional recipes on measurable quantities.
-  return integerScale * 5;
 }
 
 function productFor(reaction: ChemistryReaction, reagentId: string) {
   return reaction.products.find((product) => product.id === reagentId);
+}
+
+function wholeMultiple(value: number, quantum: number) {
+  return Math.abs(value / quantum - Math.round(value / quantum)) < EPSILON;
+}
+
+function reactionScaleQuantum(
+  context: PlannerContext,
+  reagentId: string,
+  stack: string[] = [],
+): number {
+  const cached = context.scaleQuanta.get(reagentId);
+  if (cached !== undefined) return cached;
+  if (stack.includes(reagentId)) {
+    throw new Error(`Обнаружен циклический рецепт: ${[...stack, reagentId].join(" → ")}.`);
+  }
+  const reaction = context.recipes.get(reagentId);
+  if (!reaction) return 1;
+  const baseScale = integerReactionScale(reaction);
+  const nextStack = [...stack, reagentId];
+  const requirements = reaction.reactants.map((reactant) => {
+    const nestedReaction = context.recipes.get(reactant.id);
+    const nestedProduct = nestedReaction && productFor(nestedReaction, reactant.id);
+    return nestedReaction && nestedProduct
+      ? nestedProduct.amount * reactionScaleQuantum(context, reactant.id, nextStack)
+      : 5;
+  });
+
+  for (let multiplier = 1; multiplier <= 100_000; multiplier += 1) {
+    const scale = baseScale * multiplier;
+    if (reaction.reactants.every((reactant, index) => (
+      wholeMultiple(reactant.amount * scale, requirements[index])
+    ))) {
+      context.scaleQuanta.set(reagentId, scale);
+      return scale;
+    }
+  }
+  throw new Error(`Не удалось подобрать измеримый объём для реакции ${reaction.id}.`);
 }
 
 function candidateScore(reaction: ChemistryReaction, productId: string) {
@@ -107,7 +143,7 @@ export function createPlannerContext(catalog: ChemistryCatalog): PlannerContext 
     ));
     recipes.set(productId, candidates[0].reaction);
   }
-  return { names, recipes };
+  return { names, recipes, scaleQuanta: new Map() };
 }
 
 export function craftableReagentIds(catalog: ChemistryCatalog) {
@@ -243,7 +279,7 @@ function planPreparation(
     throw new Error(`Реакция ${reaction.id} не создаёт выбранное вещество.`);
   }
 
-  const scaleQuantum = reactionScaleQuantum(reaction);
+  const scaleQuantum = reactionScaleQuantum(context, reagentId, stack);
   const targetQuantum = targetProduct.amount * scaleQuantum;
   const inputQuantum = reaction.reactants.reduce(
     (total, reactant) => total + reactant.amount * scaleQuantum,
@@ -313,27 +349,19 @@ function planPreparation(
     };
   });
 
-  const preparationTotals = new Map<string, number>();
-  for (const batch of batches) {
-    for (const input of batch.inputs) {
-      if (!input.prepared) continue;
-      preparationTotals.set(
-        input.reagentId,
-        roundAmount((preparationTotals.get(input.reagentId) ?? 0) + input.amount),
-      );
-    }
-  }
-  const preparations = [...preparationTotals.entries()].map(([
-    inputReagentId,
-    inputAmount,
-  ]) => planPreparation(
-    context,
-    inputReagentId,
-    inputAmount,
-    TANK_CAPACITY,
-    beakerCapacity,
-    [...stack, reagentId],
-  ));
+  // Prepare intermediates per destination tank. Aggregating them into one
+  // large batch would force the player to measure and redistribute the result
+  // before the next reaction instead of continuing in the same tank.
+  const preparations = batches.flatMap((batch) => batch.inputs
+    .filter((input) => input.prepared)
+    .map((input) => planPreparation(
+      context,
+      input.reagentId,
+      input.amount,
+      TANK_CAPACITY,
+      beakerCapacity,
+      [...stack, reagentId],
+    )));
 
   const producedAmount = roundAmount(quantumRuns * targetQuantum);
   return {
