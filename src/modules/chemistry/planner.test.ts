@@ -63,6 +63,11 @@ function ungaReactions() {
     reaction("CMMeralyne", [["CMBicaridine", 1], ["RMCCarbon", 1], ["Water", 1]], [["CMMeralyne", 3]]),
     reaction("CMDermaline", [["RMCOxygen", 1], ["RMCPhosphorus", 1], ["CMKelotane", 1]], [["CMDermaline", 3]]),
     reaction("CMTricordrazine", [["CMInaprovaline", 1], ["CMDylovene", 1]], [["CMTricordrazine", 2]]),
+    reaction("CMBicaridine", [["CMInaprovaline", 1], ["RMCCarbon", 1]], [["CMBicaridine", 2]]),
+    reaction("CMKelotane", [["RMCSilicon", 1], ["RMCCarbon", 1]], [["CMKelotane", 2]]),
+    reaction("CMDylovene", [["RMCSilicon", 1], ["RMCPotassium", 1], ["RMCNitrogen", 1]], [["CMDylovene", 3]]),
+    reaction("CMInaprovaline", [["RMCOxygen", 1], ["RMCCarbon", 1], ["RMCSugar", 1]], [["CMInaprovaline", 3]]),
+    reaction("CMDexalin", [["RMCOxygen", 2], ["RMCPhoron", 5.1]], [["CMDexalin", 1], ["RMCPhoron", 5]]),
     reaction("CMDexalinPlus", [["CMDexalin", 1], ["RMCCarbon", 1], ["RMCIron", 1]], [["CMDexalinPlus", 3]]),
   ];
 }
@@ -197,6 +202,28 @@ describe("chemistry preparation planner", () => {
     expect(order).toEqual(["Second", "First"]);
     expect(plan.target.batches[0].inputs.every((input) => input.preparedInPlace)).toBe(true);
   });
+
+  it("keeps recipes with non-dispenser ingredients available", () => {
+    const data = catalogWith([
+      reaction("Product", [["ExternalStock", 1], ["RMCCarbon", 1]], [["Product", 2]]),
+    ]);
+
+    expect(craftableReagentIds(data)).toContain("Product");
+    expect(buildPreparationPlan(data, "Product", 100).target.batches[0].inputs)
+      .toContainEqual(expect.objectContaining({ reagentId: "ExternalStock", external: true }));
+  });
+
+  it("keeps intentionally hazardous recipes available with a warning", () => {
+    const hazardous = reaction("Hazardous", [["Water", 1], ["RMCPotassium", 1]], [["Hazardous", 1]]);
+    hazardous.effects = [{ yamlTag: "!type:SensitiveReactionExplosionEffect", value: { threshold: 0 } }];
+    const competingExplosion = reaction("Explosion", [["Water", 1], ["RMCPotassium", 1]], []);
+    competingExplosion.conditions = { priority: 20 };
+    const data = catalogWith([hazardous, competingExplosion]);
+
+    expect(craftableReagentIds(data)).toContain("Hazardous");
+    expect(buildPreparationPlan(data, "Hazardous", 100).target.batches[0].warnings)
+      .toContain("Взрывоопасная реакция при объёме от 0u.");
+  });
 });
 
 describe("unga mixture presets", () => {
@@ -208,7 +235,7 @@ describe("unga mixture presets", () => {
     expect(plan.mixtureComponents?.find((item) => item.reagentId === "CMMeralyne")?.amount).toBe(180);
   });
 
-  it("prepares exact medicines directly in the final tank without flattening them", () => {
+  it("prepares exact medicines in place and expands their own recipes", () => {
     const data = catalogWith(ungaReactions());
     const plan = buildMixturePlan(data, "unga-standard", 1000);
     const finalInputs = plan.target.batches[0].inputs;
@@ -217,10 +244,10 @@ describe("unga mixture presets", () => {
     expect(finalInputs.some((item) => item.reagentId === "RMCCarbon")).toBe(false);
     expect(finalInputs.some((item) => item.inlinePreparation?.reagentId === "CMMeralyne")).toBe(true);
     expect(finalInputs.find((item) => item.reagentId === "CMDexalinPlus")?.prepared).toBe(true);
-    expect(plan.sourceTotals.some((item) => item.reagentId === "RMCPhoron")).toBe(false);
+    expect(plan.sourceTotals.some((item) => item.reagentId === "RMCPhoron")).toBe(true);
   });
 
-  it("uses vendor medicines as 60u sources but still prepares Dexalin Plus", () => {
+  it("expands vendor medicines and still prepares Dexalin Plus", () => {
     const data = catalogWith(ungaReactions());
     const plan = buildMixturePlan(data, "unga-standard", 1000);
     const dexalinPlus = plan.target.preparations.find((item) => item.reagentId === "CMDexalinPlus");
@@ -229,9 +256,9 @@ describe("unga mixture presets", () => {
     expect(MEDICAL_VENDOR_REAGENTS.has("CMDexalinPlus")).toBe(false);
     expect(dexalinPlus?.producedAmount).toBe(30);
     expect(dexalinPlus?.batches[0].inputs.find((item) => item.reagentId === "CMDexalin"))
-      .toMatchObject({ amount: 10, external: true, prepared: false });
-    expect(plan.sourceTotals.some((item) => item.reagentId === "RMCPhoron")).toBe(false);
-    expect(plan.tankCount).toBe(2);
+      .toMatchObject({ amount: 10, prepared: true });
+    expect(plan.sourceTotals.some((item) => item.reagentId === "RMCPhoron")).toBe(true);
+    expect(plan.tankCount).toBe(3);
   });
 
   it("plans 4000u as four final tanks and cooks shared surplus only once", () => {
@@ -243,7 +270,7 @@ describe("unga mixture presets", () => {
     expect(plan.target.batches.every((batch) => batch.totalInput === 1000)).toBe(true);
     expect(dexalinPlus).toMatchObject({ requestedAmount: 80, producedAmount: 90, surplusAmount: 10 });
     expect(plan.producedAmount).toBe(4000);
-    expect(plan.tankCount).toBe(5);
+    expect(plan.tankCount).toBe(6);
   });
 
   it("rounds custom mixture volumes to measurable 250u portions", () => {

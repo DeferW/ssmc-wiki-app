@@ -768,7 +768,7 @@ function Catalog({
     return index;
   }, [catalog]);
   const normalizedQuery = query.trim().toLocaleLowerCase("ru-RU");
-  const entries = spotlightEntry ? [spotlightEntry] : catalog.catalogSections[activeSectionId].filter((entry) => {
+  const matchesQuery = (entry: ChemistryCatalogEntry) => {
     if (!normalizedQuery) return true;
     const reagent = reagents[entry.id];
     return [entry.id, entry.name, reagent?.name, reagent?.description, ...entry.sectionPath]
@@ -776,7 +776,14 @@ function Catalog({
       .join(" ")
       .toLocaleLowerCase("ru-RU")
       .includes(normalizedQuery);
-  });
+  };
+  const sectionCounts = new Map(CHEMISTRY_SECTIONS.map((section) => [
+    section.id,
+    catalog.catalogSections[section.id].filter(matchesQuery).length,
+  ]));
+  const entries = spotlightEntry
+    ? [spotlightEntry]
+    : catalog.catalogSections[activeSectionId].filter(matchesQuery);
   const grouped = entries.reduce((groups, entry) => {
     const key = entry.sectionPath.join(" / ") || "Без раздела";
     const current = groups.get(key) ?? [];
@@ -826,7 +833,7 @@ function Catalog({
             onClick={() => selectSection(section.id)}
             key={section.id}
           >
-            {section.label}<span>{catalog.catalogSections[section.id].length}</span>
+            {section.label}<span>{sectionCounts.get(section.id) ?? 0}</span>
           </button>
         ))}
       </div>

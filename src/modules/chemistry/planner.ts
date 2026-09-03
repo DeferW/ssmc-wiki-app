@@ -44,10 +44,9 @@ export const MEDBAY_DISPENSER_REAGENTS = new Set([
   "RMCSulphuricAcid",
 ]);
 
-// CMVendorMedical can fill 60u containers with these ready-made medicines.
-// Treat them as source reagents for nested recipes: recreating Dexalin from
-// Phoron is impossible at the medbay dispenser and flattening medicines into
-// elements can trigger unrelated (including explosive) reactions.
+// CMVendorMedical can also supply these medicines. The planner still expands
+// their recipes; this set is retained only as a fallback for an incomplete
+// catalog where one of those recipes is absent.
 export const MEDICAL_VENDOR_REAGENTS = new Set([
   "CMBicaridine",
   "CMKelotane",
@@ -251,9 +250,7 @@ export function craftableReagentIds(catalog: ChemistryCatalog) {
   const context = createPlannerContext(catalog);
   return [...context.recipes.keys()]
     .filter((id) => (
-      !MEDICAL_VENDOR_REAGENTS.has(id)
-      && !MEDBAY_DISPENSER_REAGENTS.has(id)
-      && canPrepareFromMedbayDispenser(context, id)
+      !MEDBAY_DISPENSER_REAGENTS.has(id)
     ))
     .filter((id) => {
       try {
@@ -298,11 +295,9 @@ function batchActionCount(
   let pours = 0;
   let buttonPresses = 0;
   for (const reactant of reaction.reactants) {
-    const external = MEDICAL_VENDOR_REAGENTS.has(reactant.id);
-    const prepared = !external
-      && !MEDBAY_DISPENSER_REAGENTS.has(reactant.id)
-      && context.recipes.has(reactant.id)
-      && canPrepareFromMedbayDispenser(context, reactant.id);
+    const prepared = !MEDBAY_DISPENSER_REAGENTS.has(reactant.id)
+      && context.recipes.has(reactant.id);
+    const external = !prepared && !MEDBAY_DISPENSER_REAGENTS.has(reactant.id);
     // Complete intermediates can be prepared in the destination tank before
     // moving on to the next reaction.
     if (prepared) continue;
@@ -312,7 +307,7 @@ function batchActionCount(
       external ? MEDICAL_VENDOR_CONTAINER_CAPACITY : beakerCapacity,
     );
     pours += loads.length;
-    if (!prepared && MEDBAY_DISPENSER_REAGENTS.has(reactant.id)) {
+    if (MEDBAY_DISPENSER_REAGENTS.has(reactant.id)) {
       buttonPresses += loads.reduce(
         (total, load) => total + fixedTransferModes(load).length,
         0,
@@ -394,7 +389,6 @@ function preparationFootprint(
   const reactions = new Set<string>();
   if (
     MEDBAY_DISPENSER_REAGENTS.has(reagentId)
-    || MEDICAL_VENDOR_REAGENTS.has(reagentId)
     || stack.includes(reagentId)
   ) return { reagents, reactions };
 
@@ -414,6 +408,7 @@ function stageCanRunSafely(
   existing: Set<string>,
   footprint: Set<string>,
   intendedReactionIds: Set<string>,
+  hazardousRecipe: boolean,
 ) {
   const available = new Set([...existing, ...footprint]);
   const priority = (reaction: ChemistryReaction) => reaction.conditions?.priority ?? 0;
@@ -428,6 +423,10 @@ function stageCanRunSafely(
     && reaction.reactants.length > 0
     && reaction.reactants.every((reactant) => available.has(reactant.id))
     && priority(reaction) >= activeIntendedPriority
+    // A deliberately hazardous recipe is still a valid planner target. Its
+    // own warning remains visible; duplicate effect-only reactions must not
+    // hide the substance from search.
+    && !(hazardousRecipe && reaction.products.length === 0)
   ));
 }
 
@@ -477,7 +476,13 @@ function orderBatchStages(
             ? preparationFootprint(context, input.reagentId)
             : { reagents: new Set([input.reagentId]), reactions: new Set<string>() };
           const intended = new Set([parentReaction.id, ...footprint.reactions]);
-          if (!stageCanRunSafely(context, existing, footprint.reagents, intended)) continue;
+          if (!stageCanRunSafely(
+            context,
+            existing,
+            footprint.reagents,
+            intended,
+            Boolean(parentReaction.effects?.length),
+          )) continue;
 
           const separatePrepared = Boolean(nested) && !inline;
           const auxiliaryTank = candidate.auxiliaryTank || separatePrepared;
@@ -569,11 +574,9 @@ function planPreparation(
     const scale = runs * scaleQuantum;
     const inputs = reaction.reactants.map((reactant) => {
       const amount = roundAmount(reactant.amount * scale);
-      const external = MEDICAL_VENDOR_REAGENTS.has(reactant.id);
-      const prepared = !external
-        && !MEDBAY_DISPENSER_REAGENTS.has(reactant.id)
-        && context.recipes.has(reactant.id)
-        && canPrepareFromMedbayDispenser(context, reactant.id);
+      const prepared = !MEDBAY_DISPENSER_REAGENTS.has(reactant.id)
+        && context.recipes.has(reactant.id);
+      const external = !prepared && !MEDBAY_DISPENSER_REAGENTS.has(reactant.id);
       return {
         reagentId: reactant.id,
         name: context.names.get(reactant.id) ?? reactant.name ?? reactant.id,
@@ -733,14 +736,9 @@ export function buildPreparationPlan(
     throw new Error("Выберите доступную мензурку: 60u, 120u или 300u.");
   }
   const context = createPlannerContext(catalog);
-  if (MEDICAL_VENDOR_REAGENTS.has(reagentId) || MEDBAY_DISPENSER_REAGENTS.has(reagentId)) {
+  if (MEDBAY_DISPENSER_REAGENTS.has(reagentId)) {
     throw new Error(
       `${context.names.get(reagentId) ?? reagentId} уже доступен как базовый реагент.`,
-    );
-  }
-  if (!canPrepareFromMedbayDispenser(context, reagentId)) {
-    throw new Error(
-      `Этот рецепт нельзя приготовить из реагентов химраздатчика и медицинского автомата.`,
     );
   }
   const target = planPreparation(
@@ -769,24 +767,6 @@ export function buildPreparationPlan(
     target,
     sourceTotals,
   };
-}
-
-function canPrepareFromMedbayDispenser(
-  context: PlannerContext,
-  reagentId: string,
-  stack: string[] = [],
-): boolean {
-  if (
-    MEDBAY_DISPENSER_REAGENTS.has(reagentId)
-    || MEDICAL_VENDOR_REAGENTS.has(reagentId)
-  ) return true;
-  const reaction = context.recipes.get(reagentId);
-  if (!reaction || stack.includes(reagentId)) return false;
-  return reaction.reactants.every((reactant) => canPrepareFromMedbayDispenser(
-    context,
-    reactant.id,
-    [...stack, reagentId],
-  ));
 }
 
 function mixtureReaction(preset: MixturePreset): ChemistryReaction {
@@ -841,9 +821,6 @@ export function buildMixturePlan(
   const context = createPlannerContext(catalog);
   context.names.set(preset.id, preset.name);
   context.recipes.set(preset.id, mixtureReaction(preset));
-  if (!canPrepareFromMedbayDispenser(context, preset.id)) {
-    throw new Error("Для этой смеси не хватает доступного базового реагента.");
-  }
   const target = planPreparation(
     context,
     preset.id,
