@@ -44,8 +44,16 @@ export function isCatalogItemVisible(category: string, includeHidden = false) {
 export function itemMatches(item: CatalogItem, query: string) {
   const needle = normalize(query);
   if (!needle) return true;
-  return [item.name, item.id, descriptionText(item.description), ...(item.tags ?? [])]
-    .some((candidate) => normalize(candidate).includes(needle));
+  return itemSearchText(item).includes(needle);
+}
+
+export function itemSearchText(item: CatalogItem) {
+  return normalize([
+    item.name,
+    item.id,
+    descriptionText(item.description),
+    ...(item.tags ?? []),
+  ].join("\n"));
 }
 
 export function formatNumber(value: unknown, digits = 2) {

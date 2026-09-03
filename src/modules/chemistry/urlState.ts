@@ -48,6 +48,7 @@ export function updateChemistryUrl(
 ): URLSearchParams {
   const next = new URLSearchParams(current);
   for (const [key, value] of Object.entries(changes)) {
+    if (value === undefined) continue;
     if (key === "amount" && value === "") next.set(key, EMPTY_AMOUNT);
     else if (value === null || value === "") next.delete(key);
     else next.set(key, value);

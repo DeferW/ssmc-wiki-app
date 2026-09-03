@@ -9,9 +9,10 @@ import {
   buildMixturePlan,
   buildPreparationPlan,
   craftableReagentIds,
-  formatTransferModes,
+  MEDICAL_VENDOR_CONTAINER_CAPACITY,
+  MEDICAL_VENDOR_REAGENTS,
+  MEDICAL_VENDOR_TRANSFER_AMOUNTS,
   transferLoads,
-  transferModes,
   UNGA_PRESETS,
 } from "./planner";
 import type { MixturePreset } from "./planner";
@@ -41,6 +42,15 @@ const metabolismLabels: Record<string, string> = {
 
 function amount(value: number) {
   return numberFormat.format(value) + "u";
+}
+
+function countLabel(value: number, one: string, few: string, many: string) {
+  const lastTwo = value % 100;
+  if (lastTwo >= 11 && lastTwo <= 14) return many;
+  const last = value % 10;
+  if (last === 1) return one;
+  if (last >= 2 && last <= 4) return few;
+  return many;
 }
 
 function validCatalog(value: unknown): value is ChemistryCatalog {
@@ -241,29 +251,45 @@ function ReagentCard({
 function InputInstruction({ batch, inputIndex, repeatCount = 1 }: { batch: PlannedBatch; inputIndex: number; repeatCount?: number }) {
   const input = batch.inputs[inputIndex];
   if (input.prepared) {
+    if (!input.preparedInPlace) {
+      return (
+        <li>
+          {repeatCount > 1 ? `В каждый из ${repeatCount} баков перенесите ` : "Перенесите в этот бак "}
+          <strong>{amount(input.amount)} готового {formatReagentName(input.name, input.reagentId)}</strong>
+          {repeatCount > 1 ? "." : " из отдельного бака."}
+        </li>
+      );
+    }
     return (
       <li>
-        {repeatCount > 1 ? "Оставьте или распределите " : "Оставьте в этом баке "}
+        {repeatCount > 1 ? "Оставьте " : "Оставьте в этом баке "}
         <strong>{amount(input.amount)} {formatReagentName(input.name, input.reagentId)}</strong>
         {repeatCount > 1 ? ` в каждый из ${repeatCount} баков` : ""}. Это уже приготовленный компонент следующей реакции.
       </li>
     );
   }
-  const loads = transferLoads(input.amount, batch.beakerCapacity);
+  const externalFromMedicalVendor = MEDICAL_VENDOR_REAGENTS.has(input.reagentId);
+  const transferCapacity = externalFromMedicalVendor
+    ? MEDICAL_VENDOR_CONTAINER_CAPACITY
+    : batch.beakerCapacity;
+  const loads = transferLoads(input.amount, transferCapacity);
+  if (input.external) {
+    return (
+      <li>
+        {externalFromMedicalVendor
+          ? <>В медицинском автомате наберите <strong>{formatReagentName(input.name, input.reagentId)}</strong> через тару на 60u и </>
+          : <>Возьмите из готового запаса <strong>{formatReagentName(input.name, input.reagentId)}</strong> и </>}
+        {repeatCount > 1 ? `перенесите по ${amount(input.amount)} в каждый из ${repeatCount} баков` : <>перенесите в бак <strong>{amount(input.amount)}</strong></>}
+        {loads.length > 1 ? ` (${loads.length} ${countLabel(loads.length, "наполнение", "наполнения", "наполнений")})` : ""}.
+      </li>
+    );
+  }
   return (
     <li>
       В химраздатчике выберите <strong>{formatReagentName(input.name, input.reagentId)}</strong>.
       {repeatCount > 1 ? ` Для каждого из ${repeatCount} баков перенесите ` : " Перенесите в бак "}
       <strong>{amount(input.amount)}</strong>
-      {loads.length > 1 ? ` за ${loads.length} переливания` : ""}:
-      <span className="chem-transfer-loads">
-        {loads.map((load, index) => (
-          <code className="chem-mode-sequence" key={`${load}:${index}`}>
-            {amount(load)} · {formatTransferModes(transferModes(load))}
-          </code>
-        ))}
-      </span>
-      После каждого заполнения выливайте мензурку в бак.
+      {loads.length > 1 ? ` за ${loads.length} ${countLabel(loads.length, "заполнение", "заполнения", "заполнений")} мензурки` : ""}.
     </li>
   );
 }
@@ -292,7 +318,7 @@ function PreparationBlock({
       </header>
       {preparation.preparations.length > 0 && (
         <div className="chem-nested-preparations">
-          <p>Сначала приготовьте промежуточные реагенты для каждого следующего бака. Оставляйте результат на месте — это уже первый компонент следующей реакции.</p>
+          <p>Сначала приготовьте промежуточные реагенты. Следующий этап отдельно укажет, что оставить в баке, а что перенести.</p>
           {preparation.preparations.map((nested, index) => (
             <PreparationBlock
               preparation={nested}
@@ -312,7 +338,7 @@ function PreparationBlock({
           </h4>
           <ol>
             <li>
-              {batch.inputs.some((input) => input.prepared)
+              {batch.inputs.some((input) => input.preparedInPlace)
                 ? count > 1
                   ? `Продолжайте приготовление в этих ${count} баках, используя мензурку на ${batch.beakerCapacity}u. Выполняйте один шаг сразу для всей группы.`
                   : `Продолжайте приготовление в баке с промежуточным реагентом, используя мензурку на ${batch.beakerCapacity}u.`
@@ -615,7 +641,10 @@ function Planner({
                 <span key={source.reagentId}><strong>{amount(source.amount)}</strong> {formatReagentName(source.name, source.reagentId)}</span>
               ))}
             </div>
-            <p>Оценочный расход химраздатчика: <strong>{numberFormat.format(plan.energyCost)} энергии</strong>. Вода энергию не расходует. Исходными считаются элементы, вода и вещества без производящего рецепта.</p>
+            <p>Оценочный расход химраздатчика: <strong>{numberFormat.format(plan.energyCost)} энергии</strong>. Вода энергию не расходует; энергия медицинского автомата в расчёт не входит.</p>
+            {plan.sourceTotals.some((source) => MEDICAL_VENDOR_REAGENTS.has(source.reagentId)) && (
+              <p>Готовые базовые лекарства берите в медицинском автомате через тару на 60u. Доступные режимы: {MEDICAL_VENDOR_TRANSFER_AMOUNTS.join(" / ")}u.</p>
+            )}
           </section>
           {plan.mixtureComponents && (
             <section className="chem-mixture-composition">
@@ -625,7 +654,6 @@ function Planner({
                   <span key={component.reagentId}><strong>{amount(component.amount)}</strong> {formatReagentName(component.name, component.reagentId)}</span>
                 ))}
               </div>
-              <p>Расчёт передозировки выполнен по двум введениям по 60u. Порог Мералина и Дермалина — 15u, критический порог — 25u.</p>
             </section>
           )}
           <PreparationBlock preparation={plan.target} root />
@@ -640,17 +668,17 @@ function Catalog({
   sectionId,
   query,
   openReagentId,
-  onSectionChange,
-  onQueryChange,
-  onReagentChange,
+  onStateChange,
 }: {
   catalog: ChemistryCatalog;
   sectionId: ChemistrySectionId;
   query: string;
   openReagentId: string | null;
-  onSectionChange: (id: ChemistrySectionId) => void;
-  onQueryChange: (value: string) => void;
-  onReagentChange: (id: string | null) => void;
+  onStateChange: (changes: {
+    sectionId?: ChemistrySectionId;
+    query?: string;
+    openReagentId?: string | null;
+  }) => void;
 }) {
   const reagents = useMemo(() => ({ ...catalog.dependencies, ...catalog.reagents }), [catalog]);
   const sectionByReagent = useMemo(() => {
@@ -713,26 +741,24 @@ function Catalog({
 
   const navigateToReagent = (id: string) => {
     const section = sectionByReagent.get(id);
-    onQueryChange("");
     if (section) {
-      onSectionChange(section);
+      onStateChange({ query: "", sectionId: section, openReagentId: id });
     } else {
       const reagent = reagents[id];
       if (!reagent) return;
+      onStateChange({ query: "", openReagentId: id });
     }
-    onReagentChange(id);
   };
 
   const selectSection = (id: ChemistrySectionId) => {
-    onSectionChange(id);
-    onReagentChange(null);
+    onStateChange({ sectionId: id, openReagentId: null });
   };
 
   return (
     <div className="chem-catalog">
       <label className="chem-search">
         <span aria-hidden="true">⌕</span>
-        <input type="search" value={query} onChange={(event) => { onQueryChange(event.target.value); onReagentChange(null); }} placeholder="Название, описание или ID реагента…" />
+        <input type="search" value={query} onChange={(event) => onStateChange({ query: event.target.value, openReagentId: null })} placeholder="Название, описание или ID реагента…" />
         <small>{entries.length} из {spotlightEntry ? 1 : catalog.catalogSections[activeSectionId].length}</small>
       </label>
       <div className="chem-section-tabs" role="tablist" aria-label="Разделы химии">
@@ -761,9 +787,9 @@ function Catalog({
                   onNavigate={navigateToReagent}
                   onOpenChange={(id, open) => {
                     if (open) {
-                      if (openReagentId !== id) onReagentChange(id);
+                      if (openReagentId !== id) onStateChange({ openReagentId: id });
                     } else if (openReagentId === id) {
-                      onReagentChange(null);
+                      onStateChange({ openReagentId: null });
                     }
                   }}
                   key={entry.id}
@@ -785,8 +811,8 @@ export function ChemistryPage() {
   const [error, setError] = useState("");
   const [requestKey, setRequestKey] = useState(0);
   const setUrlFields = useCallback((changes: Parameters<typeof updateChemistryUrl>[1]) => {
-    setSearchParams(updateChemistryUrl(searchParams, changes), { replace: true });
-  }, [searchParams, setSearchParams]);
+    setSearchParams((current) => updateChemistryUrl(current, changes), { replace: true });
+  }, [setSearchParams]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -836,9 +862,13 @@ export function ChemistryPage() {
           sectionId={urlState.sectionId}
           query={urlState.query}
           openReagentId={urlState.openReagentId}
-          onSectionChange={(section) => setUrlFields({ section: section === "ordnance" ? null : section })}
-          onQueryChange={(query) => setUrlFields({ q: query || null })}
-          onReagentChange={(id) => setUrlFields({ item: id })}
+          onStateChange={(changes) => setUrlFields({
+            section: changes.sectionId === undefined
+              ? undefined
+              : changes.sectionId === "ordnance" ? null : changes.sectionId,
+            q: changes.query === undefined ? undefined : changes.query || null,
+            item: changes.openReagentId === undefined ? undefined : changes.openReagentId,
+          })}
         />
       )}
       {catalog && urlState.view === "planner" && (

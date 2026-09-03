@@ -87,6 +87,8 @@ export type PlannedInput = {
   name: string;
   amount: number;
   prepared: boolean;
+  preparedInPlace?: boolean;
+  external?: boolean;
 };
 
 export type PlannedByproduct = {

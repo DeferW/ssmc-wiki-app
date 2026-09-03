@@ -4,6 +4,7 @@ import type {
   ChemistryReaction,
   BeakerCapacity,
   PlannedBatch,
+  PlannedInput,
   PlannedPreparation,
   PlannedSource,
   PreparationPlan,
@@ -16,11 +17,53 @@ export const BEAKER_CAPACITIES = [300, 120, 60] as const satisfies readonly Beak
 export const CHEM_DISPENSER_AMOUNTS = [40, 30, 20, 10, 5] as const satisfies readonly TransferMode[];
 export const CHEM_DISPENSER_ENERGY_PER_UNIT = 0.1;
 
+// Exact reagent set shown by RMCChemDispenserMedbay. Other leaf reagents must
+// come from an external stock; pretending they are dispenser buttons creates
+// impossible and, in the case of Phoron, unsafe instructions.
+export const MEDBAY_DISPENSER_REAGENTS = new Set([
+  "Water",
+  "RMCAluminum",
+  "RMCCarbon",
+  "RMCChlorine",
+  "RMCCopper",
+  "RMCEthanol",
+  "RMCFluorine",
+  "RMCHydrogen",
+  "RMCIron",
+  "RMCLithium",
+  "RMCMercury",
+  "RMCNitrogen",
+  "RMCOxygen",
+  "RMCPhosphorus",
+  "RMCPotassium",
+  "RMCRadium",
+  "RMCSilicon",
+  "RMCSodium",
+  "RMCSugar",
+  "RMCSulfur",
+  "RMCSulphuricAcid",
+]);
+
+// CMVendorMedical can fill 60u containers with these ready-made medicines.
+// Treat them as source reagents for nested recipes: recreating Dexalin from
+// Phoron is impossible at the medbay dispenser and flattening medicines into
+// elements can trigger unrelated (including explosive) reactions.
+export const MEDICAL_VENDOR_REAGENTS = new Set([
+  "CMBicaridine",
+  "CMKelotane",
+  "CMDylovene",
+  "CMDexalin",
+  "CMInaprovaline",
+]);
+
+export const MEDICAL_VENDOR_CONTAINER_CAPACITY = 60;
+export const MEDICAL_VENDOR_TRANSFER_AMOUNTS = [60, 40, 30, 25, 15, 10, 5] as const;
+
 export type MixturePreset = {
   id: "unga-standard";
   name: string;
   buttonLabel: string;
-  components: Array<{ reagentId: string; amount: number; filler?: boolean }>;
+  components: Array<{ reagentId: string; amount: number }>;
 };
 
 export const UNGA_PRESETS: readonly MixturePreset[] = [
@@ -35,8 +78,8 @@ export const UNGA_PRESETS: readonly MixturePreset[] = [
       { reagentId: "CMBicaridine", amount: 180 },
       { reagentId: "CMTricordrazine", amount: 180 },
       { reagentId: "CMDexalinPlus", amount: 20 },
-      { reagentId: "RMCIron", amount: 40, filler: true },
-      { reagentId: "RMCSugar", amount: 40, filler: true },
+      { reagentId: "RMCIron", amount: 40 },
+      { reagentId: "RMCSugar", amount: 40 },
     ],
   },
 ] as const;
@@ -109,7 +152,9 @@ function reactionScaleQuantum(
   const baseScale = integerReactionScale(reaction);
   const nextStack = [...stack, reagentId];
   const requirements = reaction.reactants.map((reactant) => {
-    const nestedReaction = context.recipes.get(reactant.id);
+    const nestedReaction = MEDICAL_VENDOR_REAGENTS.has(reactant.id)
+      ? undefined
+      : context.recipes.get(reactant.id);
     const nestedProduct = nestedReaction && productFor(nestedReaction, reactant.id);
     return nestedReaction && nestedProduct
       ? nestedProduct.amount * reactionScaleQuantum(context, reactant.id, nextStack)
@@ -173,7 +218,9 @@ export function createPlannerContext(catalog: ChemistryCatalog): PlannerContext 
 }
 
 export function craftableReagentIds(catalog: ChemistryCatalog) {
-  return [...createPlannerContext(catalog).recipes.keys()].sort((left, right) => {
+  return [...createPlannerContext(catalog).recipes.keys()]
+    .filter((id) => !MEDICAL_VENDOR_REAGENTS.has(id))
+    .sort((left, right) => {
     const reagents = { ...catalog.dependencies, ...catalog.reagents };
     return (reagents[left]?.name ?? left).localeCompare(
       reagents[right]?.name ?? right,
@@ -203,21 +250,34 @@ function batchActionCount(
   reaction: ChemistryReaction,
   scale: number,
   beakerCapacity: BeakerCapacity,
-  recipes: ReadonlyMap<string, ChemistryReaction>,
+  context: PlannerContext,
 ) {
   let pours = 0;
   let buttonPresses = 0;
+  let hasInPlaceIntermediate = false;
   for (const reactant of reaction.reactants) {
-    // An intermediate reagent is prepared directly in the destination tank;
-    // it is already the first ingredient and does not require another pour.
-    if (recipes.has(reactant.id)) continue;
+    const external = MEDICAL_VENDOR_REAGENTS.has(reactant.id);
+    const prepared = !external
+      && context.recipes.has(reactant.id)
+      && canPrepareFromMedbayDispenser(context, reactant.id);
+    // Only one intermediate can occupy the destination tank. Every additional
+    // prepared reactant has to be brought from a separate preparation tank.
+    if (prepared && !hasInPlaceIntermediate) {
+      hasInPlaceIntermediate = true;
+      continue;
+    }
     const amount = roundAmount(reactant.amount * scale);
-    const loads = transferLoads(amount, beakerCapacity);
-    pours += loads.length;
-    buttonPresses += loads.reduce(
-      (total, load) => total + fixedTransferModes(load).length,
-      0,
+    const loads = transferLoads(
+      amount,
+      external ? MEDICAL_VENDOR_CONTAINER_CAPACITY : beakerCapacity,
     );
+    pours += loads.length;
+    if (!prepared && MEDBAY_DISPENSER_REAGENTS.has(reactant.id)) {
+      buttonPresses += loads.reduce(
+        (total, load) => total + fixedTransferModes(load).length,
+        0,
+      );
+    }
   }
   return { pours, buttonPresses };
 }
@@ -228,7 +288,7 @@ function optimalRunGroups(
   quantumRuns: number,
   maxQuantumRuns: number,
   beakerCapacity: BeakerCapacity,
-  recipes: ReadonlyMap<string, ChemistryReaction>,
+  context: PlannerContext,
 ) {
   type Candidate = {
     pours: number;
@@ -253,7 +313,7 @@ function optimalRunGroups(
           reaction,
           currentRuns * scaleQuantum,
           beakerCapacity,
-          recipes,
+          context,
         );
         const candidate: Candidate = {
           pours: previous.pours + actions.pours,
@@ -386,20 +446,28 @@ function planPreparation(
     quantumRuns,
     maxQuantumRuns,
     beakerCapacity,
-    context.recipes,
+    context,
   );
 
   const batches: PlannedBatch[] = runGroups.map((runs, batchIndex) => {
     const scale = runs * scaleQuantum;
     const inputs = reaction.reactants.map((reactant) => {
       const amount = roundAmount(reactant.amount * scale);
+      const external = MEDICAL_VENDOR_REAGENTS.has(reactant.id);
+      const prepared = !external
+        && context.recipes.has(reactant.id)
+        && canPrepareFromMedbayDispenser(context, reactant.id);
       return {
         reagentId: reactant.id,
         name: context.names.get(reactant.id) ?? reactant.name ?? reactant.id,
         amount,
-        prepared: context.recipes.has(reactant.id),
+        prepared,
+        preparedInPlace: false,
+        external: external || (!prepared && !MEDBAY_DISPENSER_REAGENTS.has(reactant.id)),
       };
     }).sort((left, right) => Number(right.prepared) - Number(left.prepared));
+    const inPlaceIntermediate = inputs.find((input) => input.prepared);
+    if (inPlaceIntermediate) inPlaceIntermediate.preparedInPlace = true;
     const targetAmount = roundAmount(targetProduct.amount * scale);
     return {
       key: `${[...stack, reagentId].join("/")}:${batchIndex}`,
@@ -495,6 +563,16 @@ export function buildPreparationPlan(
     throw new Error("Выберите доступную мензурку: 60u, 120u или 300u.");
   }
   const context = createPlannerContext(catalog);
+  if (MEDICAL_VENDOR_REAGENTS.has(reagentId)) {
+    throw new Error(
+      `${context.names.get(reagentId) ?? reagentId} уже доступен готовым в медицинском автомате.`,
+    );
+  }
+  if (!canPrepareFromMedbayDispenser(context, reagentId)) {
+    throw new Error(
+      `Этот рецепт нельзя приготовить из реагентов химраздатчика и медицинского автомата.`,
+    );
+  }
   const target = planPreparation(
     context,
     reagentId,
@@ -509,9 +587,11 @@ export function buildPreparationPlan(
     producedAmount: target.producedAmount,
     surplusAmount: target.surplusAmount,
     energyCost: roundAmount(sourceTotals.reduce(
-      (total, source) => total + (source.reagentId === "Water"
-        ? 0
-        : source.amount * CHEM_DISPENSER_ENERGY_PER_UNIT),
+      (total, source) => total + (
+        source.reagentId !== "Water" && MEDBAY_DISPENSER_REAGENTS.has(source.reagentId)
+          ? source.amount * CHEM_DISPENSER_ENERGY_PER_UNIT
+          : 0
+      ),
       0,
     )),
     beakerCapacity,
@@ -523,8 +603,11 @@ export function buildPreparationPlan(
 type MixtureTankDraft = {
   targetAmount: number;
   totalInput: number;
-  inputs: PlannedSource[];
+  inputs: PlannedInput[];
   components: PlannedSource[];
+  preparations: PlannedPreparation[];
+  pours: number;
+  buttonPresses: number;
 };
 
 function addSourceAmount(
@@ -538,51 +621,56 @@ function addSourceAmount(
   totals.set(reagentId, stored);
 }
 
-function expandMixtureReagent(
+function canPrepareFromMedbayDispenser(
   context: PlannerContext,
   reagentId: string,
-  amount: number,
-  totals: Map<string, { name: string; amount: number }>,
   stack: string[] = [],
-) {
+): boolean {
+  if (
+    MEDBAY_DISPENSER_REAGENTS.has(reagentId)
+    || MEDICAL_VENDOR_REAGENTS.has(reagentId)
+  ) return true;
   const reaction = context.recipes.get(reagentId);
-  const product = reaction && productFor(reaction, reagentId);
-  if (!reaction || !product || product.amount <= 0) {
-    addSourceAmount(
-      totals,
-      reagentId,
-      context.names.get(reagentId) ?? reagentId,
-      amount,
-    );
-    return;
-  }
-  if (stack.includes(reagentId)) {
-    throw new Error(`Обнаружен циклический рецепт: ${[...stack, reagentId].join(" → ")}.`);
-  }
-
-  const scale = amount / product.amount;
-  for (const reactant of reaction.reactants) {
-    const returned = reaction.products.find((candidate) => candidate.id === reactant.id)?.amount ?? 0;
-    const required = Math.max(0, reactant.amount - returned) * scale;
-    if (required <= EPSILON) continue;
-    expandMixtureReagent(
-      context,
-      reactant.id,
-      required,
-      totals,
-      [...stack, reagentId],
-    );
-  }
+  if (!reaction || stack.includes(reagentId)) return false;
+  return reaction.reactants.every((reactant) => canPrepareFromMedbayDispenser(
+    context,
+    reactant.id,
+    [...stack, reagentId],
+  ));
 }
 
-function ceilToDispensableAmount(value: number) {
-  return Math.ceil((value - EPSILON) / 5) * 5;
+function preparationActionCount(preparation: PlannedPreparation) {
+  let pours = 0;
+  let buttonPresses = 0;
+  for (const nested of preparation.preparations) {
+    const nestedActions = preparationActionCount(nested);
+    pours += nestedActions.pours;
+    buttonPresses += nestedActions.buttonPresses;
+  }
+  for (const batch of preparation.batches) {
+    for (const input of batch.inputs) {
+      if (input.preparedInPlace) continue;
+      const loads = transferLoads(
+        input.amount,
+        input.external ? MEDICAL_VENDOR_CONTAINER_CAPACITY : batch.beakerCapacity,
+      );
+      pours += loads.length;
+      if (!input.prepared && !input.external) {
+        buttonPresses += loads.reduce(
+          (total, load) => total + fixedTransferModes(load).length,
+          0,
+        );
+      }
+    }
+  }
+  return { pours, buttonPresses };
 }
 
 function mixtureTankDraft(
   context: PlannerContext,
   preset: MixturePreset,
   targetAmount: number,
+  beakerCapacity: BeakerCapacity,
 ): MixtureTankDraft {
   const scale = targetAmount / 1000;
   const components = preset.components.map((component) => ({
@@ -591,42 +679,63 @@ function mixtureTankDraft(
     name: context.names.get(component.reagentId) ?? component.reagentId,
     amount: roundAmount(component.amount * scale),
   }));
-  const rawSources = new Map<string, { name: string; amount: number }>();
-  for (const component of components) {
-    expandMixtureReagent(
-      context,
-      component.reagentId,
-      component.amount,
-      rawSources,
+  if (components.some((component) => !wholeMultiple(component.amount, 5))) {
+    throw new Error("Объём Унги должен давать измеримые порции компонентов по 5u.");
+  }
+
+  const inputs: PlannedInput[] = components.map((component) => {
+    const external = MEDICAL_VENDOR_REAGENTS.has(component.reagentId);
+    const prepared = !external && context.recipes.has(component.reagentId)
+      && canPrepareFromMedbayDispenser(context, component.reagentId);
+    return {
+      reagentId: component.reagentId,
+      name: component.name,
+      amount: component.amount,
+      prepared,
+      preparedInPlace: false,
+      external: external || (!prepared && !MEDBAY_DISPENSER_REAGENTS.has(component.reagentId)),
+    };
+  });
+  // Medicines are prepared one at a time in a separate tank and only then
+  // measured into the clean final tank. Raw elements from unrelated recipes
+  // must never share a tank: Potassium and Water, for example, explode.
+  const preparations = inputs.filter((input) => input.prepared).map((input) => planPreparation(
+    context,
+    input.reagentId,
+    input.amount,
+    TANK_CAPACITY,
+    beakerCapacity,
+    [preset.id],
+  ));
+  const preparationActions = preparations.reduce((total, preparation) => {
+    const actions = preparationActionCount(preparation);
+    total.pours += actions.pours;
+    total.buttonPresses += actions.buttonPresses;
+    return total;
+  }, { pours: 0, buttonPresses: 0 });
+  const finalActions = inputs.reduce((total, input) => {
+    const loads = transferLoads(
+      input.amount,
+      input.external ? MEDICAL_VENDOR_CONTAINER_CAPACITY : beakerCapacity,
     );
-  }
-  const inputs = [...rawSources.entries()].map(([reagentId, source]) => ({
-    kind: "source" as const,
-    reagentId,
-    name: source.name,
-    amount: ceilToDispensableAmount(source.amount),
-  }));
-
-  let totalInput = inputs.reduce((sum, input) => sum + input.amount, 0);
-  let excess = roundAmount(totalInput - targetAmount);
-  // Iron and sugar are the adjustable blood-restoration filler from the guide.
-  // Spend that allowance first when 5u rounding of recipe ingredients would
-  // otherwise overfill the tank.
-  for (const filler of [...preset.components].reverse().filter((component) => component.filler)) {
-    if (excess <= 0) break;
-    const component = components.find((candidate) => candidate.reagentId === filler.reagentId);
-    const input = inputs.find((candidate) => candidate.reagentId === filler.reagentId);
-    if (!component || !input) continue;
-    const allowance = Math.floor((filler.amount * scale + EPSILON) / 5) * 5;
-    const reduction = Math.min(allowance, excess);
-    input.amount = roundAmount(input.amount - reduction);
-    component.amount = roundAmount(component.amount - reduction);
-    excess = roundAmount(excess - reduction);
-  }
-
-  const filteredInputs = inputs.filter((input) => input.amount > 0);
-  totalInput = roundAmount(filteredInputs.reduce((sum, input) => sum + input.amount, 0));
-  return { targetAmount: totalInput, totalInput, inputs: filteredInputs, components };
+    total.pours += loads.length;
+    if (!input.prepared && !input.external) {
+      total.buttonPresses += loads.reduce(
+        (sum, load) => sum + fixedTransferModes(load).length,
+        0,
+      );
+    }
+    return total;
+  }, { pours: 0, buttonPresses: 0 });
+  return {
+    targetAmount,
+    totalInput: targetAmount,
+    inputs,
+    components,
+    preparations,
+    pours: preparationActions.pours + finalActions.pours,
+    buttonPresses: preparationActions.buttonPresses + finalActions.buttonPresses,
+  };
 }
 
 function mixtureTankGroups(
@@ -635,13 +744,14 @@ function mixtureTankGroups(
   requestedAmount: number,
   beakerCapacity: BeakerCapacity,
 ) {
-  const totalUnits = Math.ceil((requestedAmount - EPSILON) / 5);
-  const maxUnits = TANK_CAPACITY / 5;
+  const mixtureQuantum = 250;
+  const totalUnits = Math.ceil((requestedAmount - EPSILON) / mixtureQuantum);
+  const maxUnits = TANK_CAPACITY / mixtureQuantum;
   const minimumGroups = Math.ceil(totalUnits / maxUnits);
   const drafts = new Map<number, MixtureTankDraft | null>();
   const draftFor = (units: number) => {
     if (!drafts.has(units)) {
-      const draft = mixtureTankDraft(context, preset, units * 5);
+      const draft = mixtureTankDraft(context, preset, units * mixtureQuantum, beakerCapacity);
       drafts.set(units, draft.totalInput <= TANK_CAPACITY ? draft : null);
     }
     return drafts.get(units) ?? null;
@@ -660,19 +770,9 @@ function mixtureTankGroups(
           const previous = best[total - current][used - 1];
           const draft = draftFor(current);
           if (!previous || !draft) continue;
-          const pours = draft.inputs.reduce(
-            (sum, input) => sum + transferLoads(input.amount, beakerCapacity).length,
-            0,
-          );
-          const presses = draft.inputs.reduce((sum, input) => (
-            sum + transferLoads(input.amount, beakerCapacity).reduce(
-              (loadSum, load) => loadSum + fixedTransferModes(load).length,
-              0,
-            )
-          ), 0);
           const candidate: Candidate = {
-            pours: previous.pours + pours,
-            presses: previous.presses + presses,
+            pours: previous.pours + draft.pours,
+            presses: previous.presses + draft.buttonPresses,
             balance: previous.balance + current ** 2,
             groups: [...previous.groups, current],
           };
@@ -680,11 +780,11 @@ function mixtureTankGroups(
           if (
             !stored
             || candidate.pours < stored.pours
-            || (candidate.pours === stored.pours && candidate.balance < stored.balance)
+            || (candidate.pours === stored.pours && candidate.presses < stored.presses)
             || (
               candidate.pours === stored.pours
-              && candidate.balance === stored.balance
-              && candidate.presses < stored.presses
+              && candidate.presses === stored.presses
+              && candidate.balance < stored.balance
             )
           ) {
             best[total][used] = candidate;
@@ -726,25 +826,16 @@ export function buildMixturePlan(
     targetAmount: draft.targetAmount,
     totalInput: draft.totalInput,
     totalOutput: draft.targetAmount,
-    inputs: draft.inputs.map((input) => ({ ...input, prepared: false })),
+    inputs: draft.inputs,
     byproducts: [],
     warnings: [],
   }));
-  const sourceMap = new Map<string, { name: string; amount: number }>();
   const componentMap = new Map<string, { name: string; amount: number }>();
   for (const draft of drafts) {
-    for (const input of draft.inputs) {
-      addSourceAmount(sourceMap, input.reagentId, input.name, input.amount);
-    }
     for (const component of draft.components) {
       addSourceAmount(componentMap, component.reagentId, component.name, component.amount);
     }
   }
-  const sourceTotals = [...sourceMap.entries()].map(([reagentId, source]) => ({
-    kind: "source" as const,
-    reagentId,
-    ...source,
-  }));
   const mixtureComponents = [...componentMap.entries()].map(([reagentId, component]) => ({
     kind: "source" as const,
     reagentId,
@@ -759,17 +850,20 @@ export function buildMixturePlan(
     producedAmount,
     surplusAmount: roundAmount(producedAmount - requestedAmount),
     reactionId: `custom:${preset.id}`,
-    preparations: [],
+    preparations: mergeEquivalentPreparations(drafts.flatMap((draft) => draft.preparations)),
     batches,
   };
+  const sourceTotals = collectSourceTotals(target);
   return {
     requestedAmount,
     producedAmount,
     surplusAmount: target.surplusAmount,
     energyCost: roundAmount(sourceTotals.reduce(
-      (total, source) => total + (source.reagentId === "Water"
-        ? 0
-        : source.amount * CHEM_DISPENSER_ENERGY_PER_UNIT),
+      (total, source) => total + (
+        source.reagentId !== "Water" && MEDBAY_DISPENSER_REAGENTS.has(source.reagentId)
+          ? source.amount * CHEM_DISPENSER_ENERGY_PER_UNIT
+          : 0
+      ),
       0,
     )),
     beakerCapacity,

@@ -5,6 +5,7 @@ import {
   craftableReagentIds,
   fixedTransferModes,
   formatTransferModes,
+  MEDICAL_VENDOR_REAGENTS,
   transferLoads,
   transferModes,
 } from "./planner";
@@ -80,7 +81,7 @@ describe("medbay chemical dispenser transfer modes", () => {
 describe("chemistry preparation planner", () => {
   it("prepares 900u in one tank through a 300u beaker", () => {
     const data = catalogWith([
-      reaction("Product", [["A", 1], ["B", 1], ["C", 1]], [["Product", 3]]),
+      reaction("Product", [["RMCCarbon", 1], ["RMCOxygen", 1], ["RMCSugar", 1]], [["Product", 3]]),
     ]);
     const plan = buildPreparationPlan(data, "Product", 900);
 
@@ -93,17 +94,17 @@ describe("chemistry preparation planner", () => {
     });
     expect(plan.target.batches[0].inputs.map((input) => input.amount)).toEqual([300, 300, 300]);
     expect(plan.sourceTotals).toEqual([
-      { kind: "source", reagentId: "A", name: "A", amount: 300 },
-      { kind: "source", reagentId: "B", name: "B", amount: 300 },
-      { kind: "source", reagentId: "C", name: "C", amount: 300 },
+      { kind: "source", reagentId: "RMCCarbon", name: "RMCCarbon", amount: 300 },
+      { kind: "source", reagentId: "RMCOxygen", name: "RMCOxygen", amount: 300 },
+      { kind: "source", reagentId: "RMCSugar", name: "RMCSugar", amount: 300 },
     ]);
     expect(plan.energyCost).toBe(90);
   });
 
   it("keeps every final and intermediate reaction in 1000u tanks", () => {
     const data = catalogWith([
-      reaction("Intermediate", [["A", 1], ["B", 1]], [["Intermediate", 2]]),
-      reaction("Product", [["Intermediate", 1], ["C", 1]], [["Product", 2]]),
+      reaction("Intermediate", [["RMCCarbon", 1], ["RMCOxygen", 1]], [["Intermediate", 2]]),
+      reaction("Product", [["Intermediate", 1], ["RMCSugar", 1]], [["Product", 2]]),
     ]);
     const plan = buildPreparationPlan(data, "Product", 400);
 
@@ -114,9 +115,9 @@ describe("chemistry preparation planner", () => {
 
   it("rounds the final recipe so every nested intermediate is consumed exactly", () => {
     const data = catalogWith([
-      reaction("Inaprovaline", [["Oxygen", 1], ["Carbon", 1], ["Sugar", 1]], [["Inaprovaline", 3]]),
-      reaction("Bicaridine", [["Inaprovaline", 1], ["Carbon", 1]], [["Bicaridine", 2]]),
-      reaction("Meralyne", [["Bicaridine", 1], ["Carbon", 1], ["Water", 1]], [["Meralyne", 3]]),
+      reaction("Inaprovaline", [["RMCOxygen", 1], ["RMCCarbon", 1], ["RMCSugar", 1]], [["Inaprovaline", 3]]),
+      reaction("Bicaridine", [["Inaprovaline", 1], ["RMCCarbon", 1]], [["Bicaridine", 2]]),
+      reaction("Meralyne", [["Bicaridine", 1], ["RMCCarbon", 1], ["Water", 1]], [["Meralyne", 3]]),
     ]);
     const plan = buildPreparationPlan(data, "Meralyne", 1560);
 
@@ -135,8 +136,8 @@ describe("chemistry preparation planner", () => {
     const data = catalogWith([
       reaction(
         "Product",
-        [["A", 1], ["B", 1], ["Catalyst", 5.1]],
-        [["Product", 2], ["Catalyst", 5]],
+        [["RMCCarbon", 1], ["RMCOxygen", 1], ["Water", 5.1]],
+        [["Product", 2], ["Water", 5]],
       ),
     ]);
     const plan = buildPreparationPlan(data, "Product", 25);
@@ -145,12 +146,12 @@ describe("chemistry preparation planner", () => {
     expect(plan.surplusAmount).toBe(75);
     expect(plan.target.batches).toHaveLength(1);
     expect(plan.target.batches[0].inputs.map((input) => input.amount)).toEqual([50, 50, 255]);
-    expect(craftableReagentIds(data)).not.toContain("Catalyst");
+    expect(craftableReagentIds(data)).not.toContain("Water");
   });
 
   it("balances 1500u across two tanks when the pour count is equal", () => {
     const data = catalogWith([
-      reaction("Product", [["A", 1], ["B", 1], ["C", 1]], [["Product", 3]]),
+      reaction("Product", [["RMCCarbon", 1], ["RMCOxygen", 1], ["RMCSugar", 1]], [["Product", 3]]),
     ]);
     const plan = buildPreparationPlan(data, "Product", 1500);
 
@@ -160,7 +161,7 @@ describe("chemistry preparation planner", () => {
 
   it("deviates from an equal split when that saves beaker pours", () => {
     const data = catalogWith([
-      reaction("Product", [["A", 1], ["B", 1]], [["Product", 2]]),
+      reaction("Product", [["RMCCarbon", 1], ["RMCOxygen", 1]], [["Product", 2]]),
     ]);
     const plan = buildPreparationPlan(data, "Product", 1300);
 
@@ -177,15 +178,40 @@ describe("unga mixture presets", () => {
     expect(plan.mixtureComponents?.find((item) => item.reagentId === "CMMeralyne")?.amount).toBe(180);
   });
 
-  it("combines a source shared by several component recipes into one transfer", () => {
+  it("prepares medicines separately instead of mixing their raw elements", () => {
     const data = catalogWith([
-      reaction("CMMeralyne", [["Shared", 1], ["A", 1]], [["CMMeralyne", 2]]),
-      reaction("CMDermaline", [["Shared", 1], ["B", 1]], [["CMDermaline", 2]]),
+      reaction("CMMeralyne", [["RMCCarbon", 1], ["Water", 1]], [["CMMeralyne", 2]]),
     ]);
     const plan = buildMixturePlan(data, "unga-standard", 1000);
+    const finalInputs = plan.target.batches[0].inputs;
 
-    expect(plan.sourceTotals.filter((item) => item.reagentId === "Shared")).toEqual([
-      { kind: "source", reagentId: "Shared", name: "Shared", amount: 180 },
+    expect(finalInputs.some((item) => item.reagentId === "CMMeralyne" && item.prepared)).toBe(true);
+    expect(finalInputs.some((item) => item.reagentId === "RMCCarbon")).toBe(false);
+    expect(plan.target.preparations.some((item) => item.reagentId === "CMMeralyne")).toBe(true);
+    expect(finalInputs.find((item) => item.reagentId === "CMDexalinPlus")?.external).toBe(true);
+    expect(plan.sourceTotals.some((item) => item.reagentId === "RMCPhoron")).toBe(false);
+  });
+
+  it("uses vendor medicines as 60u sources but still prepares Dexalin Plus", () => {
+    const data = catalogWith([
+      reaction("CMDexalin", [["RMCOxygen", 2], ["RMCPhoron", 5.1]], [["CMDexalin", 1], ["RMCPhoron", 5]]),
+      reaction("CMDexalinPlus", [["CMDexalin", 1], ["RMCCarbon", 1], ["RMCIron", 1]], [["CMDexalinPlus", 3]]),
     ]);
+    const plan = buildMixturePlan(data, "unga-standard", 1000);
+    const dexalinPlus = plan.target.preparations.find((item) => item.reagentId === "CMDexalinPlus");
+
+    expect(MEDICAL_VENDOR_REAGENTS.has("CMDexalin")).toBe(true);
+    expect(MEDICAL_VENDOR_REAGENTS.has("CMDexalinPlus")).toBe(false);
+    expect(dexalinPlus?.producedAmount).toBe(30);
+    expect(dexalinPlus?.batches[0].inputs.find((item) => item.reagentId === "CMDexalin"))
+      .toMatchObject({ amount: 10, external: true, prepared: false });
+    expect(plan.sourceTotals.some((item) => item.reagentId === "RMCPhoron")).toBe(false);
+  });
+
+  it("rounds custom mixture volumes to measurable 250u portions", () => {
+    const plan = buildMixturePlan(catalogWith([]), "unga-standard", 100);
+
+    expect(plan.producedAmount).toBe(250);
+    expect(plan.mixtureComponents?.every((item) => item.amount % 5 === 0)).toBe(true);
   });
 });

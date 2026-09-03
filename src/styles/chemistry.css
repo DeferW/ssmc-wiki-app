@@ -143,8 +143,6 @@
 .chem-batch > ol { display: grid; gap: 8px; margin: 0; padding: 15px 20px 17px 42px; color: var(--muted-strong); font-size: .72rem; line-height: 1.55; }
 .chem-batch li::marker { color: var(--accent); }
 .chem-batch li strong { color: var(--text); }
-.chem-transfer-loads { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0; }
-.chem-mode-sequence { display: inline-block; padding: 3px 6px; border: 1px solid var(--line-strong); color: var(--accent-soft); }
 .chem-nested-preparations { margin: 12px; padding: 12px; border-left: 2px solid var(--warning-line); background: var(--bg); }
 .chem-nested-preparations > p { margin: 0 0 10px; color: var(--warning); font-size: .66rem; text-transform: uppercase; }
 .chem-nested-preparations .chem-preparation { margin-top: 9px; }

@@ -4,7 +4,7 @@ import { automaticCategory, useAdminOverrides } from "../../admin/equipment/useA
 import { EQUIPMENT_ADMIN_PATH, modulePath } from "../../routes";
 import { CATEGORY_ORDER, HIDDEN_CATEGORY } from "./config";
 import { useCatalog } from "./catalogStore";
-import { capitalizeName, categoryIndex, isCatalogItemVisible, itemMatches } from "./format";
+import { capitalizeName, categoryIndex, isCatalogItemVisible, itemSearchText, normalize } from "./format";
 import { usePanelSettings } from "./usePanelSettings";
 import { CatalogSettings } from "./components/CatalogSettings";
 import { DetailsPanel } from "./components/DetailsPanel";
@@ -20,25 +20,39 @@ export function EquipmentPage({ adminMode = false }: { adminMode?: boolean }) {
   const [selectedAdminIds, setSelectedAdminIds] = useState<Set<string>>(() => new Set());
   const [bulkCategory, setBulkCategory] = useState<string>(CATEGORY_ORDER[0]);
 
-  const query = searchParams.get("q") ?? "";
+  const urlQuery = searchParams.get("q") ?? "";
+  const [query, setQueryDraft] = useState(urlQuery);
   const deferredQuery = useDeferredValue(query);
-  const selectedCategories = searchParams.getAll("category");
+  const selectedCategories = useMemo(() => searchParams.getAll("category"), [searchParams]);
   const selectedId = searchParams.get("item");
   const locateSelected = searchParams.get("locate") === "1";
   const sort = searchParams.get("sort") === "category" ? "category" : "name";
 
   const setParams = useCallback((mutate: (params: URLSearchParams) => void) => {
-    const next = new URLSearchParams(searchParams);
-    mutate(next);
-    setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      mutate(next);
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
 
-  const setQuery = (value: string) => {
-    setParams((next) => {
-      if (value) next.set("q", value); else next.delete("q");
-      next.delete("item");
-    });
-  };
+  const setQuery = (value: string) => setQueryDraft(value);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setQueryDraft(urlQuery));
+    return () => window.cancelAnimationFrame(frame);
+  }, [urlQuery]);
+
+  useEffect(() => {
+    if (query === urlQuery) return;
+    const timeout = window.setTimeout(() => {
+      setParams((next) => {
+        if (query) next.set("q", query); else next.delete("q");
+        next.delete("item");
+      });
+    }, 180);
+    return () => window.clearTimeout(timeout);
+  }, [query, setParams, urlQuery]);
 
   const toggleCategory = (category: string) => {
     setParams((next) => {
@@ -71,6 +85,13 @@ export function EquipmentPage({ adminMode = false }: { adminMode?: boolean }) {
 
   const allIds = useMemo(() => catalog?.publicCatalog.itemIds ?? [], [catalog]);
 
+  const searchIndex = useMemo(() => {
+    const index = new Map<string, string>();
+    if (!catalog) return index;
+    for (const id of allIds) index.set(id, itemSearchText(catalog.items[id]));
+    return index;
+  }, [allIds, catalog]);
+
   const effectiveCategory = useCallback((id: string) => {
     const item = catalog?.items[id];
     return adminMode && admin.draft[id]?.category
@@ -85,24 +106,28 @@ export function EquipmentPage({ adminMode = false }: { adminMode?: boolean }) {
 
   const categories = useMemo(() => catalog ? Object.keys(catalog.publicCatalog.categories) : [], [catalog]);
 
+  const matchingIds = useMemo(() => {
+    const needle = normalize(deferredQuery);
+    if (!needle) return new Set(publicIds);
+    return new Set(publicIds.filter((id) => searchIndex.get(id)?.includes(needle)));
+  }, [deferredQuery, publicIds, searchIndex]);
+
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, number>();
     if (!catalog) return counts;
     for (const id of publicIds) {
-      const item = catalog.items[id];
-      if (!itemMatches(item, deferredQuery)) continue;
+      if (!matchingIds.has(id)) continue;
       const category = effectiveCategory(id);
       counts.set(category, (counts.get(category) ?? 0) + 1);
     }
     return counts;
-  }, [catalog, publicIds, deferredQuery, effectiveCategory]);
+  }, [catalog, publicIds, matchingIds, effectiveCategory]);
 
   const filteredIds = useMemo(() => {
     if (!catalog) return [];
     return publicIds
       .filter((id) => {
-        const item = catalog.items[id];
-        return itemMatches(item, deferredQuery)
+        return matchingIds.has(id)
           && (!selectedCategories.length || selectedCategories.includes(effectiveCategory(id)));
       })
       .sort((firstId, secondId) => {
@@ -114,7 +139,7 @@ export function EquipmentPage({ adminMode = false }: { adminMode?: boolean }) {
         }
         return first.name.localeCompare(second.name, "ru") || firstId.localeCompare(secondId);
       });
-  }, [catalog, deferredQuery, publicIds, selectedCategories, sort, effectiveCategory]);
+  }, [catalog, matchingIds, publicIds, selectedCategories, sort, effectiveCategory]);
 
   const selectedItem = selectedId && catalog && catalog.items[selectedId]
     ? catalog.items[selectedId]
