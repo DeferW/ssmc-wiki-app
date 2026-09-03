@@ -235,7 +235,7 @@ describe("unga mixture presets", () => {
     expect(plan.mixtureComponents?.find((item) => item.reagentId === "CMMeralyne")?.amount).toBe(180);
   });
 
-  it("prepares exact medicines in place and expands their own recipes", () => {
+  it("uses vendor medicines by default inside larger recipes", () => {
     const data = catalogWith(ungaReactions());
     const plan = buildMixturePlan(data, "unga-standard", 1000);
     const finalInputs = plan.target.batches[0].inputs;
@@ -244,12 +244,14 @@ describe("unga mixture presets", () => {
     expect(finalInputs.some((item) => item.reagentId === "RMCCarbon")).toBe(false);
     expect(finalInputs.some((item) => item.inlinePreparation?.reagentId === "CMMeralyne")).toBe(true);
     expect(finalInputs.find((item) => item.reagentId === "CMDexalinPlus")?.prepared).toBe(true);
-    expect(plan.sourceTotals.some((item) => item.reagentId === "RMCPhoron")).toBe(true);
+    expect(plan.sourceTotals.some((item) => item.reagentId === "RMCPhoron")).toBe(false);
   });
 
-  it("expands vendor medicines and still prepares Dexalin Plus", () => {
+  it("expands selected vendor medicines when manual preparation is enabled", () => {
     const data = catalogWith(ungaReactions());
-    const plan = buildMixturePlan(data, "unga-standard", 1000);
+    const plan = buildMixturePlan(data, "unga-standard", 1000, 300, {
+      manualVendorReagents: MEDICAL_VENDOR_REAGENTS,
+    });
     const dexalinPlus = plan.target.preparations.find((item) => item.reagentId === "CMDexalinPlus");
 
     expect(MEDICAL_VENDOR_REAGENTS.has("CMDexalin")).toBe(true);
@@ -270,7 +272,22 @@ describe("unga mixture presets", () => {
     expect(plan.target.batches.every((batch) => batch.totalInput === 1000)).toBe(true);
     expect(dexalinPlus).toMatchObject({ requestedAmount: 80, producedAmount: 90, surplusAmount: 10 });
     expect(plan.producedAmount).toBe(4000);
-    expect(plan.tankCount).toBe(6);
+    expect(plan.tankCount).toBe(5);
+  });
+
+  it("offers a vendor medicine directly and can expand it on request", () => {
+    const data = catalogWith(ungaReactions());
+    const fromVendor = buildPreparationPlan(data, "CMBicaridine", 100);
+    const handmade = buildPreparationPlan(data, "CMBicaridine", 100, 300, {
+      manualVendorReagents: new Set(["CMBicaridine", "CMInaprovaline"]),
+    });
+
+    expect(craftableReagentIds(data)).toContain("CMBicaridine");
+    expect(fromVendor.sourceTotals).toContainEqual(expect.objectContaining({ reagentId: "CMBicaridine" }));
+    expect(handmade.sourceTotals.some((item) => item.reagentId === "CMBicaridine")).toBe(false);
+    expect(handmade.sourceTotals.map((item) => item.reagentId)).toEqual(expect.arrayContaining([
+      "RMCOxygen", "RMCCarbon", "RMCSugar",
+    ]));
   });
 
   it("rounds custom mixture volumes to measurable 250u portions", () => {

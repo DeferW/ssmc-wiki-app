@@ -143,6 +143,10 @@
 .chem-batch > ol { display: grid; gap: 8px; margin: 0; padding: 15px 20px 17px 42px; color: var(--muted-strong); font-size: .72rem; line-height: 1.55; }
 .chem-batch li::marker { color: var(--accent); }
 .chem-batch li strong { color: var(--text); }
+.chem-plan-choice { display: block; width: fit-content; margin-top: 8px; padding: 6px 9px; border: 1px solid var(--accent); border-radius: 0; background: transparent; color: var(--accent-soft); cursor: pointer; font: inherit; font-size: .62rem; text-transform: uppercase; }
+.chem-plan-choice:hover, .chem-plan-choice:focus-visible { background: var(--accent); color: var(--bg); outline: 0; }
+.chem-plan-choice-vendor { margin: 10px 14px; border-color: var(--line-strong); color: var(--muted-strong); }
+.chem-inline-preparation > .chem-plan-choice-vendor { margin: 8px 0 0; }
 .chem-inline-preparation { margin-block: 5px; padding: 11px 13px; border-left: 2px solid var(--accent); background: var(--bg); }
 .chem-inline-preparation > p { margin: 0; color: var(--muted-strong); }
 .chem-inline-preparation > ol { display: grid; gap: 6px; margin: 9px 0 0; padding-left: 24px; }

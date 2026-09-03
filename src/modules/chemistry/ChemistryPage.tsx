@@ -248,7 +248,17 @@ function ReagentCard({
   );
 }
 
-function InputInstruction({ batch, inputIndex, repeatCount = 1 }: { batch: PlannedBatch; inputIndex: number; repeatCount?: number }) {
+function InputInstruction({
+  batch,
+  inputIndex,
+  repeatCount = 1,
+  onPrepareManually,
+}: {
+  batch: PlannedBatch;
+  inputIndex: number;
+  repeatCount?: number;
+  onPrepareManually?: (reagentId: string) => void;
+}) {
   const input = batch.inputs[inputIndex];
   if (input.prepared) {
     if (!input.preparedInPlace) {
@@ -281,6 +291,13 @@ function InputInstruction({ batch, inputIndex, repeatCount = 1 }: { batch: Plann
           : <>Возьмите из готового запаса <strong>{formatReagentName(input.name, input.reagentId)}</strong> и </>}
         {repeatCount > 1 ? `перенесите по ${amount(input.amount)} в каждый из ${repeatCount} баков` : <>перенесите в бак <strong>{amount(input.amount)}</strong></>}
         {loads.length > 1 ? ` (${loads.length} ${countLabel(loads.length, "наполнение", "наполнения", "наполнений")})` : ""}.
+        {externalFromMedicalVendor && onPrepareManually && (
+          <button
+            type="button"
+            className="chem-plan-choice"
+            onClick={() => onPrepareManually(input.reagentId)}
+          >Приготовить самостоятельно</button>
+        )}
       </li>
     );
   }
@@ -297,14 +314,24 @@ function InputInstruction({ batch, inputIndex, repeatCount = 1 }: { batch: Plann
 function InlinePreparationSteps({
   preparation,
   repeatCount = 1,
+  onPrepareManually,
+  onUseVendor,
 }: {
   preparation: PlannedPreparation;
   repeatCount?: number;
+  onPrepareManually?: (reagentId: string) => void;
+  onUseVendor?: (reagentId: string) => void;
 }) {
   return (
     <>
       {preparation.preparations.map((nested, index) => (
-        <PreparationBlock preparation={nested} depth={1} key={`inline:separate:${nested.reagentId}:${index}`} />
+        <PreparationBlock
+          preparation={nested}
+          depth={1}
+          onPrepareManually={onPrepareManually}
+          onUseVendor={onUseVendor}
+          key={`inline:separate:${nested.reagentId}:${index}`}
+        />
       ))}
       {preparation.batches.map((batch) => (
         <li className="chem-inline-preparation" key={`inline:${batch.key}`}>
@@ -313,15 +340,30 @@ function InlinePreparationSteps({
             <strong>{amount(batch.targetAmount)} {formatReagentName(preparation.name, preparation.reagentId)}</strong>
             {repeatCount > 1 ? " прямо на месте:" : " прямо в этом баке:"}
           </p>
+          {MEDICAL_VENDOR_REAGENTS.has(preparation.reagentId) && onUseVendor && (
+            <button
+              type="button"
+              className="chem-plan-choice chem-plan-choice-vendor"
+              onClick={() => onUseVendor(preparation.reagentId)}
+            >Взять готовым из медицинского автомата</button>
+          )}
           <ol>
             {batch.inputs.map((input, inputIndex) => input.preparedInPlace && input.inlinePreparation ? (
               <InlinePreparationSteps
                 preparation={input.inlinePreparation}
                 repeatCount={repeatCount}
+                onPrepareManually={onPrepareManually}
+                onUseVendor={onUseVendor}
                 key={`${batch.key}:inline:${input.reagentId}`}
               />
             ) : (
-              <InputInstruction batch={batch} inputIndex={inputIndex} repeatCount={repeatCount} key={`${batch.key}:${input.reagentId}`} />
+              <InputInstruction
+                batch={batch}
+                inputIndex={inputIndex}
+                repeatCount={repeatCount}
+                onPrepareManually={onPrepareManually}
+                key={`${batch.key}:${input.reagentId}`}
+              />
             ))}
             {batch.minTemperature !== undefined && (
               <li>Нагрейте смесь минимум до <strong>{numberFormat.format(batch.minTemperature)} K</strong>.</li>
@@ -344,10 +386,14 @@ function PreparationBlock({
   preparation,
   root = false,
   depth = 0,
+  onPrepareManually,
+  onUseVendor,
 }: {
   preparation: PlannedPreparation;
   root?: boolean;
   depth?: number;
+  onPrepareManually?: (reagentId: string) => void;
+  onUseVendor?: (reagentId: string) => void;
 }) {
   const groups = groupEquivalentBatches(preparation.batches);
   return (
@@ -362,6 +408,13 @@ function PreparationBlock({
           {preparation.surplusAmount > 0 && <small>излишек {amount(preparation.surplusAmount)}</small>}
         </div>
       </header>
+      {MEDICAL_VENDOR_REAGENTS.has(preparation.reagentId) && onUseVendor && (
+        <button
+          type="button"
+          className="chem-plan-choice chem-plan-choice-vendor"
+          onClick={() => onUseVendor(preparation.reagentId)}
+        >Взять готовым из медицинского автомата</button>
+      )}
       {preparation.preparations.length > 0 && (
         <div className="chem-nested-preparations">
           <p>Сначала приготовьте промежуточные реагенты. Следующий этап отдельно укажет, что оставить в баке, а что перенести.</p>
@@ -369,6 +422,8 @@ function PreparationBlock({
             <PreparationBlock
               preparation={nested}
               depth={depth + 1}
+              onPrepareManually={onPrepareManually}
+              onUseVendor={onUseVendor}
               key={`${preparation.reagentId}:${nested.reagentId}:preparation:${index}`}
             />
           ))}
@@ -400,10 +455,18 @@ function PreparationBlock({
               <InlinePreparationSteps
                 preparation={input.inlinePreparation}
                 repeatCount={count}
+                onPrepareManually={onPrepareManually}
+                onUseVendor={onUseVendor}
                 key={`${batch.key}:inline:${input.reagentId}`}
               />
             ) : (
-              <InputInstruction batch={batch} inputIndex={inputIndex} repeatCount={count} key={batch.key + ":" + input.reagentId} />
+              <InputInstruction
+                batch={batch}
+                inputIndex={inputIndex}
+                repeatCount={count}
+                onPrepareManually={onPrepareManually}
+                key={batch.key + ":" + input.reagentId}
+              />
             ))}
             {batch.minTemperature !== undefined && (
               <li>Нагрейте смесь минимум до <strong>{numberFormat.format(batch.minTemperature)} K</strong>.</li>
@@ -605,19 +668,30 @@ function Planner({
   const craftableIds = useMemo(() => craftableReagentIds(catalog), [catalog]);
   const reagents = useMemo(() => ({ ...catalog.dependencies, ...catalog.reagents }), [catalog]);
   const [submitError, setSubmitError] = useState("");
+  const [manualVendorReagents, setManualVendorReagents] = useState<Set<string>>(() => new Set());
+  const prepareManually = useCallback((id: string) => {
+    setManualVendorReagents((current) => new Set(current).add(id));
+  }, []);
+  const useVendor = useCallback((id: string) => {
+    setManualVendorReagents((current) => {
+      const next = new Set(current);
+      next.delete(id);
+      return next;
+    });
+  }, []);
   const calculation = useMemo<{ plan: PreparationPlan | null; error: string }>(() => {
     if (!shouldBuild) return { plan: null, error: "" };
     try {
       return {
         plan: mixtureId
-          ? buildMixturePlan(catalog, mixtureId, Number(requestedAmount), beakerCapacity)
-          : buildPreparationPlan(catalog, reagentId, Number(requestedAmount), beakerCapacity),
+          ? buildMixturePlan(catalog, mixtureId, Number(requestedAmount), beakerCapacity, { manualVendorReagents })
+          : buildPreparationPlan(catalog, reagentId, Number(requestedAmount), beakerCapacity, { manualVendorReagents }),
         error: "",
       };
     } catch (caught) {
       return { plan: null, error: caught instanceof Error ? caught.message : "Не удалось построить план." };
     }
-  }, [beakerCapacity, catalog, mixtureId, reagentId, requestedAmount, shouldBuild]);
+  }, [beakerCapacity, catalog, manualVendorReagents, mixtureId, reagentId, requestedAmount, shouldBuild]);
   const { plan } = calculation;
   const error = submitError || calculation.error;
 
@@ -712,7 +786,12 @@ function Planner({
               </div>
             </section>
           )}
-          <PreparationBlock preparation={plan.target} root />
+          <PreparationBlock
+            preparation={plan.target}
+            root
+            onPrepareManually={prepareManually}
+            onUseVendor={useVendor}
+          />
         </div>
       )}
     </div>

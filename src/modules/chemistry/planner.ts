@@ -44,9 +44,8 @@ export const MEDBAY_DISPENSER_REAGENTS = new Set([
   "RMCSulphuricAcid",
 ]);
 
-// CMVendorMedical can also supply these medicines. The planner still expands
-// their recipes; this set is retained only as a fallback for an incomplete
-// catalog where one of those recipes is absent.
+// CMVendorMedical supplies these medicines by default. A user can opt a
+// reagent into manual preparation; only then is its normal recipe expanded.
 export const MEDICAL_VENDOR_REAGENTS = new Set([
   "CMBicaridine",
   "CMKelotane",
@@ -88,6 +87,11 @@ type PlannerContext = {
   recipes: Map<string, ChemistryReaction>;
   reactions: ChemistryReaction[];
   scaleQuanta: Map<string, number>;
+  manualVendorReagents: ReadonlySet<string>;
+};
+
+export type PlannerOptions = {
+  manualVendorReagents?: ReadonlySet<string>;
 };
 
 type RouteFeatures = {
@@ -206,7 +210,10 @@ function candidateScore(reaction: ChemistryReaction, productId: string) {
   return score;
 }
 
-export function createPlannerContext(catalog: ChemistryCatalog): PlannerContext {
+export function createPlannerContext(
+  catalog: ChemistryCatalog,
+  options: PlannerOptions = {},
+): PlannerContext {
   const names = new Map<string, string>();
   for (const reagent of [
     ...Object.values(catalog.dependencies),
@@ -243,7 +250,17 @@ export function createPlannerContext(catalog: ChemistryCatalog): PlannerContext 
     recipes,
     reactions: Object.values(catalog.reactions),
     scaleQuanta: new Map(),
+    manualVendorReagents: options.manualVendorReagents ?? new Set(),
   };
+}
+
+function isVendorSource(context: PlannerContext, reagentId: string) {
+  return MEDICAL_VENDOR_REAGENTS.has(reagentId)
+    && !context.manualVendorReagents.has(reagentId);
+}
+
+function isDirectSource(context: PlannerContext, reagentId: string) {
+  return MEDBAY_DISPENSER_REAGENTS.has(reagentId) || isVendorSource(context, reagentId);
 }
 
 export function craftableReagentIds(catalog: ChemistryCatalog) {
@@ -295,7 +312,7 @@ function batchActionCount(
   let pours = 0;
   let buttonPresses = 0;
   for (const reactant of reaction.reactants) {
-    const prepared = !MEDBAY_DISPENSER_REAGENTS.has(reactant.id)
+    const prepared = !isDirectSource(context, reactant.id)
       && context.recipes.has(reactant.id);
     const external = !prepared && !MEDBAY_DISPENSER_REAGENTS.has(reactant.id);
     // Complete intermediates can be prepared in the destination tank before
@@ -304,7 +321,7 @@ function batchActionCount(
     const amount = roundAmount(reactant.amount * scale);
     const loads = transferLoads(
       amount,
-      external ? MEDICAL_VENDOR_CONTAINER_CAPACITY : beakerCapacity,
+      isVendorSource(context, reactant.id) ? MEDICAL_VENDOR_CONTAINER_CAPACITY : beakerCapacity,
     );
     pours += loads.length;
     if (MEDBAY_DISPENSER_REAGENTS.has(reactant.id)) {
@@ -388,7 +405,7 @@ function preparationFootprint(
   const reagents = new Set([reagentId]);
   const reactions = new Set<string>();
   if (
-    MEDBAY_DISPENSER_REAGENTS.has(reagentId)
+    isDirectSource(context, reagentId)
     || stack.includes(reagentId)
   ) return { reagents, reactions };
 
@@ -574,7 +591,7 @@ function planPreparation(
     const scale = runs * scaleQuantum;
     const inputs = reaction.reactants.map((reactant) => {
       const amount = roundAmount(reactant.amount * scale);
-      const prepared = !MEDBAY_DISPENSER_REAGENTS.has(reactant.id)
+      const prepared = !isDirectSource(context, reactant.id)
         && context.recipes.has(reactant.id);
       const external = !prepared && !MEDBAY_DISPENSER_REAGENTS.has(reactant.id);
       return {
@@ -723,11 +740,60 @@ function auxiliaryTankDepth(preparation: PlannedPreparation): number {
   return Math.max(separateDepth, inlineDepth);
 }
 
+function directSourcePreparation(
+  context: PlannerContext,
+  reagentId: string,
+  requestedAmount: number,
+  beakerCapacity: BeakerCapacity,
+): PlannedPreparation {
+  const producedAmount = Math.ceil((requestedAmount - EPSILON) / 5) * 5;
+  const batchAmounts: number[] = [];
+  let remaining = producedAmount;
+  while (remaining > 0) {
+    const current = Math.min(TANK_CAPACITY, remaining);
+    batchAmounts.push(current);
+    remaining -= current;
+  }
+  const name = context.names.get(reagentId) ?? reagentId;
+  const batches: PlannedBatch[] = batchAmounts.map((targetAmount, index) => ({
+    key: `source:${reagentId}:${index}`,
+    batchNumber: index + 1,
+    batchCount: batchAmounts.length,
+    vessel: "tank",
+    capacity: TANK_CAPACITY,
+    beakerCapacity,
+    targetAmount,
+    totalInput: targetAmount,
+    totalOutput: targetAmount,
+    inputs: [{
+      reagentId,
+      name,
+      amount: targetAmount,
+      prepared: false,
+      external: true,
+    }],
+    byproducts: [],
+    warnings: [],
+  }));
+  return {
+    kind: "preparation",
+    reagentId,
+    name,
+    requestedAmount,
+    producedAmount,
+    surplusAmount: roundAmount(producedAmount - requestedAmount),
+    reactionId: `source:${reagentId}`,
+    preparations: [],
+    batches,
+  };
+}
+
 export function buildPreparationPlan(
   catalog: ChemistryCatalog,
   reagentId: string,
   requestedAmount: number,
   beakerCapacity: BeakerCapacity = 300,
+  options: PlannerOptions = {},
 ): PreparationPlan {
   if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
     throw new Error("Укажите положительный объём вещества.");
@@ -735,20 +801,22 @@ export function buildPreparationPlan(
   if (!BEAKER_CAPACITIES.includes(beakerCapacity)) {
     throw new Error("Выберите доступную мензурку: 60u, 120u или 300u.");
   }
-  const context = createPlannerContext(catalog);
+  const context = createPlannerContext(catalog, options);
   if (MEDBAY_DISPENSER_REAGENTS.has(reagentId)) {
     throw new Error(
       `${context.names.get(reagentId) ?? reagentId} уже доступен как базовый реагент.`,
     );
   }
-  const target = planPreparation(
-    context,
-    reagentId,
-    requestedAmount,
-    TANK_CAPACITY,
-    beakerCapacity,
-    [],
-  );
+  const target = isVendorSource(context, reagentId)
+    ? directSourcePreparation(context, reagentId, requestedAmount, beakerCapacity)
+    : planPreparation(
+      context,
+      reagentId,
+      requestedAmount,
+      TANK_CAPACITY,
+      beakerCapacity,
+      [],
+    );
   const sourceTotals = collectSourceTotals(target);
   return {
     requestedAmount,
@@ -806,6 +874,7 @@ export function buildMixturePlan(
   presetId: MixturePreset["id"],
   requestedAmount: number,
   beakerCapacity: BeakerCapacity = 300,
+  options: PlannerOptions = {},
 ): PreparationPlan {
   if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
     throw new Error("Укажите положительный объём смеси.");
@@ -818,7 +887,7 @@ export function buildMixturePlan(
 
   // A saved mixture is only declarative chemistry data. From this point on it
   // goes through exactly the same recursive planner as every catalog reagent.
-  const context = createPlannerContext(catalog);
+  const context = createPlannerContext(catalog, options);
   context.names.set(preset.id, preset.name);
   context.recipes.set(preset.id, mixtureReaction(preset));
   const target = planPreparation(
