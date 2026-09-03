@@ -88,6 +88,7 @@ export type PlannedInput = {
   amount: number;
   prepared: boolean;
   preparedInPlace?: boolean;
+  inlinePreparation?: PlannedPreparation;
   external?: boolean;
 };
 
@@ -129,6 +130,7 @@ export type PreparationPlan = {
   requestedAmount: number;
   producedAmount: number;
   surplusAmount: number;
+  tankCount: number;
   energyCost: number;
   beakerCapacity: BeakerCapacity;
   target: PlannedPreparation;

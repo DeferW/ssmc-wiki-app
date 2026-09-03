@@ -1,4 +1,5 @@
 import { CHEMISTRY_SECTIONS } from "./config";
+import { MIXTURE_PRESETS } from "./planner";
 import type { MixturePreset } from "./planner";
 import type { BeakerCapacity, ChemistrySectionId } from "./types";
 
@@ -19,7 +20,7 @@ const DEFAULT_AMOUNT = "100";
 const EMPTY_AMOUNT = "_";
 const DEFAULT_BEAKER_CAPACITY: BeakerCapacity = 300;
 const sectionIds = new Set<ChemistrySectionId>(CHEMISTRY_SECTIONS.map((section) => section.id));
-const mixtureIds = new Set<MixturePreset["id"]>(["unga-standard"]);
+const mixtureIds = new Set<MixturePreset["id"]>(MIXTURE_PRESETS.map((preset) => preset.id));
 
 export function readChemistryUrlState(params: URLSearchParams): ChemistryUrlState {
   const rawSection = params.get("section") as ChemistrySectionId | null;

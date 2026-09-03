@@ -13,7 +13,7 @@ import {
   MEDICAL_VENDOR_REAGENTS,
   MEDICAL_VENDOR_TRANSFER_AMOUNTS,
   transferLoads,
-  UNGA_PRESETS,
+  MIXTURE_PRESETS,
 } from "./planner";
 import type { MixturePreset } from "./planner";
 import type {
@@ -294,6 +294,52 @@ function InputInstruction({ batch, inputIndex, repeatCount = 1 }: { batch: Plann
   );
 }
 
+function InlinePreparationSteps({
+  preparation,
+  repeatCount = 1,
+}: {
+  preparation: PlannedPreparation;
+  repeatCount?: number;
+}) {
+  return (
+    <>
+      {preparation.preparations.map((nested, index) => (
+        <PreparationBlock preparation={nested} depth={1} key={`inline:separate:${nested.reagentId}:${index}`} />
+      ))}
+      {preparation.batches.map((batch) => (
+        <li className="chem-inline-preparation" key={`inline:${batch.key}`}>
+          <p>
+            {repeatCount > 1 ? `В каждом из ${repeatCount} баков приготовьте ` : "Приготовьте "}
+            <strong>{amount(batch.targetAmount)} {formatReagentName(preparation.name, preparation.reagentId)}</strong>
+            {repeatCount > 1 ? " прямо на месте:" : " прямо в этом баке:"}
+          </p>
+          <ol>
+            {batch.inputs.map((input, inputIndex) => input.preparedInPlace && input.inlinePreparation ? (
+              <InlinePreparationSteps
+                preparation={input.inlinePreparation}
+                repeatCount={repeatCount}
+                key={`${batch.key}:inline:${input.reagentId}`}
+              />
+            ) : (
+              <InputInstruction batch={batch} inputIndex={inputIndex} repeatCount={repeatCount} key={`${batch.key}:${input.reagentId}`} />
+            ))}
+            {batch.minTemperature !== undefined && (
+              <li>Нагрейте смесь минимум до <strong>{numberFormat.format(batch.minTemperature)} K</strong>.</li>
+            )}
+            <li>
+              Реакция даст <strong>{amount(batch.targetAmount)} {formatReagentName(preparation.name, preparation.reagentId)}</strong>
+              {repeatCount > 1 ? ` в каждом из ${repeatCount} баков` : " в этом баке"}. Продолжайте на месте.
+            </li>
+          </ol>
+          {batch.warnings.map((warning) => (
+            <p className="chem-reaction-warning" key={warning}>ВНИМАНИЕ // {warning}</p>
+          ))}
+        </li>
+      ))}
+    </>
+  );
+}
+
 function PreparationBlock({
   preparation,
   root = false,
@@ -338,7 +384,11 @@ function PreparationBlock({
           </h4>
           <ol>
             <li>
-              {batch.inputs.some((input) => input.preparedInPlace)
+              {batch.inputs.some((input) => input.inlinePreparation)
+                ? count > 1
+                  ? `Подготовьте ${count} чистых баков на 1000u. Все промежуточные лекарства готовьте по очереди прямо в соответствующем итоговом баке.`
+                  : `Подготовьте один чистый бак на 1000u. Все промежуточные лекарства готовьте по очереди прямо в нём.`
+                : batch.inputs.some((input) => input.preparedInPlace)
                 ? count > 1
                   ? `Продолжайте приготовление в этих ${count} баках, используя мензурку на ${batch.beakerCapacity}u. Выполняйте один шаг сразу для всей группы.`
                   : `Продолжайте приготовление в баке с промежуточным реагентом, используя мензурку на ${batch.beakerCapacity}u.`
@@ -346,7 +396,13 @@ function PreparationBlock({
                   ? `Подготовьте ${count} чистых баков на 1000u и мензурку на ${batch.beakerCapacity}u. Выполняйте один шаг сразу для всей группы баков.`
                   : `Подготовьте чистый бак на 1000u и мензурку на ${batch.beakerCapacity}u.`}
             </li>
-            {batch.inputs.map((input, inputIndex) => (
+            {batch.inputs.map((input, inputIndex) => input.preparedInPlace && input.inlinePreparation ? (
+              <InlinePreparationSteps
+                preparation={input.inlinePreparation}
+                repeatCount={count}
+                key={`${batch.key}:inline:${input.reagentId}`}
+              />
+            ) : (
               <InputInstruction batch={batch} inputIndex={inputIndex} repeatCount={count} key={batch.key + ":" + input.reagentId} />
             ))}
             {batch.minTemperature !== undefined && (
@@ -405,7 +461,7 @@ function ReagentCombobox({
   onChange: (id: string) => void;
   onMixtureChange: (id: MixturePreset["id"] | null) => void;
 }) {
-  const selectedMixture = UNGA_PRESETS.find((preset) => preset.id === mixtureId);
+  const selectedMixture = MIXTURE_PRESETS.find((preset) => preset.id === mixtureId);
   const selectedName = selectedMixture?.name ?? formatReagentName(reagents[value]?.name, value);
   const [query, setQuery] = useState(selectedName);
   const [open, setOpen] = useState(false);
@@ -485,7 +541,7 @@ function ReagentCombobox({
         placeholder={selectedMixture ? selectedMixture.name : "Введите минимум 2 символа…"}
       />
       <span className="chem-mixture-presets" aria-label="Готовые смеси">
-        {UNGA_PRESETS.map((preset) => (
+        {MIXTURE_PRESETS.map((preset) => (
           <button
             type="button"
             className={preset.id === mixtureId ? "is-active" : ""}
@@ -632,7 +688,7 @@ function Planner({
             <div><span>ЗАПРОШЕНО</span><strong>{amount(plan.requestedAmount)}</strong></div>
             <div><span>БУДЕТ ПОЛУЧЕНО</span><strong>{amount(plan.producedAmount)}</strong></div>
             <div><span>ИЗЛИШЕК</span><strong>{amount(plan.surplusAmount)}</strong></div>
-            <div><span>НУЖНО БАКОВ</span><strong>{plan.target.batches.length}</strong></div>
+            <div><span>МИНИМУМ БАКОВ</span><strong>{plan.tankCount}</strong></div>
           </header>
           <section className="chem-source-totals">
             <h3>Всего исходных реагентов</h3>
