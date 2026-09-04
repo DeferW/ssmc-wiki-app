@@ -9,10 +9,7 @@ import {
   buildMixturePlan,
   buildPreparationPlan,
   craftableReagentIds,
-  MEDICAL_VENDOR_CONTAINER_CAPACITY,
   MEDICAL_VENDOR_REAGENTS,
-  MEDICAL_VENDOR_TRANSFER_AMOUNTS,
-  transferLoads,
   MIXTURE_PRESETS,
 } from "./planner";
 import type { MixturePreset } from "./planner";
@@ -42,15 +39,6 @@ const metabolismLabels: Record<string, string> = {
 
 function amount(value: number) {
   return numberFormat.format(value) + "u";
-}
-
-function countLabel(value: number, one: string, few: string, many: string) {
-  const lastTwo = value % 100;
-  if (lastTwo >= 11 && lastTwo <= 14) return many;
-  const last = value % 10;
-  if (last === 1) return one;
-  if (last >= 2 && last <= 4) return few;
-  return many;
 }
 
 function validCatalog(value: unknown): value is ChemistryCatalog {
@@ -252,12 +240,10 @@ function InputInstruction({
   batch,
   inputIndex,
   repeatCount = 1,
-  onPrepareManually,
 }: {
   batch: PlannedBatch;
   inputIndex: number;
   repeatCount?: number;
-  onPrepareManually?: (reagentId: string) => void;
 }) {
   const input = batch.inputs[inputIndex];
   if (input.prepared) {
@@ -279,25 +265,14 @@ function InputInstruction({
     );
   }
   const externalFromMedicalVendor = MEDICAL_VENDOR_REAGENTS.has(input.reagentId);
-  const transferCapacity = externalFromMedicalVendor
-    ? MEDICAL_VENDOR_CONTAINER_CAPACITY
-    : batch.beakerCapacity;
-  const loads = transferLoads(input.amount, transferCapacity);
   if (input.external) {
     return (
       <li>
         {externalFromMedicalVendor
-          ? <>В медицинском автомате наберите <strong>{formatReagentName(input.name, input.reagentId)}</strong> через тару на 60u и </>
-          : <>Возьмите из готового запаса <strong>{formatReagentName(input.name, input.reagentId)}</strong> и </>}
-        {repeatCount > 1 ? `перенесите по ${amount(input.amount)} в каждый из ${repeatCount} баков` : <>перенесите в бак <strong>{amount(input.amount)}</strong></>}
-        {loads.length > 1 ? ` (${loads.length} ${countLabel(loads.length, "наполнение", "наполнения", "наполнений")})` : ""}.
-        {externalFromMedicalVendor && onPrepareManually && (
-          <button
-            type="button"
-            className="chem-plan-choice"
-            onClick={() => onPrepareManually(input.reagentId)}
-          >Приготовить самостоятельно</button>
-        )}
+          ? <>Возьмите в медицинском автомате </>
+          : <>Возьмите из внешнего запаса </>}
+        <strong>{amount(input.amount)} {formatReagentName(input.name, input.reagentId)}</strong>
+        {repeatCount > 1 ? ` для каждого из ${repeatCount} баков` : " и перенесите в бак"}.
       </li>
     );
   }
@@ -305,8 +280,7 @@ function InputInstruction({
     <li>
       В химраздатчике выберите <strong>{formatReagentName(input.name, input.reagentId)}</strong>.
       {repeatCount > 1 ? ` Для каждого из ${repeatCount} баков перенесите ` : " Перенесите в бак "}
-      <strong>{amount(input.amount)}</strong>
-      {loads.length > 1 ? ` за ${loads.length} ${countLabel(loads.length, "заполнение", "заполнения", "заполнений")} мензурки` : ""}.
+      <strong>{amount(input.amount)}</strong>.
     </li>
   );
 }
@@ -314,13 +288,9 @@ function InputInstruction({
 function InlinePreparationSteps({
   preparation,
   repeatCount = 1,
-  onPrepareManually,
-  onUseVendor,
 }: {
   preparation: PlannedPreparation;
   repeatCount?: number;
-  onPrepareManually?: (reagentId: string) => void;
-  onUseVendor?: (reagentId: string) => void;
 }) {
   return (
     <>
@@ -328,8 +298,6 @@ function InlinePreparationSteps({
         <PreparationBlock
           preparation={nested}
           depth={1}
-          onPrepareManually={onPrepareManually}
-          onUseVendor={onUseVendor}
           key={`inline:separate:${nested.reagentId}:${index}`}
         />
       ))}
@@ -340,20 +308,11 @@ function InlinePreparationSteps({
             <strong>{amount(batch.targetAmount)} {formatReagentName(preparation.name, preparation.reagentId)}</strong>
             {repeatCount > 1 ? " прямо на месте:" : " прямо в этом баке:"}
           </p>
-          {MEDICAL_VENDOR_REAGENTS.has(preparation.reagentId) && onUseVendor && (
-            <button
-              type="button"
-              className="chem-plan-choice chem-plan-choice-vendor"
-              onClick={() => onUseVendor(preparation.reagentId)}
-            >Взять готовым из медицинского автомата</button>
-          )}
           <ol>
             {batch.inputs.map((input, inputIndex) => input.preparedInPlace && input.inlinePreparation ? (
               <InlinePreparationSteps
                 preparation={input.inlinePreparation}
                 repeatCount={repeatCount}
-                onPrepareManually={onPrepareManually}
-                onUseVendor={onUseVendor}
                 key={`${batch.key}:inline:${input.reagentId}`}
               />
             ) : (
@@ -361,7 +320,6 @@ function InlinePreparationSteps({
                 batch={batch}
                 inputIndex={inputIndex}
                 repeatCount={repeatCount}
-                onPrepareManually={onPrepareManually}
                 key={`${batch.key}:${input.reagentId}`}
               />
             ))}
@@ -386,14 +344,10 @@ function PreparationBlock({
   preparation,
   root = false,
   depth = 0,
-  onPrepareManually,
-  onUseVendor,
 }: {
   preparation: PlannedPreparation;
   root?: boolean;
   depth?: number;
-  onPrepareManually?: (reagentId: string) => void;
-  onUseVendor?: (reagentId: string) => void;
 }) {
   const groups = groupEquivalentBatches(preparation.batches);
   return (
@@ -408,13 +362,6 @@ function PreparationBlock({
           {preparation.surplusAmount > 0 && <small>излишек {amount(preparation.surplusAmount)}</small>}
         </div>
       </header>
-      {MEDICAL_VENDOR_REAGENTS.has(preparation.reagentId) && onUseVendor && (
-        <button
-          type="button"
-          className="chem-plan-choice chem-plan-choice-vendor"
-          onClick={() => onUseVendor(preparation.reagentId)}
-        >Взять готовым из медицинского автомата</button>
-      )}
       {preparation.preparations.length > 0 && (
         <div className="chem-nested-preparations">
           <p>Сначала приготовьте промежуточные реагенты. Следующий этап отдельно укажет, что оставить в баке, а что перенести.</p>
@@ -422,8 +369,6 @@ function PreparationBlock({
             <PreparationBlock
               preparation={nested}
               depth={depth + 1}
-              onPrepareManually={onPrepareManually}
-              onUseVendor={onUseVendor}
               key={`${preparation.reagentId}:${nested.reagentId}:preparation:${index}`}
             />
           ))}
@@ -455,8 +400,6 @@ function PreparationBlock({
               <InlinePreparationSteps
                 preparation={input.inlinePreparation}
                 repeatCount={count}
-                onPrepareManually={onPrepareManually}
-                onUseVendor={onUseVendor}
                 key={`${batch.key}:inline:${input.reagentId}`}
               />
             ) : (
@@ -464,7 +407,6 @@ function PreparationBlock({
                 batch={batch}
                 inputIndex={inputIndex}
                 repeatCount={count}
-                onPrepareManually={onPrepareManually}
                 key={batch.key + ":" + input.reagentId}
               />
             ))}
@@ -668,30 +610,19 @@ function Planner({
   const craftableIds = useMemo(() => craftableReagentIds(catalog), [catalog]);
   const reagents = useMemo(() => ({ ...catalog.dependencies, ...catalog.reagents }), [catalog]);
   const [submitError, setSubmitError] = useState("");
-  const [manualVendorReagents, setManualVendorReagents] = useState<Set<string>>(() => new Set());
-  const prepareManually = useCallback((id: string) => {
-    setManualVendorReagents((current) => new Set(current).add(id));
-  }, []);
-  const useVendor = useCallback((id: string) => {
-    setManualVendorReagents((current) => {
-      const next = new Set(current);
-      next.delete(id);
-      return next;
-    });
-  }, []);
   const calculation = useMemo<{ plan: PreparationPlan | null; error: string }>(() => {
     if (!shouldBuild) return { plan: null, error: "" };
     try {
       return {
         plan: mixtureId
-          ? buildMixturePlan(catalog, mixtureId, Number(requestedAmount), beakerCapacity, { manualVendorReagents })
-          : buildPreparationPlan(catalog, reagentId, Number(requestedAmount), beakerCapacity, { manualVendorReagents }),
+          ? buildMixturePlan(catalog, mixtureId, Number(requestedAmount), beakerCapacity)
+          : buildPreparationPlan(catalog, reagentId, Number(requestedAmount), beakerCapacity),
         error: "",
       };
     } catch (caught) {
       return { plan: null, error: caught instanceof Error ? caught.message : "Не удалось построить план." };
     }
-  }, [beakerCapacity, catalog, manualVendorReagents, mixtureId, reagentId, requestedAmount, shouldBuild]);
+  }, [beakerCapacity, catalog, mixtureId, reagentId, requestedAmount, shouldBuild]);
   const { plan } = calculation;
   const error = submitError || calculation.error;
 
@@ -772,9 +703,6 @@ function Planner({
               ))}
             </div>
             <p>Оценочный расход химраздатчика: <strong>{numberFormat.format(plan.energyCost)} энергии</strong>. Вода энергию не расходует; энергия медицинского автомата в расчёт не входит.</p>
-            {plan.sourceTotals.some((source) => MEDICAL_VENDOR_REAGENTS.has(source.reagentId)) && (
-              <p>Готовые базовые лекарства берите в медицинском автомате через тару на 60u. Доступные режимы: {MEDICAL_VENDOR_TRANSFER_AMOUNTS.join(" / ")}u.</p>
-            )}
           </section>
           {plan.mixtureComponents && (
             <section className="chem-mixture-composition">
@@ -786,12 +714,7 @@ function Planner({
               </div>
             </section>
           )}
-          <PreparationBlock
-            preparation={plan.target}
-            root
-            onPrepareManually={prepareManually}
-            onUseVendor={useVendor}
-          />
+          <PreparationBlock preparation={plan.target} root />
         </div>
       )}
     </div>

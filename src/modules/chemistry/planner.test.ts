@@ -164,7 +164,7 @@ describe("chemistry preparation planner", () => {
     expect(plan.surplusAmount).toBe(75);
     expect(plan.target.batches).toHaveLength(1);
     expect(plan.target.batches[0].inputs.map((input) => input.amount)).toEqual([50, 50, 255]);
-    expect(craftableReagentIds(data)).not.toContain("Water");
+    expect(craftableReagentIds(data)).toContain("Water");
   });
 
   it("uses the minimum number of tanks for 1500u", () => {
@@ -213,6 +213,47 @@ describe("chemistry preparation planner", () => {
       .toContainEqual(expect.objectContaining({ reagentId: "ExternalStock", external: true }));
   });
 
+  it("treats every reagent without a recipe as an initial source", () => {
+    const data = catalogWith([
+      reaction("Product", [["ExternalStock", 1], ["RMCCarbon", 1]], [["Product", 2]]),
+    ]);
+    const plan = buildPreparationPlan(data, "ExternalStock", 23);
+
+    expect(craftableReagentIds(data)).toContain("ExternalStock");
+    expect(plan).toMatchObject({ producedAmount: 25, surplusAmount: 2, energyCost: 0 });
+    expect(plan.target.reactionId).toBe("source:ExternalStock");
+    expect(plan.target.batches[0].inputs[0]).toMatchObject({
+      reagentId: "ExternalStock",
+      amount: 25,
+      prepared: false,
+      external: true,
+    });
+  });
+
+  it("treats a self-consuming reagent as a source", () => {
+    const data = catalogWith([
+      reaction(
+        "SelfReaction",
+        [["SelfSource", 5.1], ["RMCOxygen", 2]],
+        [["SelfSource", 5], ["Product", 1]],
+      ),
+    ]);
+    const sourcePlan = buildPreparationPlan(data, "SelfSource", 60);
+    const productPlan = buildPreparationPlan(data, "Product", 10);
+
+    expect(craftableReagentIds(data)).toContain("SelfSource");
+    expect(sourcePlan.target.reactionId).toBe("source:SelfSource");
+    expect(productPlan.sourceTotals).toContainEqual(expect.objectContaining({
+      reagentId: "SelfSource",
+      amount: 255,
+    }));
+    expect(productPlan.target.batches[0].inputs).toContainEqual(expect.objectContaining({
+      reagentId: "SelfSource",
+      prepared: false,
+      external: true,
+    }));
+  });
+
   it("keeps intentionally hazardous recipes available with a warning", () => {
     const hazardous = reaction("Hazardous", [["Water", 1], ["RMCPotassium", 1]], [["Hazardous", 1]]);
     hazardous.effects = [{ yamlTag: "!type:SensitiveReactionExplosionEffect", value: { threshold: 0 } }];
@@ -247,20 +288,12 @@ describe("unga mixture presets", () => {
     expect(plan.sourceTotals.some((item) => item.reagentId === "RMCPhoron")).toBe(false);
   });
 
-  it("expands selected vendor medicines when manual preparation is enabled", () => {
+  it("expands a vendor medicine when it is selected directly", () => {
     const data = catalogWith(ungaReactions());
-    const plan = buildMixturePlan(data, "unga-standard", 1000, 300, {
-      manualVendorReagents: MEDICAL_VENDOR_REAGENTS,
-    });
-    const dexalinPlus = plan.target.preparations.find((item) => item.reagentId === "CMDexalinPlus");
+    const plan = buildPreparationPlan(data, "CMDexalin", 100);
 
     expect(MEDICAL_VENDOR_REAGENTS.has("CMDexalin")).toBe(true);
-    expect(MEDICAL_VENDOR_REAGENTS.has("CMDexalinPlus")).toBe(false);
-    expect(dexalinPlus?.producedAmount).toBe(30);
-    expect(dexalinPlus?.batches[0].inputs.find((item) => item.reagentId === "CMDexalin"))
-      .toMatchObject({ amount: 10, prepared: true });
     expect(plan.sourceTotals.some((item) => item.reagentId === "RMCPhoron")).toBe(true);
-    expect(plan.tankCount).toBe(3);
   });
 
   it("plans 4000u as four final tanks and cooks shared surplus only once", () => {
@@ -275,17 +308,15 @@ describe("unga mixture presets", () => {
     expect(plan.tankCount).toBe(5);
   });
 
-  it("offers a vendor medicine directly and can expand it on request", () => {
+  it("expands only the directly selected vendor medicine", () => {
     const data = catalogWith(ungaReactions());
-    const fromVendor = buildPreparationPlan(data, "CMBicaridine", 100);
-    const handmade = buildPreparationPlan(data, "CMBicaridine", 100, 300, {
-      manualVendorReagents: new Set(["CMBicaridine", "CMInaprovaline"]),
-    });
+    const bicaridine = buildPreparationPlan(data, "CMBicaridine", 100);
+    const inaprovaline = buildPreparationPlan(data, "CMInaprovaline", 100);
 
     expect(craftableReagentIds(data)).toContain("CMBicaridine");
-    expect(fromVendor.sourceTotals).toContainEqual(expect.objectContaining({ reagentId: "CMBicaridine" }));
-    expect(handmade.sourceTotals.some((item) => item.reagentId === "CMBicaridine")).toBe(false);
-    expect(handmade.sourceTotals.map((item) => item.reagentId)).toEqual(expect.arrayContaining([
+    expect(bicaridine.sourceTotals.some((item) => item.reagentId === "CMBicaridine")).toBe(false);
+    expect(bicaridine.sourceTotals).toContainEqual(expect.objectContaining({ reagentId: "CMInaprovaline" }));
+    expect(inaprovaline.sourceTotals.map((item) => item.reagentId)).toEqual(expect.arrayContaining([
       "RMCOxygen", "RMCCarbon", "RMCSugar",
     ]));
   });
