@@ -269,10 +269,11 @@ function InputInstruction({
     return (
       <li>
         {externalFromMedicalVendor
-          ? <>Возьмите в медицинском автомате </>
-          : <>Возьмите из внешнего запаса </>}
-        <strong>{amount(input.amount)} {formatReagentName(input.name, input.reagentId)}</strong>
-        {repeatCount > 1 ? ` для каждого из ${repeatCount} баков` : " и перенесите в бак"}.
+          ? <>В медицинском автомате выберите </>
+          : <>Во внешнем запасе возьмите </>}
+        <strong>{formatReagentName(input.name, input.reagentId)}</strong>.
+        {repeatCount > 1 ? ` Для каждого из ${repeatCount} баков перенесите ` : " Перенесите в бак "}
+        <strong>{amount(input.amount)}</strong>.
       </li>
     );
   }
@@ -288,9 +289,11 @@ function InputInstruction({
 function InlinePreparationSteps({
   preparation,
   repeatCount = 1,
+  tankNumbers,
 }: {
   preparation: PlannedPreparation;
   repeatCount?: number;
+  tankNumbers: ReadonlyMap<string, number>;
 }) {
   return (
     <>
@@ -298,6 +301,7 @@ function InlinePreparationSteps({
         <PreparationBlock
           preparation={nested}
           depth={1}
+          tankNumbers={tankNumbers}
           key={`inline:separate:${nested.reagentId}:${index}`}
         />
       ))}
@@ -313,6 +317,7 @@ function InlinePreparationSteps({
               <InlinePreparationSteps
                 preparation={input.inlinePreparation}
                 repeatCount={repeatCount}
+                tankNumbers={tankNumbers}
                 key={`${batch.key}:inline:${input.reagentId}`}
               />
             ) : (
@@ -344,10 +349,12 @@ function PreparationBlock({
   preparation,
   root = false,
   depth = 0,
+  tankNumbers,
 }: {
   preparation: PlannedPreparation;
   root?: boolean;
   depth?: number;
+  tankNumbers: ReadonlyMap<string, number>;
 }) {
   const groups = groupEquivalentBatches(preparation.batches);
   return (
@@ -369,17 +376,18 @@ function PreparationBlock({
             <PreparationBlock
               preparation={nested}
               depth={depth + 1}
+              tankNumbers={tankNumbers}
               key={`${preparation.reagentId}:${nested.reagentId}:preparation:${index}`}
             />
           ))}
         </div>
       )}
-      {groups.map(({ batch, first, last, count }) => (
+      {groups.map(({ batch, first, count }) => (
         <article className="chem-batch" key={batch.key}>
           <h4>
             {count > 1
-              ? `Баки ${first}–${last} из ${batch.batchCount}`
-              : `Бак ${first} из ${batch.batchCount}`}
+              ? `Баки ${tankNumbers.get(batch.key) ?? first}–${(tankNumbers.get(batch.key) ?? first) + count - 1} из ${tankNumbers.size}`
+              : `Бак ${tankNumbers.get(batch.key) ?? first} из ${tankNumbers.size}`}
             <span>{count > 1 ? `${count} × ` : ""}{amount(batch.targetAmount)} {formatReagentName(preparation.name, preparation.reagentId)}</span>
           </h4>
           <ol>
@@ -400,6 +408,7 @@ function PreparationBlock({
               <InlinePreparationSteps
                 preparation={input.inlinePreparation}
                 repeatCount={count}
+                tankNumbers={tankNumbers}
                 key={`${batch.key}:inline:${input.reagentId}`}
               />
             ) : (
@@ -449,6 +458,29 @@ function groupEquivalentBatches(batches: PlannedBatch[]) {
     }
   }
   return groups;
+}
+
+function numberPreparationTanks(root: PlannedPreparation) {
+  const batches: PlannedBatch[] = [];
+  const visitInline = (preparation: PlannedPreparation) => {
+    for (const nested of preparation.preparations) visit(nested);
+    for (const batch of preparation.batches) {
+      for (const input of batch.inputs) {
+        if (input.inlinePreparation) visitInline(input.inlinePreparation);
+      }
+    }
+  };
+  const visit = (preparation: PlannedPreparation) => {
+    for (const nested of preparation.preparations) visit(nested);
+    for (const batch of preparation.batches) {
+      for (const input of batch.inputs) {
+        if (input.inlinePreparation) visitInline(input.inlinePreparation);
+      }
+    }
+    batches.push(...preparation.batches);
+  };
+  visit(root);
+  return new Map(batches.map((batch, index) => [batch.key, index + 1]));
 }
 
 function ReagentCombobox({
@@ -624,6 +656,10 @@ function Planner({
     }
   }, [beakerCapacity, catalog, mixtureId, reagentId, requestedAmount, shouldBuild]);
   const { plan } = calculation;
+  const tankNumbers = useMemo(
+    () => plan ? numberPreparationTanks(plan.target) : new Map<string, number>(),
+    [plan],
+  );
   const error = submitError || calculation.error;
 
   const submit = (event: FormEvent) => {
@@ -714,7 +750,7 @@ function Planner({
               </div>
             </section>
           )}
-          <PreparationBlock preparation={plan.target} root />
+          <PreparationBlock preparation={plan.target} root tankNumbers={tankNumbers} />
         </div>
       )}
     </div>

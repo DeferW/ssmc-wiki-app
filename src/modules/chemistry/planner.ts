@@ -726,16 +726,36 @@ function collectSourceTotals(preparation: PlannedPreparation) {
     .sort((left, right) => left.name.localeCompare(right.name, "ru"));
 }
 
-function auxiliaryTankDepth(preparation: PlannedPreparation): number {
-  const separateDepth = preparation.preparations.length > 0
-    ? 1 + Math.max(0, ...preparation.preparations.map(auxiliaryTankDepth))
-    : 0;
-  const inlineDepth = Math.max(0, ...preparation.batches.flatMap((batch) => (
-    batch.inputs.flatMap((input) => (
-      input.inlinePreparation ? [auxiliaryTankDepth(input.inlinePreparation)] : []
-    ))
-  )));
-  return Math.max(separateDepth, inlineDepth);
+function inlineAuxiliaryTankCount(preparation: PlannedPreparation): number {
+  return preparation.preparations.reduce(
+    (total, nested) => total + preparationTankCount(nested),
+    0,
+  ) + preparation.batches.reduce(
+    (total, batch) => total + batch.inputs.reduce(
+      (inputTotal, input) => inputTotal + (
+        input.inlinePreparation ? inlineAuxiliaryTankCount(input.inlinePreparation) : 0
+      ),
+      0,
+    ),
+    0,
+  );
+}
+
+function preparationTankCount(preparation: PlannedPreparation): number {
+  return preparation.batches.length
+    + preparation.preparations.reduce(
+      (total, nested) => total + preparationTankCount(nested),
+      0,
+    )
+    + preparation.batches.reduce(
+      (total, batch) => total + batch.inputs.reduce(
+        (inputTotal, input) => inputTotal + (
+          input.inlinePreparation ? inlineAuxiliaryTankCount(input.inlinePreparation) : 0
+        ),
+        0,
+      ),
+      0,
+    );
 }
 
 function sourcePreparation(
@@ -817,7 +837,7 @@ export function buildPreparationPlan(
     requestedAmount,
     producedAmount: target.producedAmount,
     surplusAmount: target.surplusAmount,
-    tankCount: target.batches.length + auxiliaryTankDepth(target),
+    tankCount: preparationTankCount(target),
     energyCost: roundAmount(sourceTotals.reduce(
       (total, source) => total + (
         source.reagentId !== "Water" && MEDBAY_DISPENSER_REAGENTS.has(source.reagentId)
@@ -897,7 +917,7 @@ export function buildMixturePlan(
     requestedAmount,
     producedAmount: target.producedAmount,
     surplusAmount: target.surplusAmount,
-    tankCount: target.batches.length + auxiliaryTankDepth(target),
+    tankCount: preparationTankCount(target),
     energyCost: roundAmount(sourceTotals.reduce(
       (total, source) => total + (
         source.reagentId !== "Water" && MEDBAY_DISPENSER_REAGENTS.has(source.reagentId)
