@@ -27,8 +27,8 @@ export function ProjectPage() {
         </div>
         <div className="project-status" aria-label="Статус проекта">
           <span>STATUS</span>
-          <strong>WORK IN PROGRESS</strong>
-          <small>Проект активно развивается</small>
+          <strong>RELEASE</strong>
+          <small>Проект в режиме поддержки</small>
         </div>
       </section>
 
@@ -36,12 +36,12 @@ export function ProjectPage() {
         <article>
           <span>01 // КОМАНДА</span>
           <h2>Defer + Mechanica</h2>
-          <p>Поддерживаем данные, сайт и постепенно добавляем новые модули.</p>
+          <p>Поддерживаем данные и сайт актуальными, исправляем найденные ошибки.</p>
         </article>
         <article>
           <span>02 // СТАТУС</span>
-          <h2>Открытая разработка</h2>
-          <p>Проект ещё не закончен. Исправления, идеи и помощь приветствуются.</p>
+          <h2>Режим поддержки</h2>
+          <p>Основные идеи воплощены. В дальнейшем возможны обновления и новые полезные модули.</p>
         </article>
       </section>
 
