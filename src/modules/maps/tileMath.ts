@@ -1,5 +1,7 @@
 import type { GridManifest, Point, TileLevel, ViewState } from "./types";
 
+const tilePresence = new WeakMap<TileLevel, Set<string>>();
+
 export function chooseLevel(levels: TileLevel[], viewScale: number, devicePixelRatio = 1): TileLevel {
   const maximum = levels.at(-1)!;
   const requiredRatio = Math.min(1, Math.max(0, viewScale * devicePixelRatio));
@@ -22,7 +24,11 @@ export function visibleTiles(
   const right = Math.min(level.columns - 1, Math.floor(((viewport.width - view.x) / view.scale) * ratioX / tileSize) + margin);
   const bottom = Math.min(level.rows - 1, Math.floor(((viewport.height - view.y) / view.scale) * ratioY / tileSize) + margin);
   if (right < left || bottom < top) return [];
-  const present = new Set(level.tiles.map(([x, y]) => `${x}:${y}`));
+  let present = tilePresence.get(level);
+  if (!present) {
+    present = new Set(level.tiles.map(([x, y]) => `${x}:${y}`));
+    tilePresence.set(level, present);
+  }
   const result: [number, number][] = [];
   for (let y = top; y <= bottom; y += 1) {
     for (let x = left; x <= right; x += 1) {

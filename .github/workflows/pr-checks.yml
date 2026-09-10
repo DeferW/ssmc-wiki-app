@@ -13,6 +13,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Download generated data
+        uses: actions/checkout@v4
+        with:
+          repository: DeferW/ssmc-wiki-data
+          ref: main
+          path: .generated-data
+          sparse-checkout: data
+          persist-credentials: false
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
@@ -30,3 +39,5 @@ jobs:
 
       - name: Type-check and build
         run: npm run build
+        env:
+          SSMC_DATA_SOURCE: .generated-data/data

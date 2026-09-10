@@ -92,6 +92,7 @@ describe("admin override draft persistence", () => {
 
     expect(JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "null")).toEqual({
       schemaVersion: 2,
+      baseSha: "sha",
       items: { Item: { category: "Снаряжение" } },
     });
   });

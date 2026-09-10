@@ -1,9 +1,10 @@
-import type { ComponentType } from "react";
-import { EquipmentPage } from "./equipment/EquipmentPage";
-import { ChemistryPage } from "./chemistry/ChemistryPage";
-import { DamagePage } from "./damage/DamagePage";
-import { MapPage } from "./maps/MapPage";
+import { lazy, type ComponentType } from "react";
 import { modulePath } from "../routes";
+
+const EquipmentPage = lazy(() => import("./equipment/EquipmentPage").then((module) => ({ default: module.EquipmentPage })));
+const ChemistryPage = lazy(() => import("./chemistry/ChemistryPage").then((module) => ({ default: module.ChemistryPage })));
+const DamagePage = lazy(() => import("./damage/DamagePage").then((module) => ({ default: module.DamagePage })));
+const MapPage = lazy(() => import("./maps/MapPage").then((module) => ({ default: module.MapPage })));
 
 export type ModuleDefinition = {
   id: string;

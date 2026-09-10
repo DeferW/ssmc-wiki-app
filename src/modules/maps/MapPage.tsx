@@ -218,7 +218,7 @@ export function MapPage() {
   const [selectionAnchor, setSelectionAnchor] = useState<SelectionAnchor>();
   const [coordinate, setCoordinate] = useState<Point>();
   const [coordinateAnchor, setCoordinateAnchor] = useState<SelectionAnchor>();
-  const [stats, setStats] = useState<CanvasStats>({ loadedTiles: 0, loadedBytes: 0, pendingTiles: 0, zoom: 0 });
+  const [stats, setStats] = useState<CanvasStats>({ loadedTiles: 0, loadedBytes: 0, pendingTiles: 0, failedTiles: 0, zoom: 0 });
   const [error, setError] = useState<string>();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const requestedMap = searchParams.get("map");
@@ -269,8 +269,9 @@ export function MapPage() {
     () => catalog?.maps.find((map) => map.id === requestedMap) ?? catalog?.maps[0],
     [catalog, requestedMap],
   );
-  const manifestUrl = entry ? mapDataUrl(entry.tiles) : "";
-  const overlayUrl = entry ? mapDataUrl(entry.overlay) : "";
+  const assetRevision = catalog?.assetRevision ?? catalog?.gameCommit;
+  const manifestUrl = entry ? mapDataUrl(entry.tiles, assetRevision) : "";
+  const overlayUrl = entry ? mapDataUrl(entry.overlay, assetRevision) : "";
   const manifest = manifestResult?.url === manifestUrl ? manifestResult.value : undefined;
   const overlay = overlayResult?.url === overlayUrl ? overlayResult.value : undefined;
   const insertSelectionScope = `${overlayUrl}\0${requestedInsertTokens.join("\0")}`;
@@ -434,10 +435,10 @@ export function MapPage() {
     [activeInserts, allPoints, overlay],
   );
   const activeInsertRenders = useMemo<ActiveInsertRender[]>(() => insertPlacements.flatMap((placement) => {
-    const manifestUrlValue = mapDataUrl(placement.tiles);
+    const manifestUrlValue = mapDataUrl(placement.tiles, assetRevision);
     const insertManifest = insertManifests[manifestUrlValue];
     return insertManifest ? [{ ...placement, manifest: insertManifest, manifestUrl: manifestUrlValue }] : [];
-  }), [insertManifests, insertPlacements]);
+  }), [assetRevision, insertManifests, insertPlacements]);
   const hoveredArea = useMemo(
     () => areaAt(overlay, coordinate, insertPlacements),
     [coordinate, insertPlacements, overlay],
@@ -453,7 +454,7 @@ export function MapPage() {
 
   useEffect(() => {
     const missing = insertPlacements
-      .map((placement) => mapDataUrl(placement.tiles))
+      .map((placement) => mapDataUrl(placement.tiles, assetRevision))
       .filter((url) => !insertManifests[url]);
     if (missing.length === 0) return;
     const controller = new AbortController();
@@ -465,7 +466,7 @@ export function MapPage() {
         }
       });
     return () => controller.abort();
-  }, [insertManifests, insertPlacements]);
+  }, [assetRevision, insertManifests, insertPlacements]);
 
   const toggleLayer = (key: OverlayCategory) => setLayers((current) => ({ ...current, [key]: !current[key] }));
   const toggleMarkerCategory = (definition: MarkerCategoryDefinition) => setLayers((current) => {
@@ -611,6 +612,7 @@ export function MapPage() {
         <div className="maps-network" title="Обзор карты остаётся видимым, детальные тайлы подгружаются поверх">
           <span className={stats.pendingTiles ? "maps-network-dot is-loading" : "maps-network-dot"} />
           {stats.loadedTiles} тайлов · {formatBytes(stats.loadedBytes)} · Z{stats.zoom}
+          {stats.failedTiles > 0 && <button type="button" onClick={() => canvasRef.current?.retryTiles()}>Повторить загрузку ({stats.failedTiles})</button>}
         </div>
       </header>
 
@@ -710,7 +712,7 @@ export function MapPage() {
           )}
           {error && (
             <div className="maps-error" role="alert">
-              <strong>{error === REMOTE_DATA_UNAVAILABLE_MESSAGE ? "GitHub не отвечает" : "Ошибка данных"}</strong>
+              <strong>{error === REMOTE_DATA_UNAVAILABLE_MESSAGE ? "Данные недоступны" : "Ошибка данных"}</strong>
               <span>{error}</span>
               <button type="button" onClick={() => window.location.reload()}>Повторить</button>
             </div>

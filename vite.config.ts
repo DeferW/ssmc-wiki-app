@@ -6,6 +6,9 @@ export default defineConfig({
   base: "./",
   plugins: [react()],
   server: {
+    // Generated snapshots are replaced as a directory. Watching their thousands
+    // of assets wastes work and can hold directory handles open on Windows.
+    watch: { ignored: ["**/public/data", "**/public/data/**", "**/public/.data-stage-*", "**/public/.data-stage-*/**"] },
     proxy: {
       "/admin-api": {
         target: "https://ssmc-wiki-admin-api.24dfffer.workers.dev",
@@ -17,5 +20,6 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
+    setupFiles: ["./src/test/setup.ts"],
   },
 });

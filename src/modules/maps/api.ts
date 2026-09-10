@@ -12,30 +12,36 @@ async function fetchJson<T>(url: string, signal?: AbortSignal): Promise<T> {
 }
 
 function requireCatalog(value: MapCatalog): MapCatalog {
-  if (value.schemaVersion !== 1 || !Array.isArray(value.maps) || value.maps.length === 0) {
+  if (!value || typeof value !== "object" || value.schemaVersion !== 1 || !Array.isArray(value.maps) || value.maps.length === 0) {
     throw new Error("Каталог карт имеет неподдерживаемый формат.");
   }
   return value;
 }
 
 export function loadMapCatalog(): Promise<MapCatalog> {
-  catalogPromise ??= fetchJson<MapCatalog>(MAP_CATALOG_URL).then(requireCatalog);
+  catalogPromise ??= fetchJson<MapCatalog>(MAP_CATALOG_URL).then(requireCatalog).catch((error: unknown) => {
+    catalogPromise = undefined;
+    throw error;
+  });
   return catalogPromise;
 }
 
 export function loadMapStaticItems(): Promise<MapStaticItemCatalog> {
   staticItemsPromise ??= fetchJson<MapStaticItemCatalog>(MAP_STATIC_ITEMS_URL).then((value) => {
-    if (value.schemaVersion !== 1 || !value.items || !Array.isArray(value.publicCatalog?.itemIds)) {
+    if (!value || typeof value !== "object" || value.schemaVersion !== 1 || !value.items || !Array.isArray(value.publicCatalog?.itemIds)) {
       throw new Error("Каталог предметов карт имеет неподдерживаемый формат.");
     }
     return value;
+  }).catch((error: unknown) => {
+    staticItemsPromise = undefined;
+    throw error;
   });
   return staticItemsPromise;
 }
 
 export async function loadTileManifest(url: string, signal: AbortSignal): Promise<TileManifest> {
   const value = await fetchJson<TileManifest>(url, signal);
-  if (![1, 2, 3].includes(value.schemaVersion) || !Array.isArray(value.grids) || value.grids.length === 0) {
+  if (!value || typeof value !== "object" || ![1, 2, 3].includes(value.schemaVersion) || !Array.isArray(value.grids) || value.grids.length === 0) {
     throw new Error("Тайловый манифест имеет неподдерживаемый формат.");
   }
   return value;
@@ -43,7 +49,7 @@ export async function loadTileManifest(url: string, signal: AbortSignal): Promis
 
 export async function loadMapOverlay(url: string, signal: AbortSignal): Promise<MapOverlay> {
   const value = await fetchJson<MapOverlay>(url, signal);
-  if (![1, 2, 3, 4, 5, 6].includes(value.schemaVersion) || !value.prototypes || !value.occurrences) {
+  if (!value || typeof value !== "object" || ![1, 2, 3, 4, 5, 6].includes(value.schemaVersion) || !value.prototypes || !value.occurrences) {
     throw new Error("Оверлей карты имеет неподдерживаемый формат.");
   }
   return value;

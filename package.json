@@ -4,8 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "predev": "npm run data:sync",
     "dev": "vite",
+    "data:sync": "node scripts/sync-data.mjs",
     "data:overrides": "node scripts/apply-data-overrides.mjs",
+    "prebuild": "npm run data:sync",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "lint": "eslint .",

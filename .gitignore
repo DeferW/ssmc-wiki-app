@@ -2,5 +2,6 @@ node_modules/
 dist/
 .generated-data/
 public/data/
+public/.data-stage-*/
 *.tsbuildinfo
 .DS_Store

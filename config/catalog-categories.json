@@ -1,0 +1,11 @@
+[
+  { "name": "Оружие", "id": "weapon" },
+  { "name": "Боезапас", "id": "ammunition" },
+  { "name": "Обвесы", "id": "attachment" },
+  { "name": "Броня", "id": "armor" },
+  { "name": "Экипировка", "id": "equipment" },
+  { "name": "Медицина", "id": "medicine" },
+  { "name": "Снаряжение", "id": "gear" },
+  { "name": "Другое", "id": "other" },
+  { "name": "Скрытые", "id": "hidden" }
+]

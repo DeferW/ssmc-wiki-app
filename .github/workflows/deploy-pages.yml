@@ -31,25 +31,14 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Replace published data
-        shell: bash
-        run: |
-          rm -rf public/data
-          mkdir -p public/data
-          cp -a .generated-data/data/. public/data/
-          test -f public/data/catalog/catalog.json
-          test -f public/data/chemistry/catalog.json
-          test -f public/data/maps/catalog.json
-          test -f public/data/mobs/catalog.json
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - name: Apply app data overrides
-        run: npm run data:overrides
       - run: npm ci
       - run: npm run build
+        env:
+          SSMC_DATA_SOURCE: .generated-data/data
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

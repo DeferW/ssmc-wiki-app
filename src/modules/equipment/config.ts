@@ -1,4 +1,5 @@
 import { dataRoot } from "../../data/paths";
+import categories from "../../../config/catalog-categories.json";
 
 export const CATALOG_DATA_ROOT = dataRoot(
   "catalog",
@@ -7,16 +8,5 @@ export const CATALOG_DATA_ROOT = dataRoot(
 
 export const CATALOG_URL = new URL("catalog.json", CATALOG_DATA_ROOT).toString();
 
-export const CATEGORY_ORDER = [
-  "Оружие",
-  "Боезапас",
-  "Обвесы",
-  "Броня",
-  "Экипировка",
-  "Медицина",
-  "Снаряжение",
-  "Другое",
-  "Скрытые",
-] as const;
-
-export const HIDDEN_CATEGORY = "Скрытые";
+export const CATEGORY_ORDER: readonly string[] = categories.map((category) => category.name);
+export const HIDDEN_CATEGORY = categories.find((category) => category.id === "hidden")!.name;

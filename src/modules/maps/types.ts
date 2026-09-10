@@ -17,6 +17,7 @@ export type MapEntry = {
 export type MapCatalog = {
   schemaVersion: number;
   gameCommit: string;
+  assetRevision?: string;
   items?: string;
   maps: MapEntry[];
   counts: { maps: number; ships: number; planets: number; assetBytes: number };
@@ -194,4 +195,4 @@ export type LayerSettings = Record<OverlayCategory, boolean> & {
 };
 
 export type ViewState = { x: number; y: number; scale: number };
-export type CanvasStats = { loadedTiles: number; loadedBytes: number; pendingTiles: number; zoom: number };
+export type CanvasStats = { loadedTiles: number; loadedBytes: number; pendingTiles: number; failedTiles: number; zoom: number };

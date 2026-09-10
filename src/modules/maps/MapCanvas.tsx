@@ -1,8 +1,10 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { chooseLevel, fitView, gridWorldMin, mapPixelToWorld, visibleTiles, worldToMapPixel } from "./tileMath";
+import { fitView, gridWorldMin, mapPixelToWorld, worldToMapPixel } from "./tileMath";
+import { TileLoader } from "./tileLoader";
+import { planTiles, prioritizeTiles } from "./tilePlan";
 import { pointsOnSameTile } from "./overlay";
 import { markerStyle, type MarkerIcon } from "./markerConfig";
-import type { ActiveInsertRender, CanvasStats, GridManifest, LayerSettings, OverlayPoint, Point, TileLevel, TileManifest, ViewState } from "./types";
+import type { ActiveInsertRender, CanvasStats, GridManifest, LayerSettings, OverlayPoint, Point, TileManifest, ViewState } from "./types";
 
 type Props = {
   manifest: TileManifest;
@@ -20,7 +22,7 @@ type Props = {
   onStats: (stats: CanvasStats) => void;
 };
 
-export type MapCanvasHandle = { reset: () => void; zoomBy: (factor: number) => void };
+export type MapCanvasHandle = { reset: () => void; zoomBy: (factor: number) => void; retryTiles: () => void };
 export type SelectionAnchor = {
   x: number;
   y: number;
@@ -28,18 +30,8 @@ export type SelectionAnchor = {
   vertical?: "above" | "below";
 };
 
-type CachedTile = { image: ImageBitmap; bytes: number; used: number };
 type PointerDrag = { id: number; startX: number; startY: number; viewX: number; viewY: number; moved: boolean };
 type PinchGesture = { distance: number; center: Point; view: ViewState };
-type InsertTileLayer = {
-  render: ActiveInsertRender;
-  grid: GridManifest;
-  level: TileLevel;
-  maximum: TileLevel;
-  urls: string[];
-};
-
-const TILE_CACHE_LIMIT = 160;
 const SHARED_TILE_ZOOM = 2.5;
 const CATEGORY_COLOR: Record<OverlayPoint["category"], string> = {
   loot: "#f0c15d",
@@ -335,12 +327,6 @@ function cachedMapLabel(text: string, color: string, selected: boolean, devicePi
   return value;
 }
 
-function tileUrl(pattern: string, manifestUrl: string, revision: number, z: number, x: number, y: number): string {
-  const url = new URL(pattern.replace("{z}", String(z)).replace("{x}", String(x)).replace("{y}", String(y)), manifestUrl);
-  url.searchParams.set("v", new URL(manifestUrl).searchParams.get("v") ?? String(revision));
-  return url.toString();
-}
-
 function eventPoint(event: { clientX: number; clientY: number }, element: HTMLElement): Point {
   const rect = element.getBoundingClientRect();
   return { x: event.clientX - rect.left, y: event.clientY - rect.top };
@@ -383,8 +369,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
   onStats,
 }, ref) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const cacheRef = useRef(new Map<string, CachedTile>());
-  const pendingRef = useRef(new Map<string, AbortController>());
+  const loaderRef = useRef<TileLoader | undefined>(undefined);
   const dragRef = useRef<PointerDrag | undefined>(undefined);
   const pointersRef = useRef(new Map<number, Point>());
   const pinchRef = useRef<PinchGesture | undefined>(undefined);
@@ -411,7 +396,19 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
     });
   }, [size.height, size.width]);
 
-  useImperativeHandle(ref, () => ({ reset, zoomBy: (factor) => zoomAround(factor) }), [reset, zoomAround]);
+  useImperativeHandle(ref, () => ({ reset, zoomBy: (factor) => zoomAround(factor), retryTiles: () => loaderRef.current?.retry() }), [reset, zoomAround]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const wheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? size.height : 1);
+      zoomAround(Math.exp(-delta * 0.0015), eventPoint(event, canvas));
+    };
+    canvas.addEventListener("wheel", wheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", wheel);
+  }, [zoomAround, size.height]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -440,119 +437,48 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
 
   useEffect(() => setHoverTile(undefined), [manifestUrl]);
 
-  useEffect(() => () => {
-    for (const controller of pendingRef.current.values()) controller.abort();
-    pendingRef.current.clear();
-    for (const tile of cacheRef.current.values()) tile.image.close();
-    cacheRef.current.clear();
+  useEffect(() => {
+    let frame: number | undefined;
+    const loader = new TileLoader(() => {
+      if (frame !== undefined) return;
+      frame = requestAnimationFrame(() => {
+        frame = undefined;
+        setTileRevision((value) => value + 1);
+      });
+    });
+    loaderRef.current = loader;
+    return () => {
+      loader.dispose();
+      if (frame !== undefined) cancelAnimationFrame(frame);
+    };
   }, [manifestUrl]);
 
-  const level = useMemo(
-    () => chooseLevel(grid.levels, view.scale, window.devicePixelRatio || 1),
-    [grid.levels, view.scale],
-  );
-  const visible = useMemo(
-    () => visibleTiles(level, maximum.width, maximum.height, manifest.tileSize, view, size, 2),
-    [level, manifest.tileSize, maximum.height, maximum.width, size, view],
-  );
-  const visibleUrls = useMemo(
-    () => visible.map(([x, y]) => tileUrl(grid.path, manifestUrl, manifest.schemaVersion, level.z, x, y)),
-    [grid.path, level.z, manifest.schemaVersion, manifestUrl, visible],
-  );
-  const overview = grid.levels[0];
-  const overviewUrls = useMemo(
-    () => overview.tiles.map(([x, y]) => tileUrl(grid.path, manifestUrl, manifest.schemaVersion, overview.z, x, y)),
-    [grid.path, manifest.schemaVersion, manifestUrl, overview],
-  );
-  const insertLayers = useMemo<InsertTileLayer[]>(() => insertRenders.flatMap((render) => (
-    render.manifest.grids.flatMap((insertGrid) => {
-      const insertMaximum = insertGrid.levels.at(-1)!;
-      const insertScreenScale = view.scale * grid.pixelsPerMeter / insertGrid.pixelsPerMeter;
-      const insertLevel = chooseLevel(insertGrid.levels, insertScreenScale, window.devicePixelRatio || 1);
-      const corners = [
-        insertPixelToMapPixel(grid, render, insertGrid, { x: 0, y: 0 }),
-        insertPixelToMapPixel(grid, render, insertGrid, { x: insertMaximum.width, y: 0 }),
-        insertPixelToMapPixel(grid, render, insertGrid, { x: 0, y: insertMaximum.height }),
-        insertPixelToMapPixel(grid, render, insertGrid, { x: insertMaximum.width, y: insertMaximum.height }),
-      ].map((point) => ({ x: view.x + point.x * view.scale, y: view.y + point.y * view.scale }));
-      const left = Math.min(...corners.map((point) => point.x));
-      const right = Math.max(...corners.map((point) => point.x));
-      const top = Math.min(...corners.map((point) => point.y));
-      const bottom = Math.max(...corners.map((point) => point.y));
-      if (right < 0 || bottom < 0 || left > size.width || top > size.height) return [];
-      return [{
-        render,
-        grid: insertGrid,
-        level: insertLevel,
-        maximum: insertMaximum,
-        urls: insertLevel.tiles.map(([x, y]) => tileUrl(
-          insertGrid.path,
-          render.manifestUrl,
-          render.manifest.schemaVersion,
-          insertLevel.z,
-          x,
-          y,
-        )),
-      }];
+  const plan = useMemo(() => planTiles(
+    grid, manifestUrl, manifest.tileSize, view, size, window.devicePixelRatio || 1,
+  ), [grid, manifestUrl, manifest.tileSize, view, size]);
+  const insertLayers = useMemo(() => insertRenders.flatMap((render) => (
+    render.manifest.grids.map((insertGrid) => {
+      const origin = insertPixelToMapPixel(grid, render, insertGrid, { x: 0, y: 0 });
+      const scale = grid.pixelsPerMeter / insertGrid.pixelsPerMeter;
+      const insertView = { x: view.x + origin.x * view.scale, y: view.y + origin.y * view.scale, scale: view.scale * scale };
+      return {
+        origin, scale,
+        plan: planTiles(insertGrid, render.manifestUrl, render.manifest.tileSize, insertView, size, window.devicePixelRatio || 1),
+      };
     })
-  )), [grid, insertRenders, size.height, size.width, view]);
-  const neededUrls = useMemo(
-    () => [...new Set([...overviewUrls, ...visibleUrls, ...insertLayers.flatMap((layer) => layer.urls)])],
-    [insertLayers, overviewUrls, visibleUrls],
-  );
+  )), [grid, insertRenders, size, view]);
+  const neededUrls = useMemo(() => prioritizeTiles([
+    ...plan.requests, ...insertLayers.flatMap((layer) => layer.plan.requests),
+  ]), [plan, insertLayers]);
 
   useEffect(() => {
-    const needed = new Set(neededUrls);
-    for (const url of neededUrls) {
-      const cached = cacheRef.current.get(url);
-      if (cached) {
-        cached.used = performance.now();
-        continue;
-      }
-      if (pendingRef.current.has(url)) continue;
-      const controller = new AbortController();
-      pendingRef.current.set(url, controller);
-      void fetch(url, { signal: controller.signal, cache: "force-cache" })
-        .then((response) => {
-          if (!response.ok) throw new Error(`Tile HTTP ${response.status}`);
-          return response.blob();
-        })
-        .then(async (blob) => ({ image: await createImageBitmap(blob), bytes: blob.size }))
-        .then(({ image, bytes }) => {
-          if (controller.signal.aborted) {
-            image.close();
-            return;
-          }
-          cacheRef.current.set(url, { image, bytes, used: performance.now() });
-          const candidates = [...cacheRef.current.entries()]
-            .filter(([key]) => !needed.has(key))
-            .sort((a, b) => a[1].used - b[1].used);
-          while (cacheRef.current.size > TILE_CACHE_LIMIT && candidates.length) {
-            const [key, tile] = candidates.shift()!;
-            cacheRef.current.delete(key);
-            tile.image.close();
-          }
-          setTileRevision((value) => value + 1);
-        })
-        .catch((error: unknown) => {
-          if (!(error instanceof DOMException && error.name === "AbortError")) console.warn(error);
-        })
-        .finally(() => {
-          if (pendingRef.current.get(url) === controller) pendingRef.current.delete(url);
-          setTileRevision((value) => value + 1);
-        });
-    }
+    loaderRef.current?.setWanted(neededUrls);
   }, [neededUrls]);
 
   useEffect(() => {
-    const bytes = [...cacheRef.current.values()].reduce((sum, tile) => sum + tile.bytes, 0);
-    onStats({
-      loadedTiles: cacheRef.current.size,
-      loadedBytes: bytes,
-      pendingTiles: pendingRef.current.size,
-      zoom: level.z,
-    });
-  }, [level.z, onStats, tileRevision]);
+    const stats = loaderRef.current?.stats();
+    if (stats) onStats({ ...stats, zoom: plan.level.z });
+  }, [plan.level.z, onStats, tileRevision]);
 
   const visiblePoints = useMemo(() => points.filter((point) => (
     layers[point.category]
@@ -569,8 +495,10 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.round(size.width * dpr);
-    canvas.height = Math.round(size.height * dpr);
+    const width = Math.round(size.width * dpr);
+    const height = Math.round(size.height * dpr);
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== height) canvas.height = height;
     const context = canvas.getContext("2d");
     if (!context) return;
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -582,66 +510,18 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
     context.scale(view.scale, view.scale);
     context.imageSmoothingEnabled = false;
 
-    const overviewRatioX = overview.width / maximum.width;
-    const overviewRatioY = overview.height / maximum.height;
-    overview.tiles.forEach(([x, y], index) => {
-      const tile = cacheRef.current.get(overviewUrls[index]);
-      if (!tile) return;
-      const sourceX = x * manifest.tileSize;
-      const sourceY = y * manifest.tileSize;
-      const sourceWidth = Math.min(manifest.tileSize, overview.width - sourceX);
-      const sourceHeight = Math.min(manifest.tileSize, overview.height - sourceY);
-      context.drawImage(
-        tile.image,
-        sourceX / overviewRatioX,
-        sourceY / overviewRatioY,
-        sourceWidth / overviewRatioX,
-        sourceHeight / overviewRatioY,
-      );
-    });
-
-    const ratioX = level.width / maximum.width;
-    const ratioY = level.height / maximum.height;
-    visible.forEach(([x, y], index) => {
-      const tile = cacheRef.current.get(visibleUrls[index]);
-      if (!tile) return;
-      const sourceX = x * manifest.tileSize;
-      const sourceY = y * manifest.tileSize;
-      const sourceWidth = Math.min(manifest.tileSize, level.width - sourceX);
-      const sourceHeight = Math.min(manifest.tileSize, level.height - sourceY);
-      context.drawImage(tile.image, sourceX / ratioX, sourceY / ratioY, sourceWidth / ratioX, sourceHeight / ratioY);
-    });
-
+    for (const tile of plan.draw) {
+      const cached = loaderRef.current?.get(tile.url);
+      if (cached) context.drawImage(cached.image, tile.x, tile.y, tile.width, tile.height);
+    }
     for (const layer of insertLayers) {
-      const origin = insertPixelToMapPixel(grid, layer.render, layer.grid, { x: 0, y: 0 });
-      const horizontal = insertPixelToMapPixel(grid, layer.render, layer.grid, { x: 1, y: 0 });
-      const vertical = insertPixelToMapPixel(grid, layer.render, layer.grid, { x: 0, y: 1 });
-      const ratioInsertX = layer.level.width / layer.maximum.width;
-      const ratioInsertY = layer.level.height / layer.maximum.height;
       context.save();
-      context.transform(
-        horizontal.x - origin.x,
-        horizontal.y - origin.y,
-        vertical.x - origin.x,
-        vertical.y - origin.y,
-        origin.x,
-        origin.y,
-      );
-      layer.level.tiles.forEach(([x, y], index) => {
-        const tile = cacheRef.current.get(layer.urls[index]);
-        if (!tile) return;
-        const sourceX = x * layer.render.manifest.tileSize;
-        const sourceY = y * layer.render.manifest.tileSize;
-        const sourceWidth = Math.min(layer.render.manifest.tileSize, layer.level.width - sourceX);
-        const sourceHeight = Math.min(layer.render.manifest.tileSize, layer.level.height - sourceY);
-        context.drawImage(
-          tile.image,
-          sourceX / ratioInsertX,
-          sourceY / ratioInsertY,
-          sourceWidth / ratioInsertX,
-          sourceHeight / ratioInsertY,
-        );
-      });
+      context.translate(layer.origin.x, layer.origin.y);
+      context.scale(layer.scale, layer.scale);
+      for (const tile of layer.plan.draw) {
+        const cached = loaderRef.current?.get(tile.url);
+        if (cached) context.drawImage(cached.image, tile.x, tile.y, tile.width, tile.height);
+      }
       context.restore();
     }
 
@@ -735,7 +615,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       );
     }
     context.restore();
-  }, [drawnPoints, grid, hoverTile, insertLayers, layers, level, manifest.tileSize, maximum, overview, overviewUrls, selectedKey, size, tileRevision, view, visible, visibleUrls]);
+  }, [drawnPoints, grid, hoverTile, insertLayers, layers, maximum, plan, selectedKey, size, tileRevision, view]);
 
   const mapPointAt = useCallback((screen: Point) => ({
     x: (screen.x - view.x) / view.scale,
@@ -788,10 +668,6 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         const screen = eventPoint(event, event.currentTarget);
         const world = mapPixelToWorld(grid, mapPointAt(screen));
         onShareTile(world, SHARED_TILE_ZOOM);
-      }}
-      onWheel={(event) => {
-        event.preventDefault();
-        zoomAround(Math.exp(-event.deltaY * 0.0015), eventPoint(event, event.currentTarget));
       }}
       onPointerDown={(event) => {
         const point = eventPoint(event, event.currentTarget);

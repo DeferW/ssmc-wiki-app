@@ -1,11 +1,13 @@
+import { lazy, Suspense } from "react";
 import { Link, Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { HomePage } from "./pages/HomePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { ProjectPage } from "./pages/ProjectPage";
 import { activeModules, plannedModules } from "./modules/registry";
-import { AdminEquipmentPage } from "./admin/equipment/AdminEquipmentPage";
 import { ABOUT_PATH, EQUIPMENT_ADMIN_PATH, MAIN_PATH } from "./routes";
+
+const AdminEquipmentPage = lazy(() => import("./admin/equipment/AdminEquipmentPage").then((module) => ({ default: module.AdminEquipmentPage })));
 
 export default function App() {
   return (
@@ -21,19 +23,21 @@ export default function App() {
         </nav>
       </header>
 
-      <Routes>
-        <Route path="/" element={<Navigate to={MAIN_PATH} replace />} />
-        <Route path={MAIN_PATH} element={<HomePage />} />
-        <Route path={ABOUT_PATH} element={<ProjectPage />} />
-        {activeModules.map((module) => (
-          <Route path={module.path} element={<module.Component />} key={module.id} />
-        ))}
-        {plannedModules.map((module) => (
-          <Route path={module.path} element={<PlaceholderPage module={module} />} key={module.id} />
-        ))}
-        <Route path={EQUIPMENT_ADMIN_PATH} element={<AdminEquipmentPage />} />
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
+      <Suspense fallback={<main className="page"><p role="status">Загрузка модуля…</p></main>}>
+        <Routes>
+          <Route path="/" element={<Navigate to={MAIN_PATH} replace />} />
+          <Route path={MAIN_PATH} element={<HomePage />} />
+          <Route path={ABOUT_PATH} element={<ProjectPage />} />
+          {activeModules.map((module) => (
+            <Route path={module.path} element={<module.Component />} key={module.id} />
+          ))}
+          {plannedModules.map((module) => (
+            <Route path={module.path} element={<PlaceholderPage module={module} />} key={module.id} />
+          ))}
+          <Route path={EQUIPMENT_ADMIN_PATH} element={<AdminEquipmentPage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </Suspense>
     </div>
   );
 }

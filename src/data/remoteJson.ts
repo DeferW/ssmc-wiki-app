@@ -1,5 +1,5 @@
 export const REMOTE_DATA_UNAVAILABLE_MESSAGE =
-  "Увы, GitHub опять прилёг. Ошибка не у нас: хранилище данных временно не отвечает. Попробуйте ещё раз позже — всё должно починиться.";
+  "Не удалось загрузить данные. Проверьте подключение и попробуйте ещё раз.";
 
 const REMOTE_DATA_TIMEOUT_MS = 12_000;
 
@@ -11,6 +11,7 @@ export class RemoteDataUnavailableError extends Error {
 }
 
 export async function fetchRemoteJson(url: string, init: RequestInit = {}): Promise<unknown> {
+  init.signal?.throwIfAborted();
   const controller = new AbortController();
   let timedOut = false;
   const abortFromCaller = () => controller.abort();
