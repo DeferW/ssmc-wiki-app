@@ -31,7 +31,7 @@ describe("insert marker previews", () => {
     const points = previewMapPoints(overlay, catalog, {});
     expect(points.filter((p) => p.insertPath)).toHaveLength(6);
     for (const point of points.filter((p) => p.insertPath)) {
-      expect(point).not.toHaveProperty("insertName");
+      expect(point.parentInsert).toEqual({ name: "Оружейная", probability: 1 });
       expect(point.probability).toBeUndefined();
       expect(point.nightmareScenario).toBeUndefined();
       if (point.category === "item") expect(point.item).toEqual(catalog.items.Item);

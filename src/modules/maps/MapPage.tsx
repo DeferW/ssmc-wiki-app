@@ -790,6 +790,12 @@ export function MapPage() {
               >
                 {markerCategory(selected)?.label ?? CATEGORY_LABELS[selected.category]}
               </div>
+              {selected.parentInsert && entry && (
+                <p>
+                  В инсерте <em>{selected.parentInsert.name}</em><br />
+                  Шанс спавна инсерта: {Math.round(effectiveInsertProbability(selected.parentInsert.probability, selected.parentInsert.nightmareScenario, entry) * 100)}%
+                </p>
+              )}
               {selected.inactive && !selected.insertPath && <p>На базовой карте — заменено выбранным инсертом.</p>}
               <h2>{pointDisplayName(selected)}</h2>
               <code>{selected.prototypeId}</code>

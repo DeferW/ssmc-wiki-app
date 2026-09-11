@@ -171,6 +171,7 @@ export type OverlayPoint = {
   object?: MapObjectPrototype;
   highlighted?: boolean;
   inactive?: boolean;
+  parentInsert?: { name: string; probability: number; nightmareScenario?: string };
 };
 
 export type InsertPlacement = {
