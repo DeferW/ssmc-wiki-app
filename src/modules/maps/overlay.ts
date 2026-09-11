@@ -415,6 +415,53 @@ export function flattenMapObjects(
   return points;
 }
 
+
+/** Presentation of every possible variant; active render selection stays separate. */
+export function previewMapPoints(
+  overlay: MapOverlay,
+  catalog: MapStaticItemCatalog | undefined,
+  activeInserts: Record<string, string>,
+): OverlayPoint[] {
+  const result: OverlayPoint[] = [];
+  const visit = (
+    source: Pick<MapOverlay, "occurrences" | "itemOccurrences" | "objectOccurrences">,
+    origin: Point, prefix: string, active: boolean,
+    ancestry: string[], insertPath?: string, insertName?: string,
+    anchorKey?: string, variation?: InsertVariationOption,
+  ) => {
+    const markers = pointsFor(source.occurrences, overlay.prototypes, prefix).map((point) => ({
+      ...point, x: origin.x + point.x, y: origin.y + point.y,
+      // Keep insert anchor keys compatible with saved URL selections.
+      key: anchorKey ? `${point.key}:${anchorKey}` : point.key,
+    }));
+    const local: OverlayPoint[] = [
+      ...markers,
+      ...(catalog ? staticItemPoints(source.itemOccurrences, catalog, `${prefix}-item`, origin) : []),
+      ...mapObjectPoints(source.objectOccurrences, overlay.objectPrototypes ?? {}, `${prefix}-object`, origin),
+    ].map((point) => ({ ...point, inactive: !active, insertPath, insertName,
+      probability: variation?.probability, nightmareScenario: variation?.nightmareScenario }));
+    result.push(...local);
+    for (const anchor of local.filter((point) => point.category === "insert")) {
+      for (const variation of insertVariations(anchor)) {
+        const insert = overlay.insertMaps[variation.path];
+        if (!insert || ancestry.includes(variation.path)) continue;
+        const enabled = active && activeInserts[anchor.key] === variation.path;
+        const position = insertOrigin(anchor, variation);
+        if (enabled && anchor.components?.MapInsert?.clearEntities === true && insert.footprint) {
+          for (const point of result) {
+            if (point.category !== "insert" && pointInFootprint(insert.footprint, position, point)) point.inactive = true;
+          }
+        }
+        const name = variation.path.split("/").at(-1)?.replace(/\.ya?ml$/i, "") ?? variation.path;
+        visit(insert, position, `insert:${anchor.key}:${variation.index}`, enabled,
+          [...ancestry, variation.path], variation.path, `${pointDisplayName(anchor)} — ${name}`, anchor.key, variation);
+      }
+    }
+  };
+  visit(overlay, { x: 0, y: 0 }, "map", true, []);
+  return result;
+}
+
 export function effectiveInsertProbability(
   probability: number,
   nightmareScenario: string | undefined,
@@ -474,7 +521,7 @@ export function activeInsertPlacements(
   activeInserts: Record<string, string>,
 ): InsertPlacement[] {
   return points.flatMap((anchor) => {
-    if (anchor.category !== "insert") return [];
+    if (anchor.category !== "insert" || anchor.inactive) return [];
     const path = activeInserts[anchor.key];
     const variation = insertVariations(anchor).find((candidate) => candidate.path === path);
     const insertMap = variation ? overlay.insertMaps[variation.path] : undefined;

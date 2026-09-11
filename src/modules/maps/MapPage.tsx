@@ -7,7 +7,7 @@ import { loadMapCatalog, loadMapOverlay, loadMapStaticItems, loadTileManifest } 
 import { mapDataUrl } from "./config";
 import { MapCanvas, type MapCanvasHandle, type SelectionAnchor } from "./MapCanvas";
 import { MARKER_CATEGORIES, markerCategory, markerStyle, type MarkerCategoryDefinition } from "./markerConfig";
-import { activeInsertPlacements, areaAt, describeComponents, effectiveInsertProbability, flattenMapObjects, flattenOverlay, flattenStaticItems, insertVariations, pointDisplayName, pointProbabilityDescriptions, restoreInsertSelections, serializeInsertSelections, spawnOptions } from "./overlay";
+import { activeInsertPlacements, areaAt, describeComponents, effectiveInsertProbability, previewMapPoints, insertVariations, pointDisplayName, pointProbabilityDescriptions, restoreInsertSelections, serializeInsertSelections, spawnOptions } from "./overlay";
 import type { ActiveInsertRender, CanvasStats, LayerSettings, MapCatalog, MapOverlay, MapStaticItem, MapStaticItemCatalog, OverlayCategory, OverlayGroup, OverlayPoint, Point, TileManifest } from "./types";
 
 const SETTINGS_KEY = "ssmc-map-layers-v5";
@@ -213,7 +213,7 @@ export function MapPage() {
   const [activeItemIds, setActiveItemIds] = useState<Set<string>>(() => new Set());
   const [objectSearch, setObjectSearch] = useState("");
   const [objectGroups, setObjectGroups] = useState<Set<string>>(() => new Set());
-  const [selected, setSelected] = useState<OverlayPoint>();
+  const [selectedPoint, setSelected] = useState<OverlayPoint>();
   const [selectionChoices, setSelectionChoices] = useState<OverlayPoint[]>([]);
   const [selectionAnchor, setSelectionAnchor] = useState<SelectionAnchor>();
   const [coordinate, setCoordinate] = useState<Point>();
@@ -321,21 +321,17 @@ export function MapPage() {
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(layers)); } catch { /* private storage may be unavailable */ }
   }, [layers]);
 
-  const allPoints = useMemo(
-    () => overlay ? flattenOverlay(overlay, activeInserts) : [],
-    [activeInserts, overlay],
+  const previewPoints = useMemo(
+    () => overlay ? previewMapPoints(overlay, staticItemCatalog, activeInserts) : [],
+    [activeInserts, overlay, staticItemCatalog],
   );
+  const allPoints = useMemo(() => previewPoints.filter((point) => point.category !== "item" && point.category !== "object" && !(point.category === "label" && point.inactive)), [previewPoints]);
   const overlayPoints = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("ru");
     if (!query) return allPoints;
     return allPoints.filter((point) => `${pointDisplayName(point)} ${point.name} ${point.prototypeId}`.toLocaleLowerCase("ru").includes(query));
   }, [allPoints, search]);
-  const allItemPoints = useMemo(
-    () => overlay && staticItemCatalog
-      ? flattenStaticItems(overlay, staticItemCatalog, allPoints, activeInserts)
-      : [],
-    [activeInserts, allPoints, overlay, staticItemCatalog],
-  );
+  const allItemPoints = useMemo(() => previewPoints.filter((point) => point.category === "item"), [previewPoints]);
   const itemCounts = useMemo(() => allItemPoints.reduce<Record<string, number>>((counts, point) => {
     counts[point.prototypeId] = (counts[point.prototypeId] ?? 0) + 1;
     return counts;
@@ -380,10 +376,7 @@ export function MapPage() {
     () => allItemPoints.map((point) => ({ ...point, highlighted: highlightedItemIds.has(point.prototypeId) })),
     [allItemPoints, highlightedItemIds],
   );
-  const allObjectPoints = useMemo(
-    () => overlay ? flattenMapObjects(overlay, allPoints, activeInserts) : [],
-    [activeInserts, allPoints, overlay],
-  );
+  const allObjectPoints = useMemo(() => previewPoints.filter((point) => point.category === "object"), [previewPoints]);
   const objectGroupCounts = useMemo(() => allObjectPoints.reduce<Record<string, number>>((counts, point) => {
     const group = point.object?.group ?? "other";
     counts[group] = (counts[group] ?? 0) + 1;
@@ -391,11 +384,10 @@ export function MapPage() {
   }, {}), [allObjectPoints]);
   const availableObjectGroups = useMemo(
     () => (overlay?.objectGroups ?? [])
-      .filter((group) => objectGroupCounts[group.id])
       .map((group) => group.id === "vehicles-and-wheels"
         ? { ...group, name: "Машины", detail: "размещённые на карте машины" }
         : group),
-    [objectGroupCounts, overlay?.objectGroups],
+    [overlay?.objectGroups],
   );
   const highlightedObjectIds = useMemo(() => {
     const query = objectSearch.trim().toLocaleLowerCase("ru");
@@ -415,6 +407,7 @@ export function MapPage() {
     [allObjectPoints, highlightedObjectIds],
   );
   const points = useMemo(() => [...overlayPoints, ...itemPoints, ...objectPoints], [itemPoints, objectPoints, overlayPoints]);
+  const selected = previewPoints.find((point) => point.key === selectedPoint?.key);
   const canvasLayers = useMemo<LayerSettings>(() => ({
     ...layers,
     item: itemPoints.length > 0,
@@ -797,6 +790,8 @@ export function MapPage() {
               >
                 {markerCategory(selected)?.label ?? CATEGORY_LABELS[selected.category]}
               </div>
+              {selected.inactive && selected.insertName && <p>В инсерте <em>{selected.insertName}</em></p>}
+              {selected.inactive && !selected.insertPath && <p>На базовой карте — заменено выбранным инсертом.</p>}
               <h2>{pointDisplayName(selected)}</h2>
               <code>{selected.prototypeId}</code>
               <p>X {selected.x.toFixed(1)} · Y {selected.y.toFixed(1)}</p>
@@ -918,11 +913,7 @@ export function MapPage() {
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="разведданные, эвакуация…" />
           </label>
           <div className="maps-items-summary">
-            <span>Категорий: {MARKER_CATEGORIES.filter((definition) => (
-              definition.layer
-                ? (pointCounts[definition.layer] ?? 0) > 0
-                : (definition.groups ?? []).some((group) => (groupCounts[group] ?? 0) > 0)
-            )).length}</span>
+            <span>Категорий: {MARKER_CATEGORIES.length}</span>
             {(search || layers.loot || layers.marker || layers.spawn || layers.insert) && (
               <button type="button" onClick={clearMarkerFilters}>Сбросить</button>
             )}
@@ -935,7 +926,6 @@ export function MapPage() {
               const count = definition.layer
                 ? (pointCounts[definition.layer] ?? 0)
                 : (definition.groups ?? []).reduce((sum, group) => sum + (groupCounts[group] ?? 0), 0);
-              if (count === 0) return null;
               return (
                 <label className="maps-layer maps-marker-category" key={definition.key}>
                   <input type="checkbox" checked={checked} onChange={() => toggleMarkerCategory(definition)} />

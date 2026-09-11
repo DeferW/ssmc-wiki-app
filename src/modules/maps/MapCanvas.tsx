@@ -489,7 +489,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
     (point.category !== "item" && point.category !== "object")
     || point.highlighted
     || point.key === selectedKey
-  )), [selectedKey, visiblePoints]);
+  )).sort((a, b) => Number(Boolean(b.inactive)) - Number(Boolean(a.inactive))), [selectedKey, visiblePoints]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -564,10 +564,11 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       const pixel = worldToMapPixel(grid, point);
       if (pixel.x < bounds.left || pixel.x > bounds.right || pixel.y < bounds.top || pixel.y > bounds.bottom) continue;
       const selected = point.key === selectedKey;
+      context.globalAlpha = point.inactive ? 0.55 : 1;
 
       if (point.category === "item" || point.category === "object") {
         if (!point.highlighted && !selected) continue;
-        const tileKey = `${point.category}:${Math.floor(point.x)}:${Math.floor(point.y)}`;
+        const tileKey = `${point.category}:${Boolean(point.inactive)}:${Math.floor(point.x)}:${Math.floor(point.y)}`;
         if (drawnDataTiles.has(tileKey) && !selected) continue;
         drawnDataTiles.add(tileKey);
         const radius = Math.max(6 / view.scale, (7.5 * layers.markerScale) / Math.sqrt(Math.max(view.scale, 0.08)));
