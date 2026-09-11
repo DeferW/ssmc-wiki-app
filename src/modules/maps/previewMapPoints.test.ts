@@ -27,10 +27,18 @@ const catalog: MapStaticItemCatalog = {
 };
 
 describe("insert marker previews", () => {
-  it("keeps all three kinds in unselected variants, with a name and unique stable keys", () => {
+  it("keeps all three kinds in unselected variants, with unique stable keys", () => {
     const points = previewMapPoints(overlay, catalog, {});
     expect(points.filter((p) => p.insertPath)).toHaveLength(6);
-    expect(points.filter((p) => p.insertPath).every((p) => p.inactive && p.insertName?.startsWith("Оружейная"))).toBe(true);
+    for (const point of points.filter((p) => p.insertPath)) {
+      expect(point).not.toHaveProperty("insertName");
+      expect(point.probability).toBeUndefined();
+      expect(point.nightmareScenario).toBeUndefined();
+      if (point.category === "item") expect(point.item).toEqual(catalog.items.Item);
+      if (point.category === "object") expect(point.object).toEqual(overlay.objectPrototypes!.Object);
+      if (point.category === "loot") expect(point.components).toEqual(overlay.prototypes.Loot.components);
+    }
+    expect(points.filter((p) => p.insertPath).every((p) => p.inactive)).toBe(true);
     expect(new Set(points.map((p) => p.key)).size).toBe(points.length);
     expect(previewMapPoints(overlay, catalog, { "map:Insert:0": "/a.yml" }).map((p) => p.key)).toEqual(points.map((p) => p.key));
   });

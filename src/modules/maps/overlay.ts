@@ -426,8 +426,7 @@ export function previewMapPoints(
   const visit = (
     source: Pick<MapOverlay, "occurrences" | "itemOccurrences" | "objectOccurrences">,
     origin: Point, prefix: string, active: boolean,
-    ancestry: string[], insertPath?: string, insertName?: string,
-    anchorKey?: string, variation?: InsertVariationOption,
+    ancestry: string[], insertPath?: string, anchorKey?: string,
   ) => {
     const markers = pointsFor(source.occurrences, overlay.prototypes, prefix).map((point) => ({
       ...point, x: origin.x + point.x, y: origin.y + point.y,
@@ -438,8 +437,7 @@ export function previewMapPoints(
       ...markers,
       ...(catalog ? staticItemPoints(source.itemOccurrences, catalog, `${prefix}-item`, origin) : []),
       ...mapObjectPoints(source.objectOccurrences, overlay.objectPrototypes ?? {}, `${prefix}-object`, origin),
-    ].map((point) => ({ ...point, inactive: !active, insertPath, insertName,
-      probability: variation?.probability, nightmareScenario: variation?.nightmareScenario }));
+    ].map((point) => ({ ...point, inactive: !active, insertPath }));
     result.push(...local);
     for (const anchor of local.filter((point) => point.category === "insert")) {
       for (const variation of insertVariations(anchor)) {
@@ -452,9 +450,8 @@ export function previewMapPoints(
             if (point.category !== "insert" && pointInFootprint(insert.footprint, position, point)) point.inactive = true;
           }
         }
-        const name = variation.path.split("/").at(-1)?.replace(/\.ya?ml$/i, "") ?? variation.path;
         visit(insert, position, `insert:${anchor.key}:${variation.index}`, enabled,
-          [...ancestry, variation.path], variation.path, `${pointDisplayName(anchor)} — ${name}`, anchor.key, variation);
+          [...ancestry, variation.path], variation.path, anchor.key);
       }
     }
   };

@@ -171,7 +171,6 @@ export type OverlayPoint = {
   object?: MapObjectPrototype;
   highlighted?: boolean;
   inactive?: boolean;
-  insertName?: string;
 };
 
 export type InsertPlacement = {

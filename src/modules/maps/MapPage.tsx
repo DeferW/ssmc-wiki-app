@@ -790,7 +790,6 @@ export function MapPage() {
               >
                 {markerCategory(selected)?.label ?? CATEGORY_LABELS[selected.category]}
               </div>
-              {selected.inactive && selected.insertName && <p>В инсерте <em>{selected.insertName}</em></p>}
               {selected.inactive && !selected.insertPath && <p>На базовой карте — заменено выбранным инсертом.</p>}
               <h2>{pointDisplayName(selected)}</h2>
               <code>{selected.prototypeId}</code>
@@ -825,10 +824,6 @@ export function MapPage() {
                   </Link>
                 </>
               )}
-              {selected.probability !== undefined && entry && (
-                <p>Вероятность инсерта: {Math.round(effectiveInsertProbability(selected.probability, selected.nightmareScenario, entry) * 100)}%</p>
-              )}
-              {selected.insertPath && <p className="maps-path">Вариант: {selected.insertPath}</p>}
               {selectedProbabilityDescriptions.map((description) => <p key={description}>{description}</p>)}
               {describeComponents(selected).map((description) => <p key={description}>{description}</p>)}
               {selectedInsertVariants.length > 0 && (
