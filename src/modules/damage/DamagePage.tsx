@@ -33,6 +33,7 @@ import { ResultPanel } from "./components/ResultPanel";
 import { TargetPicker } from "./components/TargetPicker";
 import { TargetSlot } from "./components/TargetSlot";
 import { WeaponPicker } from "./components/WeaponPicker";
+import { ScatterRange } from "./components/ScatterRange";
 import { DamageComparison, damageBuildSeed } from "./components/DamageComparison";
 
 type PickerState = { type: "weapon" } | { type: "attachment"; slotId: string } | { type: "target" } | null;
@@ -223,7 +224,7 @@ export function DamagePage() {
   const { mobCatalog, error: mobError, loading: mobLoading } = useMobCatalog();
   const [searchParams, setSearchParams] = useSearchParams();
   const [initialUrlState] = useState(() => readDamageUrlState(searchParams));
-  const [viewMode, setViewMode] = useState<"single" | "compare">(() => searchParams.get("view") === "compare" ? "compare" : "single");
+  const [viewMode, setViewMode] = useState<"single" | "compare" | "scatter">(() => searchParams.get("view") === "scatter" ? "scatter" : searchParams.get("view") === "compare" ? "compare" : "single");
   const [selectedWeaponId, setSelectedWeaponId] = useState<string | null>(initialUrlState.weaponId);
   const [selectedAmmoIndex, setSelectedAmmoIndex] = useState(initialUrlState.ammoIndex);
   const [selectedAmmoModeIndex, setSelectedAmmoModeIndex] = useState(initialUrlState.ammoModeIndex);
@@ -290,8 +291,8 @@ export function DamagePage() {
   const selectedAmmoMode = ammoModes[effectiveAmmoModeIndex];
 
   useEffect(() => {
-    if (!catalog || viewMode !== "single") return;
-    setSearchParams(writeDamageUrlState({
+    if (!catalog || viewMode === "compare") return;
+    const params = writeDamageUrlState({
       weaponId: selectedWeapon?.id ?? null,
       ammoIndex: effectiveAmmoIndex,
       ammoModeIndex: effectiveAmmoModeIndex,
@@ -302,7 +303,9 @@ export function DamagePage() {
       hitDirection,
       activeAbilities,
       distance,
-    }), { replace: true });
+    });
+    if (viewMode === "scatter") params.set("view", "scatter");
+    setSearchParams(params, { replace: true });
   }, [
     activeAbilities,
     attachmentActiveBySlot,
@@ -476,6 +479,7 @@ export function DamagePage() {
       <div className="damage-view-switch" role="tablist" aria-label="Режим калькулятора">
         <button type="button" role="tab" aria-selected={viewMode === "single"} className={viewMode === "single" ? "is-active" : ""} onClick={() => setViewMode("single")}>Одна сборка</button>
         <button type="button" role="tab" aria-selected={viewMode === "compare"} className={viewMode === "compare" ? "is-active" : ""} onClick={() => setViewMode("compare")}>Сравнение</button>
+        <button type="button" role="tab" aria-selected={viewMode === "scatter"} className={viewMode === "scatter" ? "is-active" : ""} onClick={() => setViewMode("scatter")}>Отдача</button>
       </div>
 
       {loading && !catalog && <div className="status-panel" role="status"><span>DATABASE MESSAGE</span><strong>Синхронизация</strong><p>Загружаю каталог снаряжения…</p></div>}
@@ -486,7 +490,7 @@ export function DamagePage() {
         </div>
       )}
 
-      {viewMode === "single" ? <div className="damage-workspace">
+      {viewMode !== "compare" ? <div className={`damage-workspace${viewMode === "scatter" ? " scatter-workspace" : ""}`}>
       {catalog && (
         <section className="damage-loadout damage-weapon-card">
           <DamagePanelHeader
@@ -657,7 +661,8 @@ export function DamagePage() {
         </section>
       )}
 
-      {catalog && (
+      {viewMode === "scatter" && catalog && <ScatterRange key={`${selectedWeapon?.id}:${effectiveAmmoIndex}:${effectiveAmmoModeIndex}:${JSON.stringify(effectiveAttachmentBySlot)}:${JSON.stringify(attachmentActiveBySlot)}`} weapon={selectedWeapon} attachments={equippedAttachments} projectile={selectedProjectile} gameCommit={catalog.gameCommit} />}
+      {viewMode === "single" && catalog && (
         <section className="damage-loadout damage-target-card">
           <DamagePanelHeader
             index="02"
@@ -779,7 +784,7 @@ export function DamagePage() {
         </section>
       )}
 
-      {catalog && (
+      {viewMode === "single" && catalog && (
         <section className="damage-loadout damage-result-card">
           <DamagePanelHeader
             index="03"
@@ -853,13 +858,13 @@ export function DamagePage() {
         <div className="status-panel" role="status"><span>DATABASE MESSAGE</span><strong>Синхронизация</strong><p>Загружаю данные для сравнения…</p></div>
       )}
 
-      {viewMode === "single" && picker?.type === "weapon" && catalog && (
+      {viewMode !== "compare" && picker?.type === "weapon" && catalog && (
         <PickerModal title="Выбор оружия" onClose={() => setPicker(null)}>
           <WeaponPicker catalog={catalog} selectedId={selectedWeapon?.id ?? null} onSelect={selectWeapon} />
         </PickerModal>
       )}
 
-      {viewMode === "single" && picker?.type === "attachment" && catalog && activePickerSlot && (
+      {viewMode !== "compare" && picker?.type === "attachment" && catalog && activePickerSlot && (
         <PickerModal title={activePickerSlot.name ?? activePickerSlot.slotName ?? "Обвес"} onClose={() => setPicker(null)}>
           <AttachmentPicker
             catalog={catalog}

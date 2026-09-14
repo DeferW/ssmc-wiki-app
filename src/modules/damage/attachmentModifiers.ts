@@ -150,3 +150,21 @@ export function statDelta(from: number, to: number, direction: StatDirection): S
   const better = direction === "higher-better" ? to > from : to < from;
   return { from, to, better };
 }
+
+// Extra modes use the same active/wielded/tag conditions as numeric modifiers.
+export function collectAttachmentFireModes(attachments: EquippedAttachment[], weaponTags: string[]): string[] {
+  const modes: string[] = [];
+  for (const { item, active } of attachments) {
+    if (isGunAttachment(item)) continue;
+    const all = item.attachmentStats?.modifiers;
+    const ranged = isMap(all) ? all.AttachableWeaponRangedMods : undefined;
+    const entries = isMap(ranged) ? ranged.fireModeMods : undefined;
+    for (const entry of Array.isArray(entries) ? entries.filter(isMap) : []) {
+      if (!entryApplies(entry.conditions as ModifierConditions | undefined, active, weaponTags)) continue;
+      const extra = entry.extraFireModes;
+      if (typeof extra === "string") modes.push(...extra.split(/[, |]+/));
+      else if (Array.isArray(extra)) modes.push(...extra.filter((value): value is string => typeof value === "string"));
+    }
+  }
+  return [...new Set(modes)];
+}
