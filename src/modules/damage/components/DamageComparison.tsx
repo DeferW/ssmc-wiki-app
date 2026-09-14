@@ -1,3 +1,4 @@
+import { GripToggle } from "./GripToggle";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { formatNumber } from "../../equipment/format";
@@ -56,6 +57,7 @@ function buildFromUrl(state: DamageBuildUrlState, index: number): DamageBuildSta
 
 function buildForUrl(state: DamageBuildState): DamageBuildUrlState {
   return {
+    wielded: state.wielded,
     weaponId: state.weaponId,
     ammoIndex: state.ammoIndex,
     ammoModeIndex: state.ammoModeIndex,
@@ -67,6 +69,7 @@ function buildForUrl(state: DamageBuildState): DamageBuildUrlState {
 function copySeed(seed: DamageBuildUrlState | undefined, id: string): DamageBuildState {
   return seed ? {
     id,
+    wielded: seed.wielded,
     weaponId: seed.weaponId,
     ammoIndex: seed.ammoIndex,
     ammoModeIndex: seed.ammoModeIndex,
@@ -428,6 +431,7 @@ export function DamageComparison({ catalog, mobCatalog, seed }: {
                     <div className="compare-build-primary">
                       <section className="compare-build-control">
                         <header><small>WEAPON</small><strong>Оружие</strong></header>
+                        {build.weapon && <GripToggle wielded={build.state.wielded !== false} onChange={(wielded) => updateBuild(build.state.id, (current) => ({ ...current, wielded }))} />}
                         <ItemSlot label="Выбрать оружие" item={build.weapon} onOpen={() => setPicker({ type: "weapon", buildId: build.state.id })} onClear={build.weapon ? () => clearWeapon(build.state.id) : undefined} />
                       </section>
                       <section className="compare-build-control">
@@ -511,6 +515,7 @@ export function DamageComparison({ catalog, mobCatalog, seed }: {
 
 export function damageBuildSeed(state: DamageUrlState): DamageBuildUrlState {
   return {
+    wielded: state.wielded,
     weaponId: state.weaponId,
     ammoIndex: state.ammoIndex,
     ammoModeIndex: state.ammoModeIndex,

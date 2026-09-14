@@ -55,3 +55,11 @@ describe("official selective-fire geometry", () => {
     expect(collectAttachmentFireModes([{item,active:true}],["Bipod"])).toEqual(["FullAuto"]);
   });
 });
+
+it("uses one-handed base recoil and multiplies extra burst scatter", () => {
+  const config = { ...rifle, scatterUnwielded: 20, recoilUnwielded: 4,
+    modes: { ...rifle.modes, FullAuto: { ...rifle.modes.FullAuto, unwieldedMultiplier: 2 } } };
+  const model = scatterModel(config, "FullAuto", [], undefined, false);
+  expect(model.minimum).toBe(20); expect(model.maximum).toBe(46);
+  expect(model.increase).toBe(6.5); expect(model.recoil).toBe(4);
+});

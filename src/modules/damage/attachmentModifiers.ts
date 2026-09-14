@@ -43,8 +43,6 @@ export type WeaponModifiableStats = {
   rangeFlat: number;
 };
 
-// The calculator only ever compares wielded (aimed) fire, so unwieldedOnly
-// entries never contribute and wieldedOnly entries always do.
 export function isGunAttachment(item: CatalogItem): boolean {
   return item.componentTypes?.includes("Gun") ?? false;
 }
@@ -63,9 +61,10 @@ function tagsMatch(weaponTags: string[], filter: TagFilter | undefined): boolean
     : filter.tags.some((tag) => weaponTags.includes(tag));
 }
 
-function entryApplies(conditions: ModifierConditions | undefined, active: boolean, weaponTags: string[]): boolean {
+function entryApplies(conditions: ModifierConditions | undefined, active: boolean, weaponTags: string[], wielded: boolean): boolean {
   if (!conditions) return true;
-  if (conditions.unwieldedOnly) return false;
+  if (conditions.unwieldedOnly && wielded) return false;
+  if (conditions.wieldedOnly && !wielded) return false;
   if (conditions.activeOnly && !active) return false;
   if (conditions.inactiveOnly && active) return false;
   // CanApplyModifiers: whitelist gates on a fail-to-match, blacklist gates on a match.
@@ -87,12 +86,13 @@ function rangedModifierEntries(item: CatalogItem): JsonMap[] {
 export function collectRangedModifierEntries(
   attachments: EquippedAttachment[],
   weaponTags: string[],
+  wielded = true,
 ): RangedModifierEntry[] {
   const entries: RangedModifierEntry[] = [];
   for (const { item, active } of attachments) {
     if (isGunAttachment(item)) continue;
     for (const entry of rangedModifierEntries(item)) {
-      if (entryApplies(entry.conditions as ModifierConditions | undefined, active, weaponTags)) {
+      if (entryApplies(entry.conditions as ModifierConditions | undefined, active, weaponTags, wielded)) {
         entries.push(entry as RangedModifierEntry);
       }
     }
@@ -152,7 +152,7 @@ export function statDelta(from: number, to: number, direction: StatDirection): S
 }
 
 // Extra modes use the same active/wielded/tag conditions as numeric modifiers.
-export function collectAttachmentFireModes(attachments: EquippedAttachment[], weaponTags: string[]): string[] {
+export function collectAttachmentFireModes(attachments: EquippedAttachment[], weaponTags: string[], wielded = true): string[] {
   const modes: string[] = [];
   for (const { item, active } of attachments) {
     if (isGunAttachment(item)) continue;
@@ -160,7 +160,7 @@ export function collectAttachmentFireModes(attachments: EquippedAttachment[], we
     const ranged = isMap(all) ? all.AttachableWeaponRangedMods : undefined;
     const entries = isMap(ranged) ? ranged.fireModeMods : undefined;
     for (const entry of Array.isArray(entries) ? entries.filter(isMap) : []) {
-      if (!entryApplies(entry.conditions as ModifierConditions | undefined, active, weaponTags)) continue;
+      if (!entryApplies(entry.conditions as ModifierConditions | undefined, active, weaponTags, wielded)) continue;
       const extra = entry.extraFireModes;
       if (typeof extra === "string") modes.push(...extra.split(/[, |]+/));
       else if (Array.isArray(extra)) modes.push(...extra.filter((value): value is string => typeof value === "string"));

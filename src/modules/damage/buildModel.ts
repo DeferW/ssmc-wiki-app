@@ -19,6 +19,7 @@ import { ammoProjectiles } from "./components/AmmoPicker";
 export type DamageBuildState = {
   id: string;
   weaponId: string | null;
+  wielded?: boolean;
   ammoIndex: number;
   ammoModeIndex: number;
   attachmentBySlot: Record<string, string>;
@@ -177,15 +178,15 @@ export function deriveDamageBuild(
     : undefined;
   const baseStats: WeaponModifiableStats | null = weapon ? {
     damageMultiplier: numberField(weaponStats, "damageMultiplier") ?? 1,
-    accuracyWieldedMultiplier: numberField(isMap(weaponStats) ? weaponStats.accuracy : undefined, "wieldedMultiplier") ?? 1,
-    scatterWielded: numberField(isMap(weaponStats) ? weaponStats.scatter : undefined, "wielded") ?? 0,
-    recoilWielded: numberField(isMap(weaponStats) ? weaponStats.recoil : undefined, "wielded") ?? 0,
+    accuracyWieldedMultiplier: numberField(isMap(weaponStats) ? weaponStats.accuracy : undefined, state.wielded === false ? "unwieldedMultiplier" : "wieldedMultiplier") ?? 1,
+    scatterWielded: numberField(isMap(weaponStats) ? weaponStats.scatter : undefined, state.wielded === false ? "unwielded" : "wielded") ?? 0,
+    recoilWielded: numberField(isMap(weaponStats) ? weaponStats.recoil : undefined, state.wielded === false ? "unwielded" : "wielded") ?? 0,
     shotsPerSecond: numberField(weaponStats, "shotsPerSecond") ?? 0,
     damageFalloffMultiplier: numberField(weaponFalloff, "falloffMultiplier") ?? 1,
     rangeFlat: numberField(weaponFalloff, "rangeFlat") ?? 0,
   } : null;
   const modifiedStats = baseStats
-    ? foldAttachmentModifiers(baseStats, collectRangedModifierEntries(equippedAttachments, weapon?.tags ?? []))
+    ? foldAttachmentModifiers(baseStats, collectRangedModifierEntries(equippedAttachments, weapon?.tags ?? [], state.wielded !== false))
     : null;
   const damageRatio = baseStats && modifiedStats && baseStats.damageMultiplier > 0
     ? modifiedStats.damageMultiplier / baseStats.damageMultiplier

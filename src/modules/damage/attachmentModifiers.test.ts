@@ -154,3 +154,12 @@ describe("foldAttachmentModifiers", () => {
     expect(result.rangeFlat).toBe(2);
   });
 });
+
+it("selects grip-specific bonuses and penalties", () => {
+  const item = { componentTypes: [], attachmentStats: { modifiers: { AttachableWeaponRangedMods: { modifiers: [
+    { conditions: { wieldedOnly: true }, scatterFlat: -2 },
+    { conditions: { unwieldedOnly: true }, scatterFlat: 8 },
+  ] } } } } as unknown as CatalogItem;
+  expect(collectRangedModifierEntries([{ item, active: true }], [], true).map(e => e.scatterFlat)).toEqual([-2]);
+  expect(collectRangedModifierEntries([{ item, active: true }], [], false).map(e => e.scatterFlat)).toEqual([8]);
+});

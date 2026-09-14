@@ -5,9 +5,10 @@ import type { RangedModifierEntry } from "./attachmentModifiers";
 export type FireMode = "SemiAuto" | "Burst" | "FullAuto";
 export type Ballistics = {
   schemaVersion: number; rulesCommit: string; availableModes: FireMode[]; defaultMode: FireMode;
+  scatterUnwielded?: number; recoilUnwielded?: number;
   scatter: number; increase: number; decay: number; recoil: number;
   burstScatterMultiplier: number; fireRate: number; burstRateMultiplier: number; burstSize: number;
-  modes: Record<FireMode, { extraScatter: number; scaleExtraScatter: boolean; shotsToMax: number | null; fireDelay: number }>;
+  modes: Record<FireMode, { extraScatter: number; unwieldedMultiplier?: number; scaleExtraScatter: boolean; shotsToMax: number | null; fireDelay: number }>;
   unsupported: string[];
 };
 export type ScatterModel = {
@@ -21,14 +22,14 @@ export function ballisticsFrom(weapon: CatalogItem | null): Ballistics | undefin
   if (fields.some((key) => typeof value[key] !== "number" || !Number.isFinite(value[key]))) return;
   return value as unknown as Ballistics;
 }
-export function scatterModel(config: Ballistics, mode: FireMode, entries: RangedModifierEntry[], projectile?: JsonMap): ScatterModel {
+export function scatterModel(config: Ballistics, mode: FireMode, entries: RangedModifierEntry[], projectile?: JsonMap, wielded = true): ScatterModel {
   const mods = config.modes[mode];
   const burstMultiplier = entries.reduce((value, entry) => value + (entry.burstScatterAddMult ?? 0), config.burstScatterMultiplier);
-  const extra = Math.max(0, mods.extraScatter * (mods.scaleExtraScatter ? burstMultiplier : 1));
-  let minimum = config.scatter;
+  const extra = Math.max(0, mods.extraScatter * (mods.scaleExtraScatter ? burstMultiplier : 1) * (wielded ? 1 : mods.unwieldedMultiplier ?? 0));
+  let minimum = wielded ? config.scatter : config.scatterUnwielded ?? config.scatter;
   let maximum = minimum + extra;
   const increase = mods.shotsToMax != null && mods.shotsToMax > 0 ? extra / mods.shotsToMax : config.increase;
-  let recoil = config.recoil;
+  let recoil = wielded ? config.recoil : config.recoilUnwielded ?? config.recoil;
   const pellets = typeof projectile?.projectilesPerShot === "number" ? Math.max(1, Math.floor(projectile.projectilesPerShot)) : 1;
   let pelletSpread = pellets > 1 && typeof projectile?.spreadDegrees === "number" ? projectile.spreadDegrees : 0;
   let burstSize = config.burstSize;

@@ -1,3 +1,4 @@
+import { GripToggle } from "./components/GripToggle";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useCatalog } from "../equipment/catalogStore";
@@ -225,6 +226,7 @@ export function DamagePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [initialUrlState] = useState(() => readDamageUrlState(searchParams));
   const [viewMode, setViewMode] = useState<"single" | "compare" | "scatter">(() => searchParams.get("view") === "scatter" ? "scatter" : searchParams.get("view") === "compare" ? "compare" : "single");
+  const [wielded, setWielded] = useState(initialUrlState.wielded !== false);
   const [selectedWeaponId, setSelectedWeaponId] = useState<string | null>(initialUrlState.weaponId);
   const [selectedAmmoIndex, setSelectedAmmoIndex] = useState(initialUrlState.ammoIndex);
   const [selectedAmmoModeIndex, setSelectedAmmoModeIndex] = useState(initialUrlState.ammoModeIndex);
@@ -297,6 +299,7 @@ export function DamagePage() {
       ammoIndex: effectiveAmmoIndex,
       ammoModeIndex: effectiveAmmoModeIndex,
       attachmentBySlot: effectiveAttachmentBySlot,
+      wielded,
       attachmentActiveBySlot,
       target,
       targetMatured,
@@ -320,6 +323,7 @@ export function DamagePage() {
     target,
     targetMatured,
     viewMode,
+    wielded,
   ]);
 
   const selectWeapon = (id: string) => {
@@ -380,16 +384,16 @@ export function DamagePage() {
     : undefined;
   const baseStats: WeaponModifiableStats | null = selectedWeapon ? {
     damageMultiplier: numberField(weaponStats, "damageMultiplier") ?? 1,
-    accuracyWieldedMultiplier: numberField(isMap(weaponStats) ? weaponStats.accuracy : undefined, "wieldedMultiplier") ?? 1,
-    scatterWielded: numberField(isMap(weaponStats) ? weaponStats.scatter : undefined, "wielded") ?? 0,
-    recoilWielded: numberField(isMap(weaponStats) ? weaponStats.recoil : undefined, "wielded") ?? 0,
+    accuracyWieldedMultiplier: numberField(isMap(weaponStats) ? weaponStats.accuracy : undefined, wielded ? "wieldedMultiplier" : "unwieldedMultiplier") ?? 1,
+    scatterWielded: numberField(isMap(weaponStats) ? weaponStats.scatter : undefined, wielded ? "wielded" : "unwielded") ?? 0,
+    recoilWielded: numberField(isMap(weaponStats) ? weaponStats.recoil : undefined, wielded ? "wielded" : "unwielded") ?? 0,
     shotsPerSecond: numberField(weaponStats, "shotsPerSecond") ?? 0,
     damageFalloffMultiplier: numberField(weaponFalloff, "falloffMultiplier") ?? 1,
     rangeFlat: numberField(weaponFalloff, "rangeFlat") ?? 0,
   } : null;
 
   const modifiedStats = baseStats
-    ? foldAttachmentModifiers(baseStats, collectRangedModifierEntries(equippedAttachments, selectedWeapon?.tags ?? []))
+    ? foldAttachmentModifiers(baseStats, collectRangedModifierEntries(equippedAttachments, selectedWeapon?.tags ?? [], wielded))
     : null;
 
   // effectiveDamage in the catalog already has the weapon's own damageMultiplier
@@ -500,6 +504,7 @@ export function DamagePage() {
             description="Основное оружие, совместимые обвесы и боеприпасы."
           />
 
+          {selectedWeapon && <GripToggle wielded={wielded} onChange={setWielded} />}
           <div className="primary-slot-row">
             <ItemSlot
               label="Выбрать оружие"
@@ -661,7 +666,7 @@ export function DamagePage() {
         </section>
       )}
 
-      {viewMode === "scatter" && catalog && <ScatterRange key={`${selectedWeapon?.id}:${effectiveAmmoIndex}:${effectiveAmmoModeIndex}:${JSON.stringify(effectiveAttachmentBySlot)}:${JSON.stringify(attachmentActiveBySlot)}`} weapon={selectedWeapon} attachments={equippedAttachments} projectile={selectedProjectile} gameCommit={catalog.gameCommit} />}
+      {viewMode === "scatter" && catalog && <ScatterRange key={`${wielded}:${selectedWeapon?.id}:${effectiveAmmoIndex}:${effectiveAmmoModeIndex}:${JSON.stringify(effectiveAttachmentBySlot)}:${JSON.stringify(attachmentActiveBySlot)}`} weapon={selectedWeapon} wielded={wielded} attachments={equippedAttachments} projectile={selectedProjectile} gameCommit={catalog.gameCommit} />}
       {viewMode === "single" && catalog && (
         <section className="damage-loadout damage-target-card">
           <DamagePanelHeader
@@ -847,6 +852,7 @@ export function DamagePage() {
           ammoIndex: effectiveAmmoIndex,
           ammoModeIndex: effectiveAmmoModeIndex,
           attachmentBySlot: effectiveAttachmentBySlot,
+          wielded,
           attachmentActiveBySlot,
           target,
           targetMatured,

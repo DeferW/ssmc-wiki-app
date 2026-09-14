@@ -483,3 +483,15 @@
 .scatter-mode-picker .maps-picker-options button { height: auto; min-height: 36px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--muted-strong); }
 .scatter-mode-picker .maps-picker-options button:last-child { border-bottom: 0; }
 .scatter-mode-picker .maps-picker-options button:hover, .scatter-mode-picker .maps-picker-options button.is-active { background: var(--surface-highlight); color: var(--text-strong); box-shadow: inset 2px 0 var(--accent); }
+
+.grip-toggle { display: flex; gap: 4px; margin-bottom: 10px; }
+.grip-toggle button { display: grid; place-items: center; width: 44px; height: 32px; padding: 4px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer; }
+.grip-toggle button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--surface-highlight); }
+.grip-toggle svg { width: auto; height: 22px; max-width: 100%; }
+.scatter-fire-actions { display: flex; gap: 8px; }
+@media (max-width: 600px) {
+ .scatter-controls { display: grid; grid-template-columns: minmax(0, 1fr) 90px; }
+ .scatter-mode-picker { width: 100%; }
+ .scatter-fire-actions { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+ .scatter-fire-actions button { padding-inline: 3px; font-size: .64rem; white-space: nowrap; }
+}

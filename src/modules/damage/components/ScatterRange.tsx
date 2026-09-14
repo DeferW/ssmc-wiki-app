@@ -44,18 +44,18 @@ function FireModePicker({ modes, value, disabled, onChange }: {
   </div>;
 }
 
-export function ScatterRange({ weapon, attachments, projectile, gameCommit }: {
-  weapon: CatalogItem | null; attachments: EquippedAttachment[]; projectile?: JsonMap; gameCommit: string;
+export function ScatterRange({ weapon, attachments, projectile, gameCommit, wielded }: {
+  weapon: CatalogItem | null; wielded: boolean; attachments: EquippedAttachment[]; projectile?: JsonMap; gameCommit: string;
 }) {
   const config = useMemo(() => ballisticsFrom(weapon), [weapon]);
   const availableModes = useMemo(() => [...new Set([...(config?.availableModes ?? []),
-    ...collectAttachmentFireModes(attachments, weapon?.tags ?? []).filter((value): value is FireMode => value in MODE_LABELS),
-  ])], [config, attachments, weapon]);
+    ...collectAttachmentFireModes(attachments, weapon?.tags ?? [], wielded).filter((value): value is FireMode => value in MODE_LABELS),
+  ])], [config, attachments, weapon, wielded]);
   const [chosenMode, setChosenMode] = useState<FireMode>();
   const mode = chosenMode && availableModes.includes(chosenMode) ? chosenMode
     : config && availableModes.includes(config.defaultMode) ? config.defaultMode : availableModes[0] ?? "SemiAuto";
-  const entries = useMemo(() => collectRangedModifierEntries(attachments, weapon?.tags ?? []), [attachments, weapon]);
-  const model = useMemo(() => config ? scatterModel(config, mode, entries, projectile) : undefined, [config, mode, entries, projectile]);
+  const entries = useMemo(() => collectRangedModifierEntries(attachments, weapon?.tags ?? [], wielded), [attachments, weapon, wielded]);
+  const model = useMemo(() => config ? scatterModel(config, mode, entries, projectile, wielded) : undefined, [config, mode, entries, projectile, wielded]);
   const [traces, setTraces] = useState<Trace[]>([]);
   const [last, setLast] = useState<{ shot: number; scatter: number }>();
   const [running, setRunning] = useState(false);
@@ -85,8 +85,8 @@ export function ScatterRange({ weapon, attachments, projectile, gameCommit }: {
   const maxAngle = model ? (model.pellets > 1 ? model.pelletSpread : model.maximum) : 0;
   const minAngle = model ? (model.pellets > 1 ? model.pelletSpread : model.minimum) : 0;
   const currentAngle = model && model.pellets > 1 ? model.pelletSpread : last?.scatter ?? model?.minimum ?? 0;
-  const padding = Math.max(0, coneOffset(650, maxAngle) - 150);
-  const polygon = (angle: number) => `110,170 760,${170 - coneOffset(650, angle)} 760,${170 + coneOffset(650, angle)}`;
+  const padding = Math.max(0, coneOffset(640, maxAngle) - 210);
+  const polygon = (angle: number) => `170,230 810,${230 - coneOffset(640, angle)} 810,${230 + coneOffset(640, angle)}`;
   const source = `https://github.com/MetalSage/space-stories-cm14/blob/${config?.rulesCommit ?? gameCommit}/Content.Shared/Weapons/Ranged/Systems/SharedGunSystem.cs`;
   return <section className="damage-loadout scatter-panel">
     <header className="damage-panel-header"><span className="damage-panel-index">02</span><div>
@@ -100,25 +100,26 @@ export function ScatterRange({ weapon, attachments, projectile, gameCommit }: {
             onChange={(value) => { reset(); setChosenMode(value); }} />
           <label>Выстрелов в серии<input aria-label="Выстрелов в серии" type="number" min="1" max="60" value={count} disabled={running}
             onChange={(event) => setCount(Math.max(1, Math.min(60, Math.round(Number(event.target.value) || 1))))} /></label>
+          <div className="scatter-fire-actions">
           <button type="button" disabled={running || model.fireRate <= 0} onClick={() => fire(mode === "Burst" ? model.burstSize : 1)}>{mode === "Burst" ? `Очередь (${model.burstSize})` : "Выстрел"}</button>
-          <button type="button" disabled={running || mode !== "FullAuto" || model.fireRate <= 0} onClick={() => fire(count)}>Зажать спуск</button>
-          {running && <button type="button" onClick={stop}>Отпустить спуск</button>}
+          <button type="button" disabled={!running && (mode !== "FullAuto" || model.fireRate <= 0)} onClick={running ? stop : () => fire(count)}>{running ? "Отпустить спуск" : "Зажать спуск"}</button>
           <button type="button" onClick={reset}>Очистить</button>
+          </div>
         </div>
         <div className="scatter-legend"><span className="scatter-min">Минимальный сектор</span><span className="scatter-max">Максимальный сектор</span><span className="scatter-current">Последний выстрел</span></div>
-        <svg className="scatter-scene" viewBox={`0 ${-padding} 811 ${329 + padding * 2}`} role="img" aria-label={`Полигон: минимальный разброс ${formatNumber(minAngle)} градусов, максимальный ${formatNumber(maxAngle)} градусов`}>
-          <image href={rangeImage} x="0" y="0" width="811" height="329" />
+        <svg className="scatter-scene" viewBox={`0 ${-padding} 874 ${455 + padding * 2}`} role="img" aria-label={`Полигон: минимальный разброс ${formatNumber(minAngle)} градусов, максимальный ${formatNumber(maxAngle)} градусов`}>
+          <image href={rangeImage} x="0" y="0" width="874" height="455" />
           <polygon points={polygon(maxAngle)} className="scatter-cone-max" />
           <polygon points={polygon(minAngle)} className="scatter-cone-min" />
           <polygon points={polygon(currentAngle)} className="scatter-cone-current" />
-          <path d="M110 170H760" stroke="#fff9" strokeDasharray="5 7" />
-          <path d="M654 45V295" stroke="#fff7" strokeDasharray="3 6" />
+          <path d="M170 230H810" stroke="#fff9" strokeDasharray="5 7" />
+          <path d="M700 65V395" stroke="#fff7" strokeDasharray="3 6" />
           {traces.map((trace) => {
             const angle = trace.angle * Math.PI / 180;
-            return <g key={trace.id}><path className="scatter-trace" d={`M110 170l${650 * Math.cos(angle)} ${650 * Math.sin(angle)}`} />
-              <circle cx={110 + 544 * Math.cos(angle)} cy={170 + 544 * Math.sin(angle)} r="2.7" fill="#f9f1b6" opacity=".8"><title>Выстрел {trace.shot}: {formatNumber(trace.angle)}°</title></circle></g>;
+            return <g key={trace.id}><path className="scatter-trace" d={`M170 230l${640 * Math.cos(angle)} ${640 * Math.sin(angle)}`} />
+              <circle cx={170 + 530 * Math.cos(angle)} cy={230 + 530 * Math.sin(angle)} r="2.7" fill="#f9f1b6" opacity=".8"><title>Выстрел {trace.shot}: {formatNumber(trace.angle)}°</title></circle></g>;
           })}
-          <circle cx="110" cy="170" r="5" fill="#72d895" stroke="#fff" />
+          <circle cx="170" cy="230" r="5" fill="#72d895" stroke="#fff" />
         </svg>
         <div className="scatter-readouts">
           <div><span>Минимум / максимум</span><strong>{formatNumber(minAngle)}° / {formatNumber(maxAngle)}°</strong><small>Полный угол вылета; отклонение — ± половина.</small></div>
@@ -127,8 +128,8 @@ export function ScatterRange({ weapon, attachments, projectile, gameCommit }: {
           <div><span>Снарядов за выстрел</span><strong>{model.pellets}</strong><small>Разлёт боеприпаса: {formatNumber(model.pelletSpread)}°.</small></div>
         </div>
         {model.pellets > 1 && <p className="scatter-note">В этой версии игры дробовой веер строится вокруг исходной точки прицеливания, без случайного поворота от разброса оружия. Показан фактический веер с поправками обвесов.</p>}
-        <p className="scatter-note">Базовая сборка в двух руках: поправки на навыки стрелка, движение и временные эффекты не включены. Новый спуск начинает серию с минимального разброса. Точность попадания в моба рассчитывается игрой отдельно и не сужает этот сектор.</p>
-        <p className="scatter-note">Фон — визуальный ориентир из предоставленного скриншота. Стены и цель не участвуют в расчёте столкновений. Следы показывают направления, а не скорость полёта или гарантированные попадания; случайные результаты не повторяют серверный генератор.</p>
+        <p className="scatter-note">Базовая сборка {wielded ? "в двух руках" : "в одной руке"}: поправки на навыки стрелка, движение и временные эффекты не включены. Новый спуск начинает серию с минимального разброса. Точность попадания в моба рассчитывается игрой отдельно и не сужает этот сектор.</p>
+        <p className="scatter-note">Между стрелком и целью — 7 тайлов. Фон — визуальный ориентир из предоставленного скриншота. Стены и цель не участвуют в расчёте столкновений. Следы показывают направления, а не скорость полёта или гарантированные попадания; случайные результаты не повторяют серверный генератор.</p>
         <a className="scatter-source" href={source} target="_blank" rel="noreferrer">Механика официальной сборки · {config.rulesCommit.slice(0, 8)}</a>
       </>}
   </section>;

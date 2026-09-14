@@ -3,6 +3,7 @@ import type { TargetSelection } from "./target";
 
 export type DamageUrlState = {
   weaponId: string | null;
+  wielded?: boolean;
   ammoIndex: number;
   ammoModeIndex: number;
   attachmentBySlot: Record<string, string>;
@@ -15,6 +16,7 @@ export type DamageUrlState = {
 };
 
 export type DamageBuildUrlState = Pick<DamageUrlState,
+  | "wielded"
   | "weaponId"
   | "ammoIndex"
   | "ammoModeIndex"
@@ -74,6 +76,7 @@ export function readDamageUrlState(params: URLSearchParams): DamageUrlState {
   const target = targetFrom(params.get("target"));
   return {
     weaponId: params.get("weapon"),
+    wielded: params.get("hands") !== "1",
     ammoIndex: nonNegativeInteger(params.get("ammo")),
     ammoModeIndex: nonNegativeInteger(params.get("mode")),
     attachmentBySlot,
@@ -88,6 +91,7 @@ export function readDamageUrlState(params: URLSearchParams): DamageUrlState {
 
 export function writeDamageUrlState(state: DamageUrlState): URLSearchParams {
   const params = new URLSearchParams();
+  if (state.wielded === false) params.set("hands", "1");
   if (state.weaponId) {
     params.set("weapon", state.weaponId);
     if (state.ammoIndex > 0) params.set("ammo", String(state.ammoIndex));
@@ -112,6 +116,7 @@ export function writeDamageUrlState(state: DamageUrlState): URLSearchParams {
 function encodeBuild(build: DamageBuildUrlState): string {
   const serialized = JSON.stringify({
     w: build.weaponId,
+    h: build.wielded === false ? 1 : undefined,
     a: build.ammoIndex,
     m: build.ammoModeIndex,
     t: build.attachmentBySlot,
@@ -132,6 +137,7 @@ function decodeBuild(value: string): DamageBuildUrlState | null {
     const attachments = parsed.t && typeof parsed.t === "object" ? parsed.t as Record<string, unknown> : {};
     const active = parsed.v && typeof parsed.v === "object" ? parsed.v as Record<string, unknown> : {};
     return {
+      wielded: parsed.h !== 1,
       weaponId: typeof parsed.w === "string" ? parsed.w : null,
       ammoIndex: typeof parsed.a === "number" && Number.isInteger(parsed.a) && parsed.a >= 0 ? parsed.a : 0,
       ammoModeIndex: typeof parsed.m === "number" && Number.isInteger(parsed.m) && parsed.m >= 0 ? parsed.m : 0,
