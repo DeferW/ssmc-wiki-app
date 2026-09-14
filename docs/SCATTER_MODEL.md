@@ -65,14 +65,10 @@ CameraRecoilScalar — отдельный коэффициент толчка к
 
 ## Публикация
 
-Сначала опубликовать обновлённый каталог в data, затем Deploy GitHub Pages в app.
-Build catalog включает новое поле автоматически. Для существующего каталога
-того же исходного commit можно отдельно выполнить в data:
+Каталоги в data/ — результаты сборки. Не редактировать и не дополнять готовые JSON.
+Изменения параметров вносятся в scripts/catalog/ballistics.py и общий сборщик.
+Он обрабатывает все обнаруженные прототипы, включая новые пушки и предметы карт.
 
-```sh
-python -m scripts.catalog.ballistics --catalog data/catalog/catalog.json
-python -m scripts.catalog.ballistics --catalog data/maps/static-items.json
-```
-
-Команда читает уже разрешённые свойства предметов и обновляет только дополнительное
-поле ballistics. Пересборка карт не нужна.
+После публикации кода сборщиков запустить Build catalog и Build map data в data,
+затем Deploy GitHub Pages в app. Build map data создаёт static-items.json через
+тот же build_catalog_documents и populate_weapon_statistics.
