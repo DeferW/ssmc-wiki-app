@@ -117,10 +117,6 @@
 .distance-step:disabled { opacity: .35; cursor: default; }
 .distance-value { min-width: 84px; color: var(--accent-soft); font-size: .78rem; font-weight: 800; text-align: right; }
 
-.distance-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; background: var(--line-strong); cursor: pointer; }
-.distance-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border: 2px solid var(--accent); border-radius: 50%; background: var(--surface-highlight); box-shadow: 0 0 10px rgba(114, 216, 149, .4); cursor: pointer; }
-.distance-slider::-moz-range-thumb { width: 12px; height: 12px; border: 2px solid var(--accent); border-radius: 50%; background: var(--surface-highlight); box-shadow: 0 0 10px rgba(114, 216, 149, .4); cursor: pointer; }
-.distance-slider::-moz-range-track { height: 4px; background: var(--line-strong); border: 0; }
 
 .distance-presets { display: flex; gap: 8px; }
 .distance-presets button { width: 40px; height: 32px; border: 1px solid var(--line); background: var(--surface-raised); color: var(--muted); font-size: .72rem; cursor: pointer; }

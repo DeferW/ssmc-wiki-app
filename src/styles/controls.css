@@ -1,0 +1,40 @@
+/* Native popup lists retain OS accessibility; the closed control is shared. */
+select:not([multiple]):not([size]) {
+  appearance: none;
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%2391aa99' stroke-width='2'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px 8px;
+}
+/* Keep the engine-specific pseudo-elements separate: unsupported selectors
+   invalidate a combined selector list in engines without that pseudo-element. */
+input[type="range"] {
+  appearance: none;
+  box-sizing: border-box;
+  width: 100%;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  box-sizing: border-box; height: 4px; border: 0; background: var(--line-strong);
+}
+input[type="range"]::-moz-range-track {
+  box-sizing: border-box; height: 4px; border: 0; background: var(--line-strong);
+}
+input[type="range"]::-moz-range-progress { height: 4px; background: var(--line-strong); }
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none; box-sizing: border-box; width: 16px; height: 16px;
+  margin-top: -6px; border: 2px solid var(--accent); border-radius: 50%;
+  background: var(--surface-highlight); box-shadow: 0 0 10px rgba(114, 216, 149, .4);
+}
+input[type="range"]::-moz-range-thumb {
+  box-sizing: border-box; width: 16px; height: 16px;
+  border: 2px solid var(--accent); border-radius: 50%;
+  background: var(--surface-highlight); box-shadow: 0 0 10px rgba(114, 216, 149, .4);
+}
+input[type="range"]:disabled { opacity: .5; cursor: not-allowed; }

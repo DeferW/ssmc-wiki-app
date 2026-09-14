@@ -10,11 +10,16 @@ import "./styles/chemistry.css";
 import "./styles/damage.css";
 import "./styles/maps.css";
 import "./styles/responsive.css";
+import "./styles/controls.css";
 
-createRoot(document.getElementById("root")!).render(
+// Canvas caches label bitmaps: load its fonts before the first map render.
+void Promise.allSettled([
+  document.fonts.load('400 16px "IBM Plex Mono"', 'Карта Map'),
+  document.fonts.load('700 17px "IBM Plex Mono"', 'Карта Map'),
+]).then(() => createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <HashRouter>
       <App />
     </HashRouter>
   </StrictMode>,
-);
+));

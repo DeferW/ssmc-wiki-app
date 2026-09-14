@@ -12,7 +12,7 @@
 .catalog-search { display: flex; min-width: 0; align-items: center; border: 1px solid var(--line); background: var(--surface); box-shadow: inset 0 0 24px rgba(114, 216, 149, .025); }
 .catalog-search:focus-within { border-color: var(--line-strong); box-shadow: 0 0 0 2px rgba(114, 216, 149, .07); }
 .catalog-search > span:first-child { display: grid; flex: 0 0 48px; place-items: center; color: var(--muted); font-size: 1.25rem; }
-.catalog-search input { width: 100%; min-width: 0; padding: 14px 8px 14px 0; border: 0; outline: 0; background: transparent; color: var(--text); -webkit-appearance: none; appearance: none; }
+.catalog-search input { height: calc(1.25em + 28px); width: 100%; min-width: 0; padding: 14px 8px 14px 0; border: 0; outline: 0; background: transparent; color: var(--text); -webkit-appearance: none; appearance: none; }
 .catalog-search input::-webkit-search-cancel-button { display: none; -webkit-appearance: none; }
 .catalog-search input::placeholder { color: var(--muted); }
 .catalog-search button { width: 44px; height: 42px; border: 0; background: transparent; color: var(--muted); font-size: 1.25rem; cursor: pointer; }
@@ -39,7 +39,7 @@
 .filter-sidebar header > div { display: grid; gap: 4px; }
 .filter-sidebar header span { color: var(--muted); font-size: .55rem; letter-spacing: .13em; }
 .filter-sidebar header strong { color: var(--text); font-size: .86rem; text-transform: uppercase; }
-.filter-sidebar header button { display: none; border: 0; background: transparent; color: var(--muted); font-size: 1.5rem; cursor: pointer; }
+.filter-sidebar header button { width: 32px; height: 32px; padding: 0; display: none; border: 0; background: transparent; color: var(--muted); font-size: 1.5rem; cursor: pointer; }
 .category-list { display: grid; gap: 5px; }
 .category-row { display: grid; min-height: 42px; grid-template-columns: 28px minmax(0, 1fr); align-items: stretch; border: 1px solid var(--line); background: var(--surface-raised); color: var(--muted); }
 .category-row:hover { border-color: var(--line-strong); color: var(--text); }

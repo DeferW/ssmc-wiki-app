@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { Link, Navigate, NavLink, Route, Routes } from "react-router-dom";
+import { PinWindowButton } from "./components/PinWindowButton";
 import { HomePage } from "./pages/HomePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
@@ -20,6 +21,7 @@ export default function App() {
         <nav aria-label="Основная навигация">
           <NavLink to={MAIN_PATH}>Главная</NavLink>
           <NavLink to={ABOUT_PATH}>Проект</NavLink>
+          <PinWindowButton />
         </nav>
       </header>
 
