@@ -477,3 +477,9 @@
 @media (max-width: 480px) { .scatter-readouts { grid-template-columns: minmax(0, 1fr); }.scatter-controls { align-items: stretch; }.scatter-scene { min-height: 180px; } }
 
 @media (max-width: 480px) { .damage-view-switch { display: flex; max-width: 100%; }.damage-view-switch button { min-width: 0; flex: 1 1 0; padding-inline: 8px; } }
+
+.scatter-mode-field { display: grid; gap: 7px; color: var(--muted-strong); font-size: .65rem; }
+.scatter-mode-picker { width: 170px; max-width: 100%; }
+.scatter-mode-picker .maps-picker-options button { height: auto; min-height: 36px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--muted-strong); }
+.scatter-mode-picker .maps-picker-options button:last-child { border-bottom: 0; }
+.scatter-mode-picker .maps-picker-options button:hover, .scatter-mode-picker .maps-picker-options button.is-active { background: var(--surface-highlight); color: var(--text-strong); box-shadow: inset 2px 0 var(--accent); }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { formatNumber } from "../../equipment/format";
 import type { CatalogItem, JsonMap } from "../../equipment/types";
 import { ballisticsFrom, coneOffset, nextScatter, scatterModel, shotAngles, type FireMode } from "../scatterModel";
@@ -7,6 +7,42 @@ import rangeImage from "../../../assets/range-reference.png";
 
 const MODE_LABELS: Record<FireMode, string> = { SemiAuto: "Одиночный", Burst: "Очередь", FullAuto: "Автоматический" };
 type Trace = { id: number; angle: number; shot: number };
+
+function FireModePicker({ modes, value, disabled, onChange }: {
+  modes: FireMode[]; value: FireMode; disabled: boolean; onChange: (mode: FireMode) => void;
+}) {
+  const id = useId();
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const choose = (index: number) => { onChange(modes[index]); setOpen(false); };
+  return <div className="scatter-mode-field"><span>Режим стрельбы</span>
+    <div className="maps-picker-control scatter-mode-picker" onBlur={(event) => {
+      if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+    }}>
+      <button type="button" className="maps-picker-trigger" role="combobox" aria-label="Режим стрельбы"
+        aria-expanded={open} aria-controls={id} aria-haspopup="listbox"
+        aria-activedescendant={open ? `${id}-${active}` : undefined} disabled={disabled}
+        onClick={() => { setActive(Math.max(0, modes.indexOf(value))); setOpen(!open); }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") { setOpen(false); return; }
+          if (!["ArrowDown", "ArrowUp", "Enter", " ", "Home", "End"].includes(event.key)) return;
+          event.preventDefault();
+          if (!open) { setActive(Math.max(0, modes.indexOf(value))); setOpen(true); return; }
+          if (event.key === "ArrowDown") setActive((index) => (index + 1) % modes.length);
+          else if (event.key === "ArrowUp") setActive((index) => (index - 1 + modes.length) % modes.length);
+          else if (event.key === "Home") setActive(0);
+          else if (event.key === "End") setActive(modes.length - 1);
+          else choose(active);
+        }}><strong>{MODE_LABELS[value]}</strong><span className="maps-picker-chevron" aria-hidden="true" /></button>
+      {open && <div className="maps-picker-options" id={id} role="listbox" aria-label="Режим стрельбы">
+        {modes.map((mode, index) => <button type="button" role="option" id={`${id}-${index}`} key={mode}
+          tabIndex={-1} aria-selected={mode === value} className={index === active ? "is-active" : ""}
+          onMouseDown={(event) => event.preventDefault()} onMouseEnter={() => setActive(index)}
+          onClick={() => choose(index)}><strong>{MODE_LABELS[mode]}</strong></button>)}
+      </div>}
+    </div>
+  </div>;
+}
 
 export function ScatterRange({ weapon, attachments, projectile, gameCommit }: {
   weapon: CatalogItem | null; attachments: EquippedAttachment[]; projectile?: JsonMap; gameCommit: string;
@@ -60,9 +96,8 @@ export function ScatterRange({ weapon, attachments, projectile, gameCommit }: {
       : unsupported ? <div className="damage-panel-empty"><strong>Модель для этого оружия пока недоступна</strong><p>Нужны параметры обычного огнестрельного оружия RMC. Особые системы стрельбы не заменяются приблизительными числами.</p></div>
       : model && <>
         <div className="scatter-controls">
-          <label>Режим стрельбы<select aria-label="Режим стрельбы" value={mode} disabled={running} onChange={(event) => { reset(); setChosenMode(event.target.value as FireMode); }}>
-            {availableModes.map((value) => <option value={value} key={value}>{MODE_LABELS[value]}</option>)}
-          </select></label>
+          <FireModePicker modes={availableModes} value={mode} disabled={running}
+            onChange={(value) => { reset(); setChosenMode(value); }} />
           <label>Выстрелов в серии<input aria-label="Выстрелов в серии" type="number" min="1" max="60" value={count} disabled={running}
             onChange={(event) => setCount(Math.max(1, Math.min(60, Math.round(Number(event.target.value) || 1))))} /></label>
           <button type="button" disabled={running || model.fireRate <= 0} onClick={() => fire(mode === "Burst" ? model.burstSize : 1)}>{mode === "Burst" ? `Очередь (${model.burstSize})` : "Выстрел"}</button>
