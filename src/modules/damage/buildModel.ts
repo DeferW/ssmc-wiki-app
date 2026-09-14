@@ -1,3 +1,4 @@
+import { resolveGrip } from "./grip";
 import { isMap } from "../equipment/format";
 import type { Catalog, CatalogItem, CompatibilitySlot, JsonMap } from "../equipment/types";
 import {
@@ -144,6 +145,7 @@ export function deriveDamageBuild(
 ): DerivedDamageBuild {
   const candidate = state.weaponId ? catalog.items[state.weaponId] : undefined;
   const weapon = candidate?.category === "Оружие" ? candidate : null;
+  state = { ...state, wielded: resolveGrip(weapon, state.wielded !== false) };
   const attachmentSlots = attachmentSlotsFrom(weapon);
   const effectiveAttachmentBySlot: Record<string, string> = {};
   for (const slot of attachmentSlots) {

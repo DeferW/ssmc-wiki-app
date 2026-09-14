@@ -1,9 +1,10 @@
+import type { ReactNode } from "react";
 import { ItemSprite } from "../../equipment/components/ItemSprite";
 import { capitalizeName } from "../../equipment/format";
 import type { CatalogItem } from "../../equipment/types";
 import { AttachmentTooltipTrigger } from "./AttachmentEffectTooltip";
 
-export function ItemSlot({ label, item, onOpen, onClear, compact = false, locked = false, tooltipItem }: {
+export function ItemSlot({ label, item, onOpen, onClear, compact = false, locked = false, tooltipItem, footer }: {
   label: string;
   item: CatalogItem | null;
   onOpen?: () => void;
@@ -11,6 +12,7 @@ export function ItemSlot({ label, item, onOpen, onClear, compact = false, locked
   compact?: boolean;
   locked?: boolean;
   tooltipItem?: CatalogItem;
+  footer?: ReactNode;
 }) {
   const lockIcon = (
     <span className="item-slot-lock-icon" aria-hidden="true">
@@ -60,16 +62,17 @@ export function ItemSlot({ label, item, onOpen, onClear, compact = false, locked
         ) : <ItemSprite item={item} compact={compact} />}
         <span className="item-slot-copy">
           <strong>{capitalizeName(item.name)}</strong>
-          {!compact && <small>{item.id}</small>}
+          {!compact && <small>{footer ? "Заменить оружие" : item.id}</small>}
         </span>
       </button>
+      {footer && <div className="item-slot-footer">{footer}</div>}
       {onClear && (
         <button type="button" className="item-slot-clear" onClick={onClear} aria-label={`Убрать ${item.name}`}>×</button>
       )}
     </>
   );
 
-  const className = `item-slot is-filled${compact ? " is-compact" : ""}`;
+  const className = `item-slot is-filled${compact ? " is-compact" : ""}${footer ? " has-footer" : ""}`;
   return tooltipItem
     ? <AttachmentTooltipTrigger item={tooltipItem} compact={compact} className={className}>{content}</AttachmentTooltipTrigger>
     : <div className={className}>{content}</div>;

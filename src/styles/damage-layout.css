@@ -1,0 +1,83 @@
+/* Shared layout for damage calculation, comparison and the firing range. */
+.damage-page { max-width: 1520px; }
+.damage-page .damage-hero { padding: 12px 0 18px; border: 0; background: none; }
+.damage-page .damage-hero h1 { font-size: clamp(2rem, 4vw, 3rem); margin: 8px 0; }
+.damage-page .damage-hero .catalog-meta { border: 0; background: none; padding: 0; }
+.damage-page .damage-view-switch { display: flex; width: 100%; padding: 0; gap: 20px; margin-bottom: 24px; border: 0; border-bottom: 1px solid var(--line); background: none; }
+.damage-page .damage-view-switch button { min-width: 0; padding: 12px 6px; font-size: .76rem; text-transform: none; letter-spacing: 0; border: 0; border-bottom: 2px solid transparent; }
+.damage-page .damage-view-switch button.is-active { background: none; border-bottom-color: var(--accent); color: var(--accent); }
+.damage-page .damage-loadout { padding: 20px; gap: 20px; background: var(--surface); }
+.damage-page .damage-loadout::before { display: none; }
+.damage-page .damage-panel-header { min-height: 0; align-items: center; grid-template-columns: 24px 1fr; gap: 10px; padding-bottom: 16px; }
+.damage-page .damage-panel-index { width: auto; height: auto; border: 0; color: var(--muted); font-size: .7rem; }
+.damage-page .damage-panel-header h2 { font-size: 1rem; text-transform: none; }
+.damage-page .damage-panel-header small { font-size: .65rem; line-height: 1.5; }
+.damage-page .item-slot.has-footer { background: var(--surface-raised); border-color: var(--line); }
+.damage-page .item-slot.has-footer .item-slot-main { height: auto; min-height: 70px; padding: 12px 34px 4px 12px; align-items: center; }
+.damage-page .item-slot.has-footer .sprite-frame, .damage-page .item-slot.has-footer .sprite-placeholder { flex: 0 0 44px; width: 44px; height: 44px; }
+.damage-page .item-slot.has-footer .item-slot-copy strong { font-size: .76rem; line-height: 1.5; }
+.damage-page .item-slot.has-footer .item-slot-copy small { font-size: .58rem; margin-top: 4px; }
+.damage-page .item-slot-footer { padding: 5px 12px 12px 68px; }
+.damage-page .grip-toggle { display: inline-flex; gap: 2px; margin: 0; padding: 2px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); }
+.damage-page .grip-toggle button { width: 40px; height: 30px; padding: 4px; border: 0; border-radius: 3px; background: transparent; color: var(--muted); }
+.damage-page .grip-toggle button[aria-pressed="true"] { color: var(--accent); background: var(--surface-highlight); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.damage-page .grip-toggle button:disabled { opacity: .24; cursor: not-allowed; }
+.damage-page .grip-toggle button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.damage-page .grip-toggle svg { width: 30px; height: 22px; }
+.damage-page .damage-section-header { margin-bottom: 10px; }
+.damage-page .damage-loadout h3 { text-transform: none; letter-spacing: 0; font-size: .75rem; }
+.damage-page .ammo-picker { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; margin-bottom: 0; }
+.damage-page .ammo-chip { min-width: 0; padding: 10px; line-height: 1.5; }
+.damage-page .ammo-chip.is-selected { box-shadow: inset 2px 0 var(--accent); }
+.damage-build-details { border-top: 1px solid var(--line); padding-top: 12px; }
+.damage-build-details summary { color: var(--muted-strong); font-size: .7rem; cursor: pointer; padding: 3px 0; }
+.damage-build-details[open] summary { color: var(--text); margin-bottom: 10px; }
+.damage-page .stat-grid { margin: 0; }
+.damage-page .stat-grid > div { border-bottom: 0; min-height: 30px; padding: 6px 0; }
+.damage-page .stat-grid > div + div { border-top: 1px solid color-mix(in srgb,var(--line) 50%,transparent); }
+.damage-page .compare-target, .damage-page .compare-builds, .damage-page .compare-results { background: var(--surface); }
+.damage-page .compare-build-head { padding: 14px; }
+.damage-page .compare-build.is-open { box-shadow: inset 2px 0 var(--series-color); border-color: var(--line-strong); }
+.damage-page .compare-build-primary { gap: 16px; }
+.damage-page .compare-build-control > header { padding-bottom: 8px; border-bottom: 0; }
+.damage-page .compare-target-head strong { text-transform: none; }
+.damage-page .compare-section-title h2 { text-transform: none; }
+.damage-page .scatter-controls { gap: 12px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+.damage-page .scatter-controls label, .damage-page .scatter-mode-field { font-size: .65rem; }
+.damage-page .scatter-fire-actions button:first-child { color: var(--accent); border-color: var(--accent); }
+.damage-page .scatter-readouts { border: 0; gap: 10px 20px; }
+.damage-page .scatter-readouts > div { border: 0; border-top: 1px solid var(--line); padding: 12px 0; gap: 7px; }
+.damage-page .scatter-explanation .scatter-note { margin: 10px 0; }
+@media (max-width: 1100px) {
+ .damage-page .damage-loadout { padding: 16px; gap: 16px; }
+}
+@media (max-width: 600px) {
+ .damage-page .damage-hero { gap: 12px; }
+ .damage-page .damage-hero .catalog-meta { display: none; }
+ .damage-page .damage-view-switch { gap: 0; margin-bottom: 16px; }
+ .damage-page .damage-view-switch button { flex: 1; padding: 12px 6px; }
+ .damage-page .scatter-controls { grid-template-columns: minmax(0,1fr) 90px; }
+ .damage-page .scatter-readouts { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+ .damage-page .scatter-readouts strong { font-size: .9rem; }
+ .damage-page .scatter-readouts small { font-size: .58rem; }
+ .damage-page .compare-target-body { grid-template-columns: minmax(0,1fr); }
+ .damage-page .compare-target-head { grid-template-columns: minmax(0,1fr) 18px; gap: 8px; }
+ .damage-page .compare-target-summary { grid-column: 1; grid-row: 2; text-align: left; }
+ .damage-page .compare-target-head > i { grid-column: 2; grid-row: 1 / 3; }
+}
+
+.damage-page .item-slot.has-footer { border: 1px solid var(--line); }
+.damage-page .item-slot.has-footer .item-slot-main { border: 0; background: transparent; }
+@media (max-width: 600px) {
+ .damage-page .attachment-rack { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); overflow: visible; gap: 8px; }
+ .damage-page .attachment-slot-wrap { min-width: 0; width: auto; }
+ .damage-page .attachment-rack .item-slot { min-width: 0; width: 100%; }
+}
+
+.damage-page .compare-build-primary { grid-template-columns: minmax(0,1fr); }
+.damage-page .compare-build-control { padding: 0; border: 0; background: none; }
+.damage-page .compare-build-control .item-slot-copy strong { white-space: normal; display: block; overflow: visible; }
+.damage-page .compare-build-control > header { font-size: .72rem; text-transform: none; }
+.damage-page .compare-build-body .attachment-section { padding: 12px 0; border: 0; border-top: 1px solid var(--line); background: none; }
+.damage-page .compare-build-body h3 { margin: 0; font-size: .75rem; text-transform: none; }
+.damage-page .compare-build-body .damage-section-header { min-height: 0; padding: 0; margin-bottom: 12px; }

@@ -407,7 +407,7 @@ export function DamageComparison({ catalog, mobCatalog, seed }: {
 
       <div className="compare-workspace">
         <section className="compare-builds" aria-label="Сравниваемые сборки">
-          <header className="compare-section-title"><div><small>LOADOUT MATRIX</small><h2>Сборки</h2></div><span>{builds.length} / {MAX_BUILDS}</span></header>
+          <header className="compare-section-title"><div><h2>Сборки</h2></div><span>{builds.length} / {MAX_BUILDS}</span></header>
           <div className="compare-build-list">
             {derivedBuilds.map((build, index) => {
               const isOpen = expandedBuildId === build.state.id;
@@ -430,12 +430,11 @@ export function DamageComparison({ catalog, mobCatalog, seed }: {
                   <div className="compare-build-body">
                     <div className="compare-build-primary">
                       <section className="compare-build-control">
-                        <header><small>WEAPON</small><strong>Оружие</strong></header>
-                        {build.weapon && <GripToggle wielded={build.state.wielded !== false} onChange={(wielded) => updateBuild(build.state.id, (current) => ({ ...current, wielded }))} />}
-                        <ItemSlot label="Выбрать оружие" item={build.weapon} onOpen={() => setPicker({ type: "weapon", buildId: build.state.id })} onClear={build.weapon ? () => clearWeapon(build.state.id) : undefined} />
+                        <header><strong>Оружие</strong></header>
+                        <ItemSlot label="Выбрать оружие" footer={<GripToggle weapon={build.weapon} wielded={build.state.wielded !== false} onChange={(wielded) => updateBuild(build.state.id, (current) => ({ ...current, wielded }))} />} item={build.weapon} onOpen={() => setPicker({ type: "weapon", buildId: build.state.id })} onClear={build.weapon ? () => clearWeapon(build.state.id) : undefined} />
                       </section>
                       <section className="compare-build-control">
-                        <header><small>AMMUNITION</small><strong>Боеприпасы</strong></header>
+                        <header><strong>Боеприпасы</strong></header>
                         {build.ammunition.length > 0
                           ? <AmmoPicker ammunition={build.ammunition} selectedIndex={build.ammoIndex} onSelect={(ammoIndex) => updateBuild(build.state.id, (current) => ({ ...current, ammoIndex }))} />
                           : <p className="compare-control-empty">Сначала выберите оружие.</p>}
@@ -482,7 +481,7 @@ export function DamageComparison({ catalog, mobCatalog, seed }: {
         </section>
 
         <section className="compare-results">
-          <header className="compare-section-title"><div><small>FIRE SOLUTION</small><h2>Результат</h2></div><span>{distance} тайлов</span></header>
+          <header className="compare-section-title"><div><h2>Результат</h2></div><span>{distance} тайлов</span></header>
           <DistanceControl distance={distance} onChange={setDistance} />
           <div className="compare-legend" aria-label="Легенда графика TTK">
             {derivedBuilds.map((build, index) => <span className={`series-${index + 1}`} key={build.state.id}><i aria-hidden="true" />{String(index + 1).padStart(2, "0")} · {build.weapon?.name ?? "Не выбрано"}</span>)}

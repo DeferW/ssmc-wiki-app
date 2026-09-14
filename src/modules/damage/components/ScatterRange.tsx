@@ -90,7 +90,7 @@ export function ScatterRange({ weapon, attachments, projectile, gameCommit, wiel
   const source = `https://github.com/MetalSage/space-stories-cm14/blob/${config?.rulesCommit ?? gameCommit}/Content.Shared/Weapons/Ranged/Systems/SharedGunSystem.cs`;
   return <section className="damage-loadout scatter-panel">
     <header className="damage-panel-header"><span className="damage-panel-index">02</span><div>
-      <p>FIRING RANGE</p><h2>Отдача и разброс</h2><small>Секторы вылета пуль и следы выстрелов выбранной сборки.</small>
+      <h2>Полигон</h2><small>Секторы вылета пуль и следы выстрелов выбранной сборки.</small>
     </div></header>
     {!weapon ? <div className="damage-panel-empty"><strong>Соберите оружие слева</strong><p>После выбора появятся границы разброса и управление стрельбой.</p></div>
       : unsupported ? <div className="damage-panel-empty"><strong>Модель для этого оружия пока недоступна</strong><p>Нужны параметры обычного огнестрельного оружия RMC. Особые системы стрельбы не заменяются приблизительными числами.</p></div>
@@ -98,7 +98,7 @@ export function ScatterRange({ weapon, attachments, projectile, gameCommit, wiel
         <div className="scatter-controls">
           <FireModePicker modes={availableModes} value={mode} disabled={running}
             onChange={(value) => { reset(); setChosenMode(value); }} />
-          <label>Выстрелов в серии<input aria-label="Выстрелов в серии" type="number" min="1" max="60" value={count} disabled={running}
+          <label>Длина серии<input aria-label="Длина серии" type="number" min="1" max="60" value={count} disabled={running}
             onChange={(event) => setCount(Math.max(1, Math.min(60, Math.round(Number(event.target.value) || 1))))} /></label>
           <div className="scatter-fire-actions">
           <button type="button" disabled={running || model.fireRate <= 0} onClick={() => fire(mode === "Burst" ? model.burstSize : 1)}>{mode === "Burst" ? `Очередь (${model.burstSize})` : "Выстрел"}</button>
@@ -128,9 +128,9 @@ export function ScatterRange({ weapon, attachments, projectile, gameCommit, wiel
           <div><span>Снарядов за выстрел</span><strong>{model.pellets}</strong><small>Разлёт боеприпаса: {formatNumber(model.pelletSpread)}°.</small></div>
         </div>
         {model.pellets > 1 && <p className="scatter-note">В этой версии игры дробовой веер строится вокруг исходной точки прицеливания, без случайного поворота от разброса оружия. Показан фактический веер с поправками обвесов.</p>}
-        <p className="scatter-note">Базовая сборка {wielded ? "в двух руках" : "в одной руке"}: поправки на навыки стрелка, движение и временные эффекты не включены. Новый спуск начинает серию с минимального разброса. Точность попадания в моба рассчитывается игрой отдельно и не сужает этот сектор.</p>
+        <details className="damage-build-details scatter-explanation"><summary>Как читать полигон</summary><p className="scatter-note">Базовая сборка {wielded ? "в двух руках" : "в одной руке"}: поправки на навыки стрелка, движение и временные эффекты не включены. Новый спуск начинает серию с минимального разброса. Точность попадания в моба рассчитывается игрой отдельно и не сужает этот сектор.</p>
         <p className="scatter-note">Между стрелком и целью — 7 тайлов. Фон — визуальный ориентир из предоставленного скриншота. Стены и цель не участвуют в расчёте столкновений. Следы показывают направления, а не скорость полёта или гарантированные попадания; случайные результаты не повторяют серверный генератор.</p>
-        <a className="scatter-source" href={source} target="_blank" rel="noreferrer">Механика официальной сборки · {config.rulesCommit.slice(0, 8)}</a>
+        <a className="scatter-source" href={source} target="_blank" rel="noreferrer">Механика официальной сборки · {config.rulesCommit.slice(0, 8)}</a></details>
       </>}
   </section>;
 }

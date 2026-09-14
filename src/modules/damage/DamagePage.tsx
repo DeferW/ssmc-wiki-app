@@ -1,3 +1,4 @@
+import { resolveGrip } from "./grip";
 import { GripToggle } from "./components/GripToggle";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -202,7 +203,7 @@ function StatRow({ label, from, to, direction, format }: {
   );
 }
 
-function DamagePanelHeader({ index, eyebrow, title, description }: {
+function DamagePanelHeader({ index, title, description }: {
   index: string;
   eyebrow: string;
   title: string;
@@ -212,7 +213,6 @@ function DamagePanelHeader({ index, eyebrow, title, description }: {
     <header className="damage-panel-header">
       <span className="damage-panel-index" aria-hidden="true">{index}</span>
       <div>
-        <p>{eyebrow}</p>
         <h2>{title}</h2>
         <small>{description}</small>
       </div>
@@ -226,7 +226,7 @@ export function DamagePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [initialUrlState] = useState(() => readDamageUrlState(searchParams));
   const [viewMode, setViewMode] = useState<"single" | "compare" | "scatter">(() => searchParams.get("view") === "scatter" ? "scatter" : searchParams.get("view") === "compare" ? "compare" : "single");
-  const [wielded, setWielded] = useState(initialUrlState.wielded !== false);
+  const [requestedWielded, setWielded] = useState(initialUrlState.wielded !== false);
   const [selectedWeaponId, setSelectedWeaponId] = useState<string | null>(initialUrlState.weaponId);
   const [selectedAmmoIndex, setSelectedAmmoIndex] = useState(initialUrlState.ammoIndex);
   const [selectedAmmoModeIndex, setSelectedAmmoModeIndex] = useState(initialUrlState.ammoModeIndex);
@@ -243,6 +243,7 @@ export function DamagePage() {
   const selectedWeapon = selectedWeaponCandidate?.category === "Оружие" && canDamageAnyTarget(selectedWeaponCandidate)
     ? selectedWeaponCandidate
     : null;
+  const wielded = resolveGrip(selectedWeapon, requestedWielded);
   const attachmentSlots = useMemo(() => {
     if (!selectedWeapon) return [];
     const holder = selectedWeapon.properties?.AttachableHolder;
@@ -470,9 +471,9 @@ export function DamagePage() {
     <main className="damage-page">
       <section className="damage-hero">
         <div>
-          <p className="eyebrow">USCM // TTK CALCULATOR</p>
-          <h1>Калькулятор урона</h1>
-          <p>Оружие, боеприпасы, дистанция и броня цели — расчёт урона и времени до убийства.</p>
+          <p className="eyebrow">ТАКТИЧЕСКИЙ АНАЛИЗ</p>
+          <h1>Урон</h1>
+          <p>Расчёт попаданий, сравнение сборок и контроль разброса.</p>
         </div>
         <div className="catalog-meta">
           <span>STATUS</span><strong>{loading ? "SYNC" : error ? "ERROR" : "ONLINE"}</strong>
@@ -480,8 +481,8 @@ export function DamagePage() {
         </div>
       </section>
 
-      <div className="damage-view-switch" role="tablist" aria-label="Режим калькулятора">
-        <button type="button" role="tab" aria-selected={viewMode === "single"} className={viewMode === "single" ? "is-active" : ""} onClick={() => setViewMode("single")}>Одна сборка</button>
+      <div className="damage-view-switch" role="tablist" aria-label="Инструменты урона">
+        <button type="button" role="tab" aria-selected={viewMode === "single"} className={viewMode === "single" ? "is-active" : ""} onClick={() => setViewMode("single")}>Расчёт</button>
         <button type="button" role="tab" aria-selected={viewMode === "compare"} className={viewMode === "compare" ? "is-active" : ""} onClick={() => setViewMode("compare")}>Сравнение</button>
         <button type="button" role="tab" aria-selected={viewMode === "scatter"} className={viewMode === "scatter" ? "is-active" : ""} onClick={() => setViewMode("scatter")}>Отдача</button>
       </div>
@@ -504,11 +505,11 @@ export function DamagePage() {
             description="Основное оружие, совместимые обвесы и боеприпасы."
           />
 
-          {selectedWeapon && <GripToggle wielded={wielded} onChange={setWielded} />}
           <div className="primary-slot-row">
             <ItemSlot
               label="Выбрать оружие"
               item={selectedWeapon}
+              footer={<GripToggle weapon={selectedWeapon} wielded={wielded} onChange={setWielded} />}
               onOpen={() => setPicker({ type: "weapon" })}
               onClear={selectedWeapon ? clearWeapon : undefined}
             />
@@ -557,7 +558,7 @@ export function DamagePage() {
           )}
 
           {selectedWeapon && baseStats && modifiedStats && (
-            <dl className="stat-grid">
+            <details className="damage-build-details"><summary>Характеристики сборки</summary><dl className="stat-grid">
               <StatRow label="Точность" from={baseStats.accuracyWieldedMultiplier} to={modifiedStats.accuracyWieldedMultiplier} direction="higher-better" format={(value) => `×${formatNumber(value)}`} />
               <StatRow label="Разброс" from={baseStats.scatterWielded} to={modifiedStats.scatterWielded} direction="lower-better" format={(value) => formatNumber(value)} />
               <StatRow label="Отдача" from={baseStats.recoilWielded} to={modifiedStats.recoilWielded} direction="lower-better" format={(value) => formatNumber(value)} />
@@ -565,7 +566,7 @@ export function DamagePage() {
               <StatRow label="Множитель урона" from={baseStats.damageMultiplier} to={modifiedStats.damageMultiplier} direction="higher-better" format={(value) => `×${formatNumber(value)}`} />
               <StatRow label="Падение урона" from={baseStats.damageFalloffMultiplier} to={modifiedStats.damageFalloffMultiplier} direction="lower-better" format={(value) => `×${formatNumber(value)}`} />
               <StatRow label="Дальность" from={baseStats.rangeFlat} to={modifiedStats.rangeFlat} direction="higher-better" format={(value) => `${value > 0 ? "+" : ""}${formatNumber(value)} т.`} />
-            </dl>
+            </dl></details>
           )}
 
           {overheat && modifiedStats && (

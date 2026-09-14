@@ -11,6 +11,7 @@ import "./styles/damage.css";
 import "./styles/maps.css";
 import "./styles/responsive.css";
 import "./styles/controls.css";
+import "./styles/damage-layout.css";
 
 // Canvas caches label bitmaps: load its fonts before the first map render.
 void Promise.allSettled([

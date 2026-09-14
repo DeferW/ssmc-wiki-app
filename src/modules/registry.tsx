@@ -47,8 +47,8 @@ export const modules: ModuleDefinition[] = [
   {
     id: "damage",
     path: modulePath("damage"),
-    title: "Калькулятор урона",
-    summary: "Расчёт урона с учётом дистанции, брони и бронепробития.",
+    title: "Урон",
+    summary: "Урон и время до убийства, сравнение сборок и визуализация разброса.",
     code: "DMG-04",
     status: "active",
     Component: DamagePage,

@@ -68,11 +68,11 @@ function WeaponBlock({ stats }: { stats: JsonMap }) {
         ["Очередь", stats.burstSize != null ? `${formatNumber(stats.burstSize)} выстр.` : null],
         ["Ёмкость", provider.capacity],
         ["Множитель урона", stats.damageMultiplier != null ? `×${formatNumber(stats.damageMultiplier)}` : null],
-        ["Отдача · в упоре", recoil.wielded],
-        ["Отдача · с рук", recoil.unwielded],
-        ["Разброс · в упоре", scatter.wielded],
-        ["Разброс · с рук", scatter.unwielded],
-        ["Точность · в упоре", accuracy.wieldedMultiplier != null ? `×${formatNumber(accuracy.wieldedMultiplier)}` : null],
+        ["Отдача · в двух руках", recoil.wielded],
+        ["Отдача · в одной руке", recoil.unwielded],
+        ["Разброс · в двух руках", scatter.wielded],
+        ["Разброс · в одной руке", scatter.unwielded],
+        ["Точность · в двух руках", accuracy.wieldedMultiplier != null ? `×${formatNumber(accuracy.wieldedMultiplier)}` : null],
       ]} />
       {ammoModes.length > 0 && (
         <div className="ammo-list">
