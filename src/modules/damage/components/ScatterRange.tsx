@@ -1,3 +1,5 @@
+import { XenoEvasionList } from "./XenoEvasionList";
+import type { MobCatalog } from "../mobTypes";
 import { projectileHitChance, shotOutcome, type ShotOutcome } from "../projectileAccuracy";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { formatNumber } from "../../equipment/format";
@@ -45,8 +47,8 @@ function FireModePicker({ modes, value, disabled, onChange }: {
   </div>;
 }
 
-export function ScatterRange({ weapon, attachments, projectile, gameCommit, wielded, accuracyMultiplier, rangeFlat }: {
-  weapon: CatalogItem | null; wielded: boolean; attachments: EquippedAttachment[]; projectile?: JsonMap; gameCommit: string; accuracyMultiplier: number; rangeFlat: number;
+export function ScatterRange({ weapon, attachments, projectile, gameCommit, wielded, accuracyMultiplier, rangeFlat, mobCatalog, mobLoading, mobError }: {
+  weapon: CatalogItem | null; wielded: boolean; attachments: EquippedAttachment[]; projectile?: JsonMap; gameCommit: string; accuracyMultiplier: number; rangeFlat: number; mobCatalog: MobCatalog | null; mobLoading: boolean; mobError: string | null;
 }) {
   const config = useMemo(() => ballisticsFrom(weapon), [weapon]);
   const availableModes = useMemo(() => [...new Set([...(config?.availableModes ?? []),
@@ -62,7 +64,9 @@ export function ScatterRange({ weapon, attachments, projectile, gameCommit, wiel
   const [traces, setTraces] = useState<Trace[]>([]);
   const [last, setLast] = useState<{ shot: number; scatter: number }>();
   const [running, setRunning] = useState(false);
-  const [count, setCount] = useState(10);
+  const [countInput, setCountInput] = useState("10");
+  const count = Math.max(1, Math.min(60, Math.round(Number(countInput) || 1)));
+  const evasionHintId = useId();
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const sequence = useRef(0);
   const stop = () => { clearTimeout(timer.current); timer.current = undefined; setRunning(false); };
@@ -101,8 +105,10 @@ export function ScatterRange({ weapon, attachments, projectile, gameCommit, wiel
         <div className="scatter-controls">
           <FireModePicker modes={availableModes} value={mode} disabled={running}
             onChange={(value) => { reset(); setChosenMode(value); }} />
-          <label>Длина серии<input aria-label="Длина серии" type="number" min="1" max="60" value={count} disabled={running}
-            onChange={(event) => setCount(Math.max(1, Math.min(60, Math.round(Number(event.target.value) || 1))))} /></label>
+          <label>Длина серии<input aria-label="Длина серии" type="number" min="1" max="60" value={countInput} disabled={running}
+            onChange={(event) => setCountInput(event.target.value)}
+            onBlur={() => setCountInput(String(count))}
+            onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></label>
           <div className="scatter-fire-actions">
           <button type="button" disabled={running || model.fireRate <= 0} onClick={() => fire(mode === "Burst" ? model.burstSize : 1)}>{mode === "Burst" ? `Очередь (${model.burstSize})` : "Выстрел"}</button>
           <button type="button" disabled={!running && (mode !== "FullAuto" || model.fireRate <= 0)} onClick={running ? stop : () => fire(count)}>{running ? "Отпустить спуск" : "Зажать спуск"}</button>
@@ -110,10 +116,12 @@ export function ScatterRange({ weapon, attachments, projectile, gameCommit, wiel
           </div>
         </div>
         <div className="scatter-target-settings"><span>Цель на 7 тайлах · уклонение</span>
-          <input type="number" aria-label="Уклонение цели" value={evasion} min="-100" max="100" disabled={running}
+          <input type="number" aria-label="Уклонение цели" aria-describedby={evasionHintId} value={evasion} min="-100" max="100" disabled={running}
             onChange={(event) => { reset(); setEvasion(Math.max(-100, Math.min(100, Number(event.target.value) || 0))); }} />
           <span>При пересечении цели: {hitChance == null ? "нет данных точности" : `${formatNumber(hitChance * 100)}% попадания`}</span>
         </div>
+        <p className="scatter-note" id={evasionHintId}>Уклонение цели снижает шанс попадания, даже если пуля летит в неё: 10 — это минус 10 процентных пунктов, до игрового минимума. 0 означает отсутствие поправки, а не гарантированное попадание. Оставьте 0 для базового сравнения; это не автоматическое значение ксеноморфа на картинке.</p>
+        <XenoEvasionList catalog={mobCatalog} loading={mobLoading} error={mobError} />
         <div className="scatter-hit-summary" aria-live="polite">
           <span className="is-hit">Попадание: {traces.filter(t => t.outcome === "hit").length}</span>
           <span className="is-dodge">Прошла насквозь: {traces.filter(t => t.outcome === "dodge").length}</span>

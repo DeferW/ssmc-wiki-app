@@ -20,6 +20,7 @@ export type XenoCaste = {
   id: string;
   name: string;
   strainName: string | null;
+  evasion?: { base: number; sizeModifier: number; standing: number } | null;
   size: RmcSize;
   origin: string;
   sourceFile: string;
@@ -38,6 +39,7 @@ export function xenoCasteLabel(caste: XenoCaste): string {
 }
 
 export type MobCatalog = {
+  evasionSchemaVersion?: number;
   schemaVersion: number;
   source: string;
   gameCommit: string;

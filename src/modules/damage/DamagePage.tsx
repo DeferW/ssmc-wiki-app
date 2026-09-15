@@ -667,7 +667,7 @@ export function DamagePage() {
         </section>
       )}
 
-      {viewMode === "scatter" && catalog && <ScatterRange key={`${wielded}:${selectedWeapon?.id}:${effectiveAmmoIndex}:${effectiveAmmoModeIndex}:${JSON.stringify(effectiveAttachmentBySlot)}:${JSON.stringify(attachmentActiveBySlot)}`} weapon={selectedWeapon} wielded={wielded} attachments={equippedAttachments} projectile={selectedProjectile} gameCommit={catalog.gameCommit} accuracyMultiplier={modifiedStats?.accuracyWieldedMultiplier ?? 1} rangeFlat={modifiedStats?.rangeFlat ?? 0} />}
+      {viewMode === "scatter" && catalog && <ScatterRange key={`${wielded}:${selectedWeapon?.id}:${effectiveAmmoIndex}:${effectiveAmmoModeIndex}:${JSON.stringify(effectiveAttachmentBySlot)}:${JSON.stringify(attachmentActiveBySlot)}`} weapon={selectedWeapon} wielded={wielded} attachments={equippedAttachments} projectile={selectedProjectile} gameCommit={catalog.gameCommit} accuracyMultiplier={modifiedStats?.accuracyWieldedMultiplier ?? 1} rangeFlat={modifiedStats?.rangeFlat ?? 0} mobCatalog={mobCatalog} mobLoading={mobLoading} mobError={mobError} />}
       {viewMode === "single" && catalog && (
         <section className="damage-loadout damage-target-card">
           <DamagePanelHeader

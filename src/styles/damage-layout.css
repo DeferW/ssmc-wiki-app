@@ -124,3 +124,8 @@
  .weapon-picker-categories button { padding: 8px; font-size: .64rem; }
  .weapon-picker-layout .weapon-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
+
+.xeno-evasion-list table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: .68rem; }
+.xeno-evasion-list th, .xeno-evasion-list td { padding: 9px 8px; border-bottom: 1px solid var(--line); text-align: left; overflow-wrap: anywhere; }
+.xeno-evasion-list th { color: var(--muted); font-weight: 500; }
+.xeno-evasion-list th:last-child, .xeno-evasion-list td:last-child { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
