@@ -59,7 +59,8 @@ export function ScatterRange({ weapon, attachments, projectile, gameCommit, wiel
     : config && availableModes.includes(config.defaultMode) ? config.defaultMode : availableModes[0] ?? "SemiAuto";
   const entries = useMemo(() => collectRangedModifierEntries(attachments, weapon?.tags ?? [], wielded), [attachments, weapon, wielded]);
   const model = useMemo(() => config ? scatterModel(config, mode, entries, projectile, wielded) : undefined, [config, mode, entries, projectile, wielded]);
-  const [evasion, setEvasion] = useState(0);
+  const [evasionInput, setEvasionInput] = useState("0");
+  const evasion = Math.max(-100, Math.min(100, Number(evasionInput) || 0));
   const hitChance = projectileHitChance(projectile, accuracyMultiplier, 7, rangeFlat, evasion);
   const [traces, setTraces] = useState<Trace[]>([]);
   const [last, setLast] = useState<{ shot: number; scatter: number }>();
@@ -116,8 +117,10 @@ export function ScatterRange({ weapon, attachments, projectile, gameCommit, wiel
           </div>
         </div>
         <div className="scatter-target-settings"><span>Цель на 7 тайлах · уклонение</span>
-          <input type="number" aria-label="Уклонение цели" aria-describedby={evasionHintId} value={evasion} min="-100" max="100" disabled={running}
-            onChange={(event) => { reset(); setEvasion(Math.max(-100, Math.min(100, Number(event.target.value) || 0))); }} />
+          <input type="number" aria-label="Уклонение цели" aria-describedby={evasionHintId} value={evasionInput} min="-100" max="100" disabled={running}
+            onChange={(event) => { reset(); setEvasionInput(event.target.value); }}
+            onBlur={() => setEvasionInput(String(evasion))}
+            onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} />
           <span>При пересечении цели: {hitChance == null ? "нет данных точности" : `${formatNumber(hitChance * 100)}% попадания`}</span>
         </div>
         <p className="scatter-note" id={evasionHintId}>Уклонение цели снижает шанс попадания, даже если пуля летит в неё: 10 — это минус 10 процентных пунктов, до игрового минимума. 0 означает отсутствие поправки, а не гарантированное попадание. Оставьте 0 для базового сравнения; это не автоматическое значение ксеноморфа на картинке.</p>
