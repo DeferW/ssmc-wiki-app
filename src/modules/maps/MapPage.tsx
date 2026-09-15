@@ -322,8 +322,8 @@ export function MapPage() {
   }, [layers]);
 
   const previewPoints = useMemo(
-    () => overlay ? previewMapPoints(overlay, staticItemCatalog, activeInserts) : [],
-    [activeInserts, overlay, staticItemCatalog],
+    () => overlay ? previewMapPoints(overlay, staticItemCatalog, activeInserts, entry) : [],
+    [activeInserts, overlay, staticItemCatalog, entry],
   );
   const allPoints = useMemo(() => previewPoints.filter((point) => point.category !== "item" && point.category !== "object" && !(point.category === "label" && point.inactive)), [previewPoints]);
   const overlayPoints = useMemo(() => {

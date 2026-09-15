@@ -421,6 +421,7 @@ export function previewMapPoints(
   overlay: MapOverlay,
   catalog: MapStaticItemCatalog | undefined,
   activeInserts: Record<string, string>,
+  map: Pick<MapEntry, "nightmareScenarios"> = {},
 ): OverlayPoint[] {
   const result: OverlayPoint[] = [];
   const visit = (
@@ -428,6 +429,7 @@ export function previewMapPoints(
     origin: Point, prefix: string, active: boolean,
     ancestry: string[], insertPath?: string, anchorKey?: string,
     parentInsert?: OverlayPoint["parentInsert"],
+    previewItems = true,
   ) => {
     const markers = pointsFor(source.occurrences, overlay.prototypes, prefix).map((point) => ({
       ...point, x: origin.x + point.x, y: origin.y + point.y,
@@ -436,7 +438,7 @@ export function previewMapPoints(
     }));
     const local: OverlayPoint[] = [
       ...markers,
-      ...(catalog ? staticItemPoints(source.itemOccurrences, catalog, `${prefix}-item`, origin) : []),
+      ...(catalog && previewItems ? staticItemPoints(source.itemOccurrences, catalog, `${prefix}-item`, origin) : []),
       ...mapObjectPoints(source.objectOccurrences, overlay.objectPrototypes ?? {}, `${prefix}-object`, origin),
     ].map((point) => ({ ...point, inactive: !active, insertPath, parentInsert }));
     result.push(...local);
@@ -455,7 +457,7 @@ export function previewMapPoints(
           [...ancestry, variation.path], variation.path, anchor.key, {
             name: pointDisplayName(anchor), probability: variation.probability,
             nightmareScenario: variation.nightmareScenario,
-          });
+          }, enabled || (previewItems && effectiveInsertProbability(variation.probability, variation.nightmareScenario, map) > 0));
       }
     }
   };

@@ -72,3 +72,31 @@ describe("insert marker previews", () => {
     expect(previewMapPoints(cyclic, catalog, {}).length).toBeLessThan(30);
   });
 });
+
+
+it("hides zero-chance insert items until selected, while retaining positive previews", () => {
+ const data = structuredClone(overlay);
+ data.prototypes.Insert.components!.MapInsert.variations = [{spawn:"/a.yml",probability:0},{spawn:"/b.yml",probability:.1}];
+ const points = previewMapPoints(data,catalog,{});
+ expect(points.some(p=>p.category==="item" && p.insertPath==="/a.yml")).toBe(false);
+ expect(points.find(p=>p.category==="item" && p.insertPath==="/b.yml")?.inactive).toBe(true);
+ expect(points.some(p=>p.category==="insert")).toBe(true);
+ expect(previewMapPoints(data,catalog,{"map:Insert:0":"/a.yml"}).find(p=>p.category==="item" && p.insertPath==="/a.yml")?.inactive).toBe(false);
+});
+it("uses the effective nightmare scenario chance", () => {
+ const data = structuredClone(overlay);
+ data.prototypes.Insert.components!.MapInsert.variations = [{spawn:"/a.yml",probability:1,nightmareScenario:"CLF"}];
+ const map = {nightmareScenarios:[{scenarioName:"CLF",scenarioProbability:0}]};
+ expect(previewMapPoints(data,catalog,{},map).some(p=>p.category==="item" && p.insertPath)).toBe(false);
+ expect(previewMapPoints(data,catalog,{"map:Insert:0":"/a.yml"},map).some(p=>p.category==="item" && p.insertPath)).toBe(true);
+ expect(previewMapPoints(data,catalog,{}, {nightmareScenarios:[{scenarioName:"CLF",scenarioProbability:.2}]}).some(p=>p.category==="item" && p.insertPath)).toBe(true);
+});
+it("does not leak nested items from a disabled parent insert", () => {
+ const data = structuredClone(overlay);
+ data.prototypes.Insert.components!.MapInsert.variations = [{spawn:"/a.yml",probability:0}];
+ data.prototypes.Child = {name:"Child",kind:"insert",components:{MapInsert:{variations:[{spawn:"/child.yml"}]}}};
+ data.insertMaps["/a.yml"].occurrences.Child = [[.5,.5]];
+ data.insertMaps["/child.yml"] = {occurrences:{},itemOccurrences:{Item:[[.5,.5]]}};
+ expect(previewMapPoints(data,catalog,{}).some(p=>p.category==="item" && p.insertPath)).toBe(false);
+ expect(previewMapPoints(data,catalog,{"map:Insert:0":"/a.yml"}).some(p=>p.category==="item" && p.insertPath==="/child.yml")).toBe(true);
+});
