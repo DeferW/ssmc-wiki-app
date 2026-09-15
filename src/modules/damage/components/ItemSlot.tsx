@@ -51,6 +51,19 @@ export function ItemSlot({ label, item, onOpen, onClear, compact = false, locked
     );
   }
 
+  if (footer) return <div className="weapon-selection-card">
+    <button className="weapon-selection-sprite" type="button" onClick={onOpen} aria-label={`Заменить ${item.name}`}>
+      <ItemSprite item={item} />
+    </button>
+    <div className="weapon-selection-body">
+      <button className="weapon-selection-name" type="button" onClick={onOpen} title="Заменить оружие">{capitalizeName(item.name)}</button>
+      {footer}
+    </div>
+    {onClear && <button className="weapon-selection-clear" type="button" onClick={onClear} aria-label={`Убрать ${item.name}`}>
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8m0-8-8 8" /></svg>
+    </button>}
+  </div>;
+
   const content = (
     <>
       <button type="button" className={`item-slot-main${locked ? " is-locked" : ""}`} onClick={onOpen} disabled={locked || !onOpen}>

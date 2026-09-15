@@ -1,3 +1,4 @@
+import { projectileHitChance, shotOutcome, type ShotOutcome } from "../projectileAccuracy";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { formatNumber } from "../../equipment/format";
 import type { CatalogItem, JsonMap } from "../../equipment/types";
@@ -6,7 +7,7 @@ import { collectAttachmentFireModes, collectRangedModifierEntries, type Equipped
 import rangeImage from "../../../assets/range-reference.png";
 
 const MODE_LABELS: Record<FireMode, string> = { SemiAuto: "Одиночный", Burst: "Очередь", FullAuto: "Автоматический" };
-type Trace = { id: number; angle: number; shot: number };
+type Trace = { id: number; angle: number; shot: number; outcome: ShotOutcome };
 
 function FireModePicker({ modes, value, disabled, onChange }: {
   modes: FireMode[]; value: FireMode; disabled: boolean; onChange: (mode: FireMode) => void;
@@ -44,8 +45,8 @@ function FireModePicker({ modes, value, disabled, onChange }: {
   </div>;
 }
 
-export function ScatterRange({ weapon, attachments, projectile, gameCommit, wielded }: {
-  weapon: CatalogItem | null; wielded: boolean; attachments: EquippedAttachment[]; projectile?: JsonMap; gameCommit: string;
+export function ScatterRange({ weapon, attachments, projectile, gameCommit, wielded, accuracyMultiplier, rangeFlat }: {
+  weapon: CatalogItem | null; wielded: boolean; attachments: EquippedAttachment[]; projectile?: JsonMap; gameCommit: string; accuracyMultiplier: number; rangeFlat: number;
 }) {
   const config = useMemo(() => ballisticsFrom(weapon), [weapon]);
   const availableModes = useMemo(() => [...new Set([...(config?.availableModes ?? []),
@@ -56,6 +57,8 @@ export function ScatterRange({ weapon, attachments, projectile, gameCommit, wiel
     : config && availableModes.includes(config.defaultMode) ? config.defaultMode : availableModes[0] ?? "SemiAuto";
   const entries = useMemo(() => collectRangedModifierEntries(attachments, weapon?.tags ?? [], wielded), [attachments, weapon, wielded]);
   const model = useMemo(() => config ? scatterModel(config, mode, entries, projectile, wielded) : undefined, [config, mode, entries, projectile, wielded]);
+  const [evasion, setEvasion] = useState(0);
+  const hitChance = projectileHitChance(projectile, accuracyMultiplier, 7, rangeFlat, evasion);
   const [traces, setTraces] = useState<Trace[]>([]);
   const [last, setLast] = useState<{ shot: number; scatter: number }>();
   const [running, setRunning] = useState(false);
@@ -74,7 +77,7 @@ export function ScatterRange({ weapon, attachments, projectile, gameCommit, wiel
       shot += 1;
       current = nextScatter(model, current, shot > 1 && model.fireRate > 0 ? 1 / model.fireRate : 0);
       setLast({ shot, scatter: current });
-      const added = shotAngles(model, current, Math.random()).map((angle) => ({ id: sequence.current++, angle, shot }));
+      const added = shotAngles(model, current, Math.random()).map((angle) => ({ id: sequence.current++, angle, shot, outcome: shotOutcome(angle, hitChance, Math.random()) }));
       setTraces((old) => [...old, ...added].slice(-240));
       if (shot < shots) timer.current = setTimeout(tick, 1000 / model.fireRate);
       else setRunning(false);
@@ -106,6 +109,16 @@ export function ScatterRange({ weapon, attachments, projectile, gameCommit, wiel
           <button type="button" onClick={reset}>Очистить</button>
           </div>
         </div>
+        <div className="scatter-target-settings"><span>Цель на 7 тайлах · уклонение</span>
+          <input type="number" aria-label="Уклонение цели" value={evasion} min="-100" max="100" disabled={running}
+            onChange={(event) => { reset(); setEvasion(Math.max(-100, Math.min(100, Number(event.target.value) || 0))); }} />
+          <span>При пересечении цели: {hitChance == null ? "нет данных точности" : `${formatNumber(hitChance * 100)}% попадания`}</span>
+        </div>
+        <div className="scatter-hit-summary" aria-live="polite">
+          <span className="is-hit">Попадание: {traces.filter(t => t.outcome === "hit").length}</span>
+          <span className="is-dodge">Прошла насквозь: {traces.filter(t => t.outcome === "dodge").length}</span>
+          <span className="is-wide">Мимо по направлению: {traces.filter(t => t.outcome === "wide").length}</span>
+        </div>
         <div className="scatter-legend"><span className="scatter-min">Минимальный сектор</span><span className="scatter-max">Максимальный сектор</span><span className="scatter-current">Последний выстрел</span></div>
         <svg className="scatter-scene" viewBox={`0 ${-padding} 874 ${455 + padding * 2}`} role="img" aria-label={`Полигон: минимальный разброс ${formatNumber(minAngle)} градусов, максимальный ${formatNumber(maxAngle)} градусов`}>
           <image href={rangeImage} x="0" y="0" width="874" height="455" />
@@ -113,11 +126,13 @@ export function ScatterRange({ weapon, attachments, projectile, gameCommit, wiel
           <polygon points={polygon(minAngle)} className="scatter-cone-min" />
           <polygon points={polygon(currentAngle)} className="scatter-cone-current" />
           <path d="M170 230H810" stroke="#fff9" strokeDasharray="5 7" />
-          <path d="M700 65V395" stroke="#fff7" strokeDasharray="3 6" />
+          <path d="M700 175V285" stroke="#fff" strokeDasharray="3 4"><title>Условная зона цели</title></path>
           {traces.map((trace) => {
             const angle = trace.angle * Math.PI / 180;
-            return <g key={trace.id}><path className="scatter-trace" d={`M170 230l${640 * Math.cos(angle)} ${640 * Math.sin(angle)}`} />
-              <circle cx={170 + 530 * Math.cos(angle)} cy={230 + 530 * Math.sin(angle)} r="2.7" fill="#f9f1b6" opacity=".8"><title>Выстрел {trace.shot}: {formatNumber(trace.angle)}°</title></circle></g>;
+            const length = trace.outcome === "hit" ? 530 / Math.cos(angle) : 640;
+            const color = trace.outcome === "hit" ? "#72d895" : trace.outcome === "dodge" ? "#f48787" : "#f9d878";
+            return <g key={trace.id}><path className={`scatter-trace is-${trace.outcome}`} d={`M170 230l${length * Math.cos(angle)} ${length * Math.sin(angle)}`} />
+              <circle cx={170 + length * Math.cos(angle)} cy={230 + length * Math.sin(angle)} r="2.7" fill={color} opacity=".8"><title>Выстрел {trace.shot}: {formatNumber(trace.angle)}°</title></circle></g>;
           })}
           <circle cx="170" cy="230" r="5" fill="#72d895" stroke="#fff" />
         </svg>
@@ -129,7 +144,7 @@ export function ScatterRange({ weapon, attachments, projectile, gameCommit, wiel
         </div>
         {model.pellets > 1 && <p className="scatter-note">В этой версии игры дробовой веер строится вокруг исходной точки прицеливания, без случайного поворота от разброса оружия. Показан фактический веер с поправками обвесов.</p>}
         <details className="damage-build-details scatter-explanation"><summary>Как читать полигон</summary><p className="scatter-note">Базовая сборка {wielded ? "в двух руках" : "в одной руке"}: поправки на навыки стрелка, движение и временные эффекты не включены. Новый спуск начинает серию с минимального разброса. Точность попадания в моба рассчитывается игрой отдельно и не сужает этот сектор.</p>
-        <p className="scatter-note">Между стрелком и целью — 7 тайлов. Фон — визуальный ориентир из предоставленного скриншота. Стены и цель не участвуют в расчёте столкновений. Следы показывают направления, а не скорость полёта или гарантированные попадания; случайные результаты не повторяют серверный генератор.</p>
+        <p className="scatter-note">Между стрелком и целью — 7 тайлов. Фон — визуальный ориентир из предоставленного скриншота. Белая пунктирная линия — условная зона цели, не игровой хитбокс. Зелёная пуля останавливается на ней; красная пунктирная проходит дальше при провале точности. Стены не участвуют в расчёте столкновений. Точность учитывает боеприпас, хват, обвесы, 7 тайлов и указанное уклонение враждебной цели без укрытия. Счётчики показывают последние 240 снарядов. Следы не моделируют скорость полёта; случайные результаты не повторяют серверный генератор.</p>
         <a className="scatter-source" href={source} target="_blank" rel="noreferrer">Механика официальной сборки · {config.rulesCommit.slice(0, 8)}</a></details>
       </>}
   </section>;

@@ -81,3 +81,46 @@
 .damage-page .compare-build-body .attachment-section { padding: 12px 0; border: 0; border-top: 1px solid var(--line); background: none; }
 .damage-page .compare-build-body h3 { margin: 0; font-size: .75rem; text-transform: none; }
 .damage-page .compare-build-body .damage-section-header { min-height: 0; padding: 0; margin-bottom: 12px; }
+
+/* Weapon identity is one grid, independent of legacy item-slot sizing. */
+.damage-page .weapon-selection-card { display: grid; grid-template-columns: 56px minmax(0,1fr) 28px; align-items: start; gap: 12px; padding: 14px; border: 1px solid var(--line); background: var(--surface-raised); }
+.damage-page .weapon-selection-sprite { width: 56px; height: 56px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.damage-page .weapon-selection-sprite .sprite-frame, .damage-page .weapon-selection-sprite .sprite-placeholder { display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; margin: 0; padding: 5px; overflow: hidden; box-sizing: border-box; }
+.damage-page .weapon-selection-sprite .sprite-frame img { display: block; width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain; transform: none; }
+.damage-page .weapon-selection-body { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 7px; }
+.damage-page .weapon-selection-name { max-width: 100%; padding: 0; border: 0; background: transparent; color: var(--text-strong); font: inherit; font-size: .76rem; font-weight: 700; line-height: 1.45; text-align: left; overflow-wrap: anywhere; cursor: pointer; }
+.damage-page .weapon-selection-name:hover { color: var(--accent); }
+.damage-page .weapon-selection-clear { display: grid; place-items: center; width: 28px; height: 28px; padding: 6px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; }
+.damage-page .weapon-selection-clear svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+.damage-page .weapon-selection-clear:hover { color: var(--danger); border-color: var(--danger); }
+.damage-page .compare-build-stats > div { padding: 10px 12px; }
+.damage-page .compare-build-stats > div + div { padding: 10px 12px; }
+.damage-page .projectile-block .stat-grid > div { padding: 8px 4px; }
+.damage-page .scatter-target-settings { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; font-size: .65rem; color: var(--muted-strong); }
+.damage-page .scatter-target-settings input { width: 70px; padding: 7px; border: 1px solid var(--line); background: var(--surface); color: var(--text); }
+.scatter-hit-summary { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: .65rem; line-height: 1.5; }
+.scatter-hit-summary .is-hit { color: #72d895; }.scatter-hit-summary .is-dodge { color: #f48787; }.scatter-hit-summary .is-wide { color: #f9d878; }
+.scatter-trace.is-hit { stroke: #72d895; }.scatter-trace.is-dodge { stroke: #f48787; stroke-dasharray: 8 5; animation: none; }.scatter-trace.is-wide { stroke: #f9d878; opacity: .45; }
+@media(max-width:600px) {
+ .damage-page .weapon-selection-card { grid-template-columns: 48px minmax(0,1fr) 28px; gap: 9px; padding: 11px; }
+ .damage-page .weapon-selection-sprite, .damage-page .weapon-selection-sprite .sprite-frame, .damage-page .weapon-selection-sprite .sprite-placeholder { width: 48px; height: 48px; }
+ .damage-page .weapon-selection-name { font-size: .72rem; }
+ .damage-page .compare-build-stats > div, .damage-page .compare-build-stats > div + div { padding: 10px; }
+}
+
+.damage-page .scatter-trace { stroke-width: 2; vector-effect: non-scaling-stroke; }
+.damage-page .scatter-trace.is-dodge { opacity: .9; }
+
+.weapon-picker-layout { display: grid; grid-template-columns: 190px minmax(0,1fr); align-items: start; gap: 16px; }
+.weapon-picker-categories { display: grid; gap: 4px; position: sticky; top: 0; }
+.weapon-picker-categories button { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 40px; padding: 10px; border: 1px solid transparent; background: var(--surface); color: var(--muted-strong); font: inherit; font-size: .7rem; line-height: 1.4; text-align: left; cursor: pointer; }
+.weapon-picker-categories button[aria-pressed="true"] { border-color: var(--line-strong); background: var(--surface-highlight); color: var(--accent); box-shadow: inset 2px 0 var(--accent); }
+.weapon-picker-categories button:hover { color: var(--text-strong); }
+.weapon-picker-categories small { color: var(--muted); font-variant-numeric: tabular-nums; }
+.weapon-picker-layout .weapon-grid { min-width: 0; grid-template-columns: repeat(auto-fill,minmax(140px,1fr)); }
+@media (max-width: 600px) {
+ .weapon-picker-layout { grid-template-columns: minmax(0,1fr); gap: 12px; }
+ .weapon-picker-categories { position: static; grid-template-columns: repeat(2,minmax(0,1fr)); }
+ .weapon-picker-categories button { padding: 8px; font-size: .64rem; }
+ .weapon-picker-layout .weapon-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
