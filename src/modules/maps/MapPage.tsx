@@ -9,12 +9,15 @@ import { addRulerPoint, formatDistance, measureTiles, tileCentre, type RulerStat
 import { loadFireZoneCatalog, MAX_ZONES, parseZones, serializeZones, toggleZone, zoneTemplates, type FireZoneCatalog, type PlacedZone } from "./fireZones";
 import { mapDataUrl } from "./config";
 import { MapCanvas, type MapCanvasHandle, type SelectionAnchor, type ZoneDrawable } from "./MapCanvas";
+import { decodePlan } from "./planner/codec";
+import { PlannerPanel } from "./planner/PlannerPanel";
+import { usePlanner } from "./planner/usePlanner";
 import { MARKER_CATEGORIES, markerCategory, markerStyle, type MarkerCategoryDefinition } from "./markerConfig";
 import { activeInsertPlacements, areaAt, describeComponents, effectiveInsertProbability, previewMapPoints, insertVariations, pointDisplayName, pointProbabilityDescriptions, restoreInsertSelections, serializeInsertSelections, spawnOptions } from "./overlay";
 import type { ActiveInsertRender, CanvasStats, LayerSettings, MapCatalog, MapOverlay, MapStaticItem, MapStaticItemCatalog, OverlayCategory, OverlayGroup, OverlayPoint, Point, TileManifest } from "./types";
 
 const SETTINGS_KEY = "ssmc-map-layers-v5";
-type MapMode = "view" | "ruler" | "zones";
+type MapMode = "view" | "ruler" | "zones" | "planner";
 const DEFAULT_GROUPS: Record<OverlayGroup, boolean> = {
   "loot-intel": false,
   "loot-weapons": false,
@@ -588,7 +591,9 @@ export function MapPage() {
     const template = zoneTemplatesById.get(zone.templateId);
     return template ? [{ key: `${index}:${zone.templateId}`, tile: zone.tile, centre: tileCentre(zone.tile), label: template.label, color: template.color, shapes: template.shapes }] : [];
   }), [placedZones, zoneTemplatesById]);
-  const needsFireZones = mapMode === "zones" || zoneTokens.length > 0;
+  const planToken = searchParams.get("plan");
+  // The planner's zone tool and shared plans with zones need the zone catalogue too.
+  const needsFireZones = mapMode === "zones" || mapMode === "planner" || zoneTokens.length > 0 || Boolean(planToken);
   useEffect(() => {
     if (!needsFireZones || fireZones.catalog || fireZones.error) return;
     let active = true;
@@ -608,6 +613,33 @@ export function MapPage() {
     for (const token of serializeZones(zones)) next.append("zone", token);
     setSearchParams(next, { replace: true });
   }, [setSearchParams, zoneTemplatesById]);
+  const planner = usePlanner({ mapId: entry?.id ?? "", active: mapMode === "planner", zones: placedZones, onZonesChange: writeZones });
+  const { loadPlan } = planner;
+  // A shared link (&plan=CODE) opens the plan once; it waits for the zone catalogue so
+  // zones in the code are not dropped as unknown, then removes the code from the address.
+  const zonesSettled = Boolean(fireZones.catalog || fireZones.error);
+  useEffect(() => {
+    if (!planToken || !entry || !zonesSettled) return;
+    let active = true;
+    decodePlan(planToken).then((decoded) => {
+      if (!active) return;
+      if (decoded.mapId !== entry.id && catalog?.maps.some((map) => map.id === decoded.mapId)) {
+        setSearchParams({ map: decoded.mapId, plan: planToken }, { replace: true });
+        return;
+      }
+      loadPlan(decoded, "replace");
+      const next = currentSearchParams();
+      next.delete("plan");
+      setSearchParams(next, { replace: true });
+    }).catch((reason: unknown) => {
+      if (!active) return;
+      setError(`Ссылка на план не открылась: ${reason instanceof Error ? reason.message : String(reason)}`);
+      const next = currentSearchParams();
+      next.delete("plan");
+      setSearchParams(next, { replace: true });
+    });
+    return () => { active = false; };
+  }, [catalog, entry, loadPlan, planToken, setSearchParams, zonesSettled]);
   const onTileTap = useCallback((tile: Point) => {
     if (mapMode === "ruler") onMeasure(tile);
     else if (mapMode === "zones" && zoneTemplateId) writeZones((zones) => toggleZone(zones, zoneTemplateId, tile));
@@ -720,10 +752,12 @@ export function MapPage() {
               points={coordinatesReady ? points : []}
               insertRenders={activeInsertRenders}
               supportBands={visibleRoofBands}
-              tileTaps={mapMode !== "view"}
+              tileTaps={mapMode === "ruler" || mapMode === "zones"}
               onTileTap={onTileTap}
               ruler={ruler}
               zones={zoneDrawables}
+              planLayer={planner.layer}
+              drawing={mapMode === "planner" ? planner.drawing : undefined}
               layers={canvasLayers}
               initialFocus={sharedView}
               selectedKey={selected?.key}
@@ -802,8 +836,9 @@ export function MapPage() {
                 <span aria-hidden="true">◎</span><strong>Зоны огня</strong>
                 {placedZones.length > 0 && <output>{placedZones.length}</output>}
               </button>
-              <button type="button" disabled>
-                <span aria-hidden="true">✎</span><strong>Редактор</strong>
+              <button className={mapMode === "planner" ? "is-active" : undefined} type="button" aria-pressed={mapMode === "planner"} onClick={() => switchMode(mapMode === "planner" ? "view" : "planner")}>
+                <span aria-hidden="true">✎</span><strong>Планировщик</strong>
+                {planner.elements.length > 0 && <output>{planner.elements.length}</output>}
               </button>
             </nav>
             {measuring && (
@@ -818,6 +853,17 @@ export function MapPage() {
                 )}
                 {ruler.start && <button type="button" onClick={clearRuler}>Очистить</button>}
               </section>
+            )}
+            {mapMode === "planner" && entry && (
+              <PlannerPanel
+                planner={planner}
+                mapId={entry.id}
+                mapName={(mapId) => catalog?.maps.find((map) => map.id === mapId)?.name}
+                zones={placedZones}
+                zoneTemplates={zoneTemplateList}
+                zonesError={fireZones.error}
+                onOpenOnMap={(mapId, code) => setSearchParams({ map: mapId, plan: code })}
+              />
             )}
             {mapMode === "zones" && (
               <section className="maps-zones" aria-label="Зоны огня">

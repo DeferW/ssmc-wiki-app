@@ -28,6 +28,7 @@
 .maps-mode-dock button,
 .maps-ruler button,
 .maps-zones button,
+.maps-planner button,
 .maps-inspector-close,
 .maps-error button {
   border: 1px solid var(--line-strong);
@@ -48,6 +49,7 @@
 .maps-mode-dock button:not(:disabled):hover,
 .maps-ruler button:hover,
 .maps-zones button:hover,
+.maps-planner button:not(:disabled):hover,
 .maps-error button:hover { border-color: var(--accent); color: var(--accent); }
 
 .maps-map-picker { display: flex; min-width: 0; align-items: center; gap: 8px; }
@@ -227,9 +229,13 @@
 .maps-ruler button { justify-self: start; min-height: 28px; margin-top: 2px; padding: 0 9px; font-size: .56rem; }
 .maps-mode-dock button output { justify-self: end; color: currentColor; font-size: .5rem; }
 .maps-mode-dock button:has(output) { grid-template-columns: 24px minmax(0, 1fr) auto; }
-.maps-corner-tools:has(.maps-zones) { bottom: 10px; width: 236px; grid-template-rows: auto auto minmax(0, 1fr); align-content: start; pointer-events: none; }
-.maps-corner-tools:has(.maps-zones) > * { pointer-events: auto; }
-.maps-corner-tools:has(.maps-zones) > .maps-coordinate { pointer-events: none; }
+.maps-corner-tools:has(.maps-zones),
+.maps-corner-tools:has(.maps-planner) { bottom: 10px; width: 236px; grid-template-rows: auto auto minmax(0, 1fr); align-content: start; pointer-events: none; }
+.maps-corner-tools:has(.maps-planner) { width: 268px; }
+.maps-corner-tools:has(.maps-zones) > *,
+.maps-corner-tools:has(.maps-planner) > * { pointer-events: auto; }
+.maps-corner-tools:has(.maps-zones) > .maps-coordinate,
+.maps-corner-tools:has(.maps-planner) > .maps-coordinate { pointer-events: none; }
 .maps-zones { display: grid; max-height: 100%; min-height: 0; align-self: start; align-content: start; gap: 7px; overflow-y: auto; overscroll-behavior: contain; padding: 8px 8px 0; border: 1px solid var(--line); background: rgba(5, 10, 7, .94); box-shadow: 0 8px 24px rgba(0, 0, 0, .3); backdrop-filter: blur(8px); }
 .maps-zones-palette { display: grid; gap: 3px; }
 .maps-zones-palette button { display: grid; min-height: 38px; grid-template-columns: 16px minmax(0, 1fr); align-items: center; gap: 8px; padding: 5px 7px; text-align: left; }
@@ -249,6 +255,52 @@
 .maps-zones-list i { width: 10px; height: 10px; border: 0; }
 .maps-zones-list span { overflow: hidden; color: var(--text); font-size: .56rem; text-overflow: ellipsis; white-space: nowrap; }
 .maps-zones-list code { color: var(--muted); font-size: .5rem; }
+.maps-planner { display: grid; max-height: 100%; min-height: 0; align-self: start; align-content: start; gap: 8px; overflow-y: auto; overscroll-behavior: contain; padding: 8px; border: 1px solid var(--line); background: rgba(5, 10, 7, .95); box-shadow: 0 8px 24px rgba(0, 0, 0, .3); backdrop-filter: blur(8px); }
+.maps-planner button:disabled { color: #405148; cursor: not-allowed; }
+.maps-planner-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.maps-planner-heading strong { color: var(--text-strong); font-size: .62rem; text-transform: uppercase; }
+.maps-planner-heading button { min-height: 26px; padding: 0 8px; font-size: .54rem; }
+.maps-planner-help { display: grid; gap: 7px; padding: 8px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--muted-strong); font-size: .54rem; line-height: 1.5; }
+.maps-planner-help dl { display: grid; gap: 2px; margin: 0; }
+.maps-planner-help dt { color: var(--text); font-weight: 700; }
+.maps-planner-help dd { margin: 0; }
+.maps-planner-help p { margin: 0; color: var(--muted); }
+.maps-planner-help kbd { display: inline-block; margin-right: 3px; padding: 0 4px; border: 1px solid var(--line-strong); color: var(--accent-soft); font: inherit; font-size: .5rem; line-height: 1.5; }
+.maps-planner-tools { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3px; }
+.maps-planner-tools button { display: grid; min-height: 44px; place-items: center; gap: 2px; padding: 4px 2px; }
+.maps-planner-tools svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.maps-planner-tools span { font-size: .48rem; }
+.maps-planner-tools button.is-active, .maps-planner-stamps button.is-active { border-color: var(--accent); background: var(--surface-highlight); color: var(--accent); }
+.maps-planner-hint { margin: 0; color: var(--muted-strong); font-size: .54rem; line-height: 1.45; }
+.maps-planner-colors { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; }
+.maps-planner-colors button { aspect-ratio: 1; min-height: 24px; padding: 0; border: 2px solid var(--line-strong); }
+.maps-planner-colors button.is-active { outline: 2px solid var(--accent); outline-offset: 1px; }
+.maps-planner-range, .maps-planner-check { display: grid; gap: 4px; color: var(--muted-strong); font-size: .54rem; }
+.maps-planner-check { grid-template-columns: 16px minmax(0, 1fr); align-items: center; }
+.maps-planner-stamps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; }
+.maps-planner-stamps button { display: grid; min-height: 44px; place-items: center; gap: 2px; padding: 4px 2px; }
+.maps-planner-stamps span { font-size: .48rem; }
+.maps-planner-label { display: grid; gap: 6px; padding: 7px; border: 1px solid var(--accent); background: var(--surface-highlight); }
+.maps-planner-label label { display: grid; gap: 4px; color: var(--muted-strong); font-size: .54rem; }
+.maps-planner-label input, .maps-planner-save input { width: 100%; min-width: 0; min-height: 30px; padding: 4px 7px; font-size: .62rem; }
+.maps-planner-label div { display: flex; flex-wrap: wrap; gap: 4px; }
+.maps-planner-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; color: var(--muted-strong); font-size: .54rem; }
+.maps-planner-row button, .maps-planner-label button, .maps-planner-save button { min-height: 28px; padding: 0 8px; font-size: .56rem; }
+.maps-planner-history output { margin-left: auto; color: var(--muted); font-size: .52rem; }
+.maps-planner-share { display: grid; gap: 6px; padding-top: 7px; border-top: 1px solid var(--line); }
+.maps-planner-share summary { color: var(--text); font-size: .58rem; font-weight: 700; cursor: pointer; }
+.maps-planner-share[open] { gap: 6px; }
+.maps-planner-share > * + * { margin-top: 6px; }
+.maps-planner-code { width: 100%; min-height: 54px; padding: 5px 7px; font: inherit; font-size: .52rem; resize: vertical; word-break: break-all; }
+.maps-planner-paste { display: grid; gap: 6px; }
+.maps-planner-save { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px; }
+.maps-planner-saved { display: grid; gap: 3px; margin: 0; padding: 0; list-style: none; }
+.maps-planner-saved li { display: grid; grid-template-columns: minmax(0, 1fr) 28px; gap: 3px; }
+.maps-planner-saved-open { display: grid; gap: 1px; min-height: 32px; padding: 3px 7px; text-align: left; }
+.maps-planner-saved-open strong { overflow: hidden; color: var(--text); font-size: .58rem; text-overflow: ellipsis; white-space: nowrap; }
+.maps-planner-saved-open small { color: var(--muted); font-size: .48rem; }
+.maps-planner-status { margin: 0; color: var(--accent); font-size: .54rem; line-height: 1.4; }
+.maps-planner-status.is-error { color: var(--danger); }
 .maps-zones-list button { min-height: 28px; padding: 0; font-size: .8rem; }
 
 .maps-inspector {
@@ -377,7 +429,11 @@
   .maps-corner-tools { top: 7px; right: 7px; width: 142px; }
   /* Placeholder modes only take map space on a phone. */
   .maps-corner-tools .maps-mode-dock button:disabled { display: none; }
-  .maps-corner-tools:has(.maps-zones) { bottom: auto; width: 142px; }
+  .maps-corner-tools:has(.maps-zones),
+  .maps-corner-tools:has(.maps-planner) { bottom: auto; width: 142px; }
+  .maps-planner { position: fixed; right: 7px; bottom: 7px; left: 7px; z-index: 12; max-height: 48vh; align-self: auto; }
+  .maps-planner-colors button { min-height: 30px; }
+  .maps-planner-row button, .maps-planner-label button, .maps-planner-save button { min-height: 36px; }
   /* On a phone the palette is a bottom sheet so the map stays visible above it. */
   .maps-zones { position: fixed; right: 7px; bottom: 7px; left: 7px; z-index: 12; max-height: 44vh; align-self: auto; }
   .maps-zones-palette { grid-template-columns: 1fr 1fr; }

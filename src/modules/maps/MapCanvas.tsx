@@ -7,6 +7,8 @@ import { markerStyle, type MarkerIcon } from "./markerConfig";
 import type { RoofTierBand } from "./areaSupport";
 import { formatDistance, measureTiles, tileAt, tileCentre, type RulerState } from "./ruler";
 import { liftLabels, tileRegion, type ZoneShape } from "./fireZones";
+import type { PlanElement } from "./planner/model";
+import { drawPlan } from "./planner/render";
 import type { ActiveInsertRender, CanvasStats, GridManifest, LayerSettings, OverlayPoint, Point, TileManifest, ViewState } from "./types";
 
 type Props = {
@@ -21,6 +23,10 @@ type Props = {
   onTileTap?: (tile: Point) => void;
   ruler?: RulerState;
   zones?: ZoneDrawable[];
+  /** Planner layer drawn above markers and zones. */
+  planLayer?: PlanLayer;
+  /** Planner tools: a primary-button drag or tap goes here instead of panning the map. */
+  drawing?: DrawingHandlers;
   initialFocus?: { world: Point; scale: number; key: string };
   selectedKey?: string;
   anchorKey?: string;
@@ -37,6 +43,17 @@ export type SelectionAnchor = {
   y: number;
   align: "left" | "right";
   vertical?: "above" | "below";
+};
+
+export type PlanLayer = { elements: PlanElement[]; preview?: PlanElement; selected?: number; hidden?: Set<number> };
+export type DrawingModifiers = { shift: boolean };
+/** Handlers receive the exact world position in tiles (fractional), not a snapped tile. */
+export type DrawingHandlers = {
+  onStart: (world: Point, modifiers: DrawingModifiers) => void;
+  onMove: (world: Point, modifiers: DrawingModifiers) => void;
+  onEnd: (world: Point, modifiers: DrawingModifiers) => void;
+  /** A second finger turned the gesture into pinch zoom. */
+  onCancel: () => void;
 };
 
 export type ZoneDrawable = { key: string; tile: Point; centre: Point; label: string; color: string; shapes: ZoneShape[] };
@@ -376,6 +393,8 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
   onTileTap,
   ruler,
   zones,
+  planLayer,
+  drawing,
   initialFocus,
   selectedKey,
   anchorKey,
@@ -390,6 +409,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
   const dragRef = useRef<PointerDrag | undefined>(undefined);
   const pointersRef = useRef(new Map<number, Point>());
   const pinchRef = useRef<PinchGesture | undefined>(undefined);
+  const drawRef = useRef<number | undefined>(undefined);
   const viewRef = useRef<ViewState>({ x: 0, y: 0, scale: 1 });
   const [size, setSize] = useState({ width: 1, height: 1 });
   const [view, setView] = useState<ViewState>({ x: 0, y: 0, scale: 1 });
@@ -741,6 +761,13 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       context.restore();
     }
 
+    if (planLayer && (planLayer.elements.length || planLayer.preview)) {
+      drawPlan(context, planLayer.elements, (world) => {
+        const pixel = worldToMapPixel(grid, world);
+        return { x: view.x + pixel.x * view.scale, y: view.y + pixel.y * view.scale };
+      }, planLayer);
+    }
+
     const rulerEnd = ruler?.end ?? (tileTaps && ruler?.start ? hoverTile : undefined);
     if (ruler?.start) {
       const toScreen = (world: Point) => {
@@ -796,7 +823,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       }
       context.restore();
     }
-  }, [drawnPoints, grid, hoverTile, insertLayers, layers, maximum, plan, ruler, selectedKey, size, supportPaths, tileRevision, tileTaps, view, zonePaths, zones]);
+  }, [drawnPoints, grid, hoverTile, insertLayers, layers, maximum, plan, ruler, selectedKey, size, supportPaths, planLayer, tileRevision, tileTaps, view, zonePaths, zones]);
 
   const mapPointAt = useCallback((screen: Point) => ({
     x: (screen.x - view.x) / view.scale,
@@ -840,13 +867,13 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
   return (
     <canvas
       ref={canvasRef}
-      className={tileTaps ? "map-canvas is-measuring" : "map-canvas"}
+      className={tileTaps || drawing ? "map-canvas is-measuring" : "map-canvas"}
       tabIndex={0}
       aria-label="Интерактивная карта. Перетаскивайте мышью, изменяйте масштаб колесом."
       onContextMenu={(event) => event.preventDefault()}
       onDoubleClick={(event) => {
         event.preventDefault();
-        if (tileTaps) return;
+        if (tileTaps || drawing) return;
         const screen = eventPoint(event, event.currentTarget);
         const world = mapPixelToWorld(grid, mapPointAt(screen));
         onShareTile(world, SHARED_TILE_ZOOM);
@@ -855,6 +882,16 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         const point = eventPoint(event, event.currentTarget);
         event.currentTarget.setPointerCapture(event.pointerId);
         pointersRef.current.set(event.pointerId, point);
+        if (drawing && pointersRef.current.size === 1 && event.button === 0) {
+          drawRef.current = event.pointerId;
+          dragRef.current = undefined;
+          drawing.onStart(mapPixelToWorld(grid, mapPointAt(point)), { shift: event.shiftKey });
+          return;
+        }
+        if (drawRef.current !== undefined) {
+          drawRef.current = undefined;
+          drawing?.onCancel();
+        }
         if (pointersRef.current.size === 1) {
           dragRef.current = { id: event.pointerId, startX: point.x, startY: point.y, viewX: view.x, viewY: view.y, moved: false };
           pinchRef.current = undefined;
@@ -879,6 +916,10 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
           vertical: screen.y > size.height * 0.45 ? "above" : "below",
         });
         if (pointersRef.current.has(event.pointerId)) pointersRef.current.set(event.pointerId, screen);
+        if (drawRef.current === event.pointerId) {
+          drawing?.onMove(world, { shift: event.shiftKey });
+          return;
+        }
         const pinch = pinchRef.current;
         if (pinch && pointersRef.current.size >= 2) {
           const [first, second] = [...pointersRef.current.values()];
@@ -900,6 +941,13 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         setView((current) => ({ ...current, x: drag.viewX + dx, y: drag.viewY + dy }));
       }}
       onPointerUp={(event) => {
+        if (drawRef.current === event.pointerId) {
+          drawRef.current = undefined;
+          pointersRef.current.delete(event.pointerId);
+          drawing?.onEnd(mapPixelToWorld(grid, mapPointAt(eventPoint(event, event.currentTarget))), { shift: event.shiftKey });
+          event.currentTarget.releasePointerCapture(event.pointerId);
+          return;
+        }
         const drag = dragRef.current;
         const wasPinching = Boolean(pinchRef.current);
         if (!wasPinching && drag && !drag.moved && tileTaps) {
@@ -918,6 +966,10 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         event.currentTarget.releasePointerCapture(event.pointerId);
       }}
       onPointerCancel={(event) => {
+        if (drawRef.current === event.pointerId) {
+          drawRef.current = undefined;
+          drawing?.onCancel();
+        }
         pointersRef.current.delete(event.pointerId);
         pinchRef.current = undefined;
         dragRef.current = undefined;
