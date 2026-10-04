@@ -73,6 +73,8 @@
 .maps-stage { width: 100%; height: 100%; background: #020503; }
 .map-canvas { display: block; width: 100%; height: 100%; outline: 0; cursor: grab; touch-action: none; }
 .map-canvas:active { cursor: grabbing; }
+.map-canvas.is-measuring, .map-canvas.is-measuring:active { cursor: crosshair; }
+@media (hover: none) { .maps-coordinate.is-empty { display: none; } }
 .map-canvas:focus-visible { outline: 1px solid var(--accent); outline-offset: -2px; }
 
 .maps-sidebar {
@@ -215,6 +217,10 @@
 .maps-mode-dock button strong { overflow: hidden; font-size: .55rem; font-weight: 750; letter-spacing: .03em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
 .maps-mode-dock button.is-active { border-color: var(--accent); color: var(--accent); background: var(--surface-highlight); }
 .maps-mode-dock button:disabled { color: #405148; cursor: not-allowed; }
+.maps-ruler { display: grid; gap: 4px; padding: 8px 9px; border: 1px solid rgba(255, 214, 92, .55); background: rgba(5, 10, 7, .94); box-shadow: 0 8px 24px rgba(0, 0, 0, .3); backdrop-filter: blur(8px); }
+.maps-ruler strong { color: #ffd65c; font-size: .8rem; }
+.maps-ruler span { color: var(--muted-strong); font-size: .56rem; line-height: 1.4; }
+.maps-ruler button { justify-self: start; min-height: 28px; margin-top: 2px; padding: 0 9px; font-size: .56rem; }
 
 .maps-inspector {
   position: absolute;
@@ -340,6 +346,8 @@
   .maps-items-panel { top: 7px; bottom: 7px; left: 7px; width: min(286px, calc(100% - 36px)); }
   .maps-data-tools { top: 7px; left: 7px; width: 142px; }
   .maps-corner-tools { top: 7px; right: 7px; width: 142px; }
+  /* Placeholder modes only take map space on a phone. */
+  .maps-corner-tools .maps-mode-dock button:disabled { display: none; }
   .maps-inspector--insert { right: 7px; bottom: 7px; width: min(290px, calc(100vw - 14px)); max-height: 260px; }
   .maps-data-warning { top: 7px; width: calc(100% - 100px); }
   .maps-inspector { width: min(270px, calc(100vw - 22px)); max-height: 260px; }

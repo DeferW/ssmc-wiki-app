@@ -5,6 +5,7 @@ import { planTiles, prioritizeTiles } from "./tilePlan";
 import { pointsOnSameTile } from "./overlay";
 import { markerStyle, type MarkerIcon } from "./markerConfig";
 import type { RoofTierBand } from "./areaSupport";
+import { formatDistance, measureTiles, tileAt, tileCentre, type RulerState } from "./ruler";
 import type { ActiveInsertRender, CanvasStats, GridManifest, LayerSettings, OverlayPoint, Point, TileManifest, ViewState } from "./types";
 
 type Props = {
@@ -14,6 +15,10 @@ type Props = {
   insertRenders: ActiveInsertRender[];
   supportBands?: RoofTierBand[];
   layers: LayerSettings;
+  /** Ruler mode: taps measure tiles instead of selecting markers. */
+  measuring?: boolean;
+  ruler?: RulerState;
+  onMeasure?: (tile: Point) => void;
   initialFocus?: { world: Point; scale: number; key: string };
   selectedKey?: string;
   anchorKey?: string;
@@ -35,6 +40,7 @@ export type SelectionAnchor = {
 type PointerDrag = { id: number; startX: number; startY: number; viewX: number; viewY: number; moved: boolean };
 type PinchGesture = { distance: number; center: Point; view: ViewState };
 const SHARED_TILE_ZOOM = 2.5;
+const RULER_COLOR = "#ffd65c";
 const CATEGORY_COLOR: Record<OverlayPoint["category"], string> = {
   loot: "#f0c15d",
   insert: "#53c8e8",
@@ -362,6 +368,9 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
   insertRenders,
   supportBands,
   layers,
+  measuring = false,
+  ruler,
+  onMeasure,
   initialFocus,
   selectedKey,
   anchorKey,
@@ -653,7 +662,63 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       );
     }
     context.restore();
-  }, [drawnPoints, grid, hoverTile, insertLayers, layers, maximum, plan, selectedKey, size, supportPaths, tileRevision, view]);
+
+    const rulerEnd = ruler?.end ?? (measuring && ruler?.start ? hoverTile : undefined);
+    if (ruler?.start) {
+      const toScreen = (world: Point) => {
+        const pixel = worldToMapPixel(grid, world);
+        return { x: view.x + pixel.x * view.scale, y: view.y + pixel.y * view.scale };
+      };
+      const tileBox = (tile: Point) => {
+        const topLeft = toScreen({ x: tile.x, y: tile.y + 1 });
+        const bottomRight = toScreen({ x: tile.x + 1, y: tile.y });
+        // Keep the endpoint visible when zoomed far out.
+        const side = Math.max(8, bottomRight.x - topLeft.x);
+        const centre = { x: (topLeft.x + bottomRight.x) / 2, y: (topLeft.y + bottomRight.y) / 2 };
+        return { x: centre.x - side / 2, y: centre.y - side / 2, side };
+      };
+      context.save();
+      context.lineJoin = "round";
+      const start = toScreen(tileCentre(ruler.start));
+      if (rulerEnd) {
+        const end = toScreen(tileCentre(rulerEnd));
+        context.lineCap = "round";
+        context.strokeStyle = "rgba(2, 5, 3, .85)";
+        context.lineWidth = 5;
+        context.beginPath(); context.moveTo(start.x, start.y); context.lineTo(end.x, end.y); context.stroke();
+        context.strokeStyle = RULER_COLOR;
+        context.lineWidth = 2;
+        if (!ruler.end) context.setLineDash([7, 5]);
+        context.beginPath(); context.moveTo(start.x, start.y); context.lineTo(end.x, end.y); context.stroke();
+        context.setLineDash([]);
+      }
+      for (const tile of rulerEnd ? [ruler.start, rulerEnd] : [ruler.start]) {
+        const box = tileBox(tile);
+        context.fillStyle = "rgba(255, 214, 92, .22)";
+        context.strokeStyle = RULER_COLOR;
+        context.lineWidth = 2;
+        context.fillRect(box.x, box.y, box.side, box.side);
+        context.strokeRect(box.x, box.y, box.side, box.side);
+      }
+      if (rulerEnd) {
+        const end = toScreen(tileCentre(rulerEnd));
+        const label = formatDistance(measureTiles(ruler.start, rulerEnd).distance);
+        context.font = "700 12px IBM Plex Mono, monospace";
+        const width = context.measureText(label).width + 14;
+        const x = Math.min(Math.max((start.x + end.x) / 2 - width / 2, 4), size.width - width - 4);
+        const y = Math.min(Math.max((start.y + end.y) / 2 - 30, 4), size.height - 26);
+        context.fillStyle = "rgba(3, 6, 4, .92)";
+        context.strokeStyle = RULER_COLOR;
+        context.lineWidth = 1;
+        context.fillRect(x, y, width, 22);
+        context.strokeRect(x + .5, y + .5, width - 1, 21);
+        context.fillStyle = RULER_COLOR;
+        context.textBaseline = "middle";
+        context.fillText(label, x + 7, y + 11.5);
+      }
+      context.restore();
+    }
+  }, [drawnPoints, grid, hoverTile, insertLayers, layers, maximum, measuring, plan, ruler, selectedKey, size, supportPaths, tileRevision, view]);
 
   const mapPointAt = useCallback((screen: Point) => ({
     x: (screen.x - view.x) / view.scale,
@@ -697,12 +762,13 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
   return (
     <canvas
       ref={canvasRef}
-      className="map-canvas"
+      className={measuring ? "map-canvas is-measuring" : "map-canvas"}
       tabIndex={0}
       aria-label="Интерактивная карта. Перетаскивайте мышью, изменяйте масштаб колесом."
       onContextMenu={(event) => event.preventDefault()}
       onDoubleClick={(event) => {
         event.preventDefault();
+        if (measuring) return;
         const screen = eventPoint(event, event.currentTarget);
         const world = mapPixelToWorld(grid, mapPointAt(screen));
         onShareTile(world, SHARED_TILE_ZOOM);
@@ -758,7 +824,9 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       onPointerUp={(event) => {
         const drag = dragRef.current;
         const wasPinching = Boolean(pinchRef.current);
-        if (!wasPinching && drag && !drag.moved) {
+        if (!wasPinching && drag && !drag.moved && measuring) {
+          onMeasure?.(tileAt(mapPixelToWorld(grid, mapPointAt(eventPoint(event, event.currentTarget)))));
+        } else if (!wasPinching && drag && !drag.moved) {
           const nearest = nearestPoint(eventPoint(event, event.currentTarget));
           onSelect(nearest ? pointsOnSameTile(visiblePoints, nearest) : []);
         }

@@ -5,6 +5,7 @@ import { modulePath } from "../../routes";
 import { CATEGORY_ORDER, HIDDEN_CATEGORY } from "../equipment/config";
 import { loadMapCatalog, loadMapOverlay, loadMapStaticItems, loadTileManifest } from "./api";
 import { isRoofTier, roofTierBands, type RoofTier } from "./areaSupport";
+import { addRulerPoint, formatDistance, measureTiles, type RulerState } from "./ruler";
 import { mapDataUrl } from "./config";
 import { MapCanvas, type MapCanvasHandle, type SelectionAnchor } from "./MapCanvas";
 import { MARKER_CATEGORIES, markerCategory, markerStyle, type MarkerCategoryDefinition } from "./markerConfig";
@@ -230,6 +231,9 @@ export function MapPage() {
   const [stats, setStats] = useState<CanvasStats>({ loadedTiles: 0, loadedBytes: 0, pendingTiles: 0, failedTiles: 0, zoom: 0 });
   const [error, setError] = useState<string>();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [measuring, setMeasuring] = useState(false);
+  // Scoped to the map: switching maps drops the old measurement without an effect.
+  const [rulerSelection, setRulerSelection] = useState<{ scope: string; value: RulerState }>({ scope: "", value: {} });
   const requestedMap = searchParams.get("map");
   const requestedXValue = searchParams.get("x");
   const requestedYValue = searchParams.get("y");
@@ -542,6 +546,32 @@ export function MapPage() {
     setSelected(undefined);
     setSelectionChoices(values);
   }, []);
+  const ruler = rulerSelection.scope === (entry?.id ?? "") ? rulerSelection.value : {};
+  const rulerMeasure = ruler.start && ruler.end ? measureTiles(ruler.start, ruler.end) : undefined;
+  const mapScope = entry?.id ?? "";
+  const onMeasure = useCallback((tile: Point) => {
+    setRulerSelection((current) => ({
+      scope: mapScope,
+      value: addRulerPoint(current.scope === mapScope ? current.value : {}, tile),
+    }));
+    setSelected(undefined);
+    setSelectionChoices([]);
+  }, [mapScope]);
+  const clearRuler = useCallback(() => setRulerSelection({ scope: "", value: {} }), []);
+  const toggleMeasuring = useCallback((value: boolean) => {
+    setMeasuring(value);
+    if (!value) clearRuler();
+  }, [clearRuler]);
+  useEffect(() => {
+    if (!measuring) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (ruler.start) clearRuler();
+      else setMeasuring(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [clearRuler, measuring, ruler.start]);
   const onSelectedAnchor = useCallback((value?: SelectionAnchor) => setSelectionAnchor(value), []);
   const onShareTile = useCallback((value: Point, zoom: number) => {
     const next = new URLSearchParams(searchParams);
@@ -639,6 +669,9 @@ export function MapPage() {
               points={coordinatesReady ? points : []}
               insertRenders={activeInsertRenders}
               supportBands={visibleRoofBands}
+              measuring={measuring}
+              ruler={ruler}
+              onMeasure={onMeasure}
               layers={canvasLayers}
               initialFocus={sharedView}
               selectedKey={selected?.key}
@@ -705,10 +738,13 @@ export function MapPage() {
           </nav>}
 
           <div className="maps-corner-tools">
-            <div className="maps-coordinate">{formatCoordinate(coordinate)}</div>
+            <div className={coordinate ? "maps-coordinate" : "maps-coordinate is-empty"}>{formatCoordinate(coordinate)}</div>
             <nav className="maps-mode-dock" aria-label="Режим работы карты">
-              <button className="is-active" type="button" aria-current="page">
+              <button className={measuring ? undefined : "is-active"} type="button" aria-pressed={!measuring} onClick={() => toggleMeasuring(false)}>
                 <span aria-hidden="true">⌖</span><strong>Просмотр карты</strong>
+              </button>
+              <button className={measuring ? "is-active" : undefined} type="button" aria-pressed={measuring} onClick={() => toggleMeasuring(!measuring)}>
+                <span aria-hidden="true">⟷</span><strong>Линейка</strong>
               </button>
               <button type="button" disabled>
                 <span aria-hidden="true">✎</span><strong>Редактор</strong>
@@ -717,6 +753,19 @@ export function MapPage() {
                 <span aria-hidden="true">◎</span><strong>Зоны огня</strong>
               </button>
             </nav>
+            {measuring && (
+              <section className="maps-ruler" aria-live="polite" aria-label="Линейка">
+                {rulerMeasure ? (
+                  <>
+                    <strong>{formatDistance(rulerMeasure.distance)}</strong>
+                    <span>Δx {rulerMeasure.dx} · Δy {rulerMeasure.dy}</span>
+                  </>
+                ) : (
+                  <span>{ruler.start ? "Выберите конечный тайл" : "Выберите начальный тайл"}</span>
+                )}
+                {ruler.start && <button type="button" onClick={clearRuler}>Очистить</button>}
+              </section>
+            )}
           </div>
 
           {!coordinatesReady && manifest && (
