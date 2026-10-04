@@ -4,6 +4,7 @@ import { TileLoader } from "./tileLoader";
 import { planTiles, prioritizeTiles } from "./tilePlan";
 import { pointsOnSameTile } from "./overlay";
 import { markerStyle, type MarkerIcon } from "./markerConfig";
+import type { RoofTierBand } from "./areaSupport";
 import type { ActiveInsertRender, CanvasStats, GridManifest, LayerSettings, OverlayPoint, Point, TileManifest, ViewState } from "./types";
 
 type Props = {
@@ -11,6 +12,7 @@ type Props = {
   manifestUrl: string;
   points: OverlayPoint[];
   insertRenders: ActiveInsertRender[];
+  supportBands?: RoofTierBand[];
   layers: LayerSettings;
   initialFocus?: { world: Point; scale: number; key: string };
   selectedKey?: string;
@@ -358,6 +360,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
   manifestUrl,
   points,
   insertRenders,
+  supportBands,
   layers,
   initialFocus,
   selectedKey,
@@ -467,6 +470,14 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       };
     })
   )), [grid, insertRenders, size, view]);
+  const supportPaths = useMemo(() => (supportBands ?? []).filter((band) => band.runs.length).map((band) => {
+    const path = new Path2D();
+    for (const [x, y, length] of band.runs) {
+      const topLeft = worldToMapPixel(grid, { x, y: y + 1 });
+      path.rect(topLeft.x, topLeft.y, length * grid.pixelsPerMeter, grid.pixelsPerMeter);
+    }
+    return { path, color: band.color, hatched: band.hatched };
+  }), [grid, supportBands]);
   const neededUrls = useMemo(() => prioritizeTiles([
     ...plan.requests, ...insertLayers.flatMap((layer) => layer.plan.requests),
   ]), [plan, insertLayers]);
@@ -523,6 +534,32 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         if (cached) context.drawImage(cached.image, tile.x, tile.y, tile.width, tile.height);
       }
       context.restore();
+    }
+
+    if (supportPaths.length) {
+      const left = -view.x / view.scale;
+      const top = -view.y / view.scale;
+      const right = (size.width - view.x) / view.scale;
+      const bottom = (size.height - view.y) / view.scale;
+      const spacing = 9 / view.scale;
+      for (const band of supportPaths) {
+        context.fillStyle = band.color;
+        context.fill(band.path);
+        if (!band.hatched) continue;
+        // Hatching keeps blocked zones readable without relying on colour alone.
+        context.save();
+        context.clip(band.path);
+        context.strokeStyle = "rgba(10, 6, 6, .45)";
+        context.lineWidth = 1.5 / view.scale;
+        context.beginPath();
+        const start = Math.floor((left + top) / spacing) * spacing;
+        for (let offset = start; offset <= right + bottom; offset += spacing) {
+          context.moveTo(offset - top, top);
+          context.lineTo(offset - bottom, bottom);
+        }
+        context.stroke();
+        context.restore();
+      }
     }
 
     if (hoverTile) {
@@ -616,7 +653,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       );
     }
     context.restore();
-  }, [drawnPoints, grid, hoverTile, insertLayers, layers, maximum, plan, selectedKey, size, tileRevision, view]);
+  }, [drawnPoints, grid, hoverTile, insertLayers, layers, maximum, plan, selectedKey, size, supportPaths, tileRevision, view]);
 
   const mapPointAt = useCallback((screen: Point) => ({
     x: (screen.x - view.x) / view.scale,

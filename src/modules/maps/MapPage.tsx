@@ -4,6 +4,7 @@ import { REMOTE_DATA_UNAVAILABLE_MESSAGE } from "../../data/remoteJson";
 import { modulePath } from "../../routes";
 import { CATEGORY_ORDER, HIDDEN_CATEGORY } from "../equipment/config";
 import { loadMapCatalog, loadMapOverlay, loadMapStaticItems, loadTileManifest } from "./api";
+import { isRoofTier, roofTierBands, type RoofTier } from "./areaSupport";
 import { mapDataUrl } from "./config";
 import { MapCanvas, type MapCanvasHandle, type SelectionAnchor } from "./MapCanvas";
 import { MARKER_CATEGORIES, markerCategory, markerStyle, type MarkerCategoryDefinition } from "./markerConfig";
@@ -50,6 +51,7 @@ const DEFAULT_LAYERS: LayerSettings = {
   object: false,
   coordinateGrid: false,
   areaSupport: false,
+  roofTiers: [],
   markerScale: 1,
   groups: DEFAULT_GROUPS,
 };
@@ -85,6 +87,7 @@ const AREA_SUPPORT_COLUMNS = [
     { bit: 0, label: "Авиаудар (CAS)" },
     { bit: 4, label: "Огонь миномёта" },
     { bit: 3, label: "Установка миномёта" },
+    { bit: 2, label: "Лазерное целеуказание" },
   ],
   [
     { bit: 5, label: "Медэвак" },
@@ -97,7 +100,13 @@ const AREA_SUPPORT_COLUMNS = [
 function initialLayers(): LayerSettings {
   try {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "null") as Partial<LayerSettings> | null;
-    return saved ? { ...DEFAULT_LAYERS, ...saved, groups: { ...DEFAULT_GROUPS, ...saved.groups } } : DEFAULT_LAYERS;
+    if (!saved) return DEFAULT_LAYERS;
+    return {
+      ...DEFAULT_LAYERS,
+      ...saved,
+      roofTiers: Array.isArray(saved.roofTiers) ? [...new Set(saved.roofTiers.filter(isRoofTier))] : DEFAULT_LAYERS.roofTiers,
+      groups: { ...DEFAULT_GROUPS, ...saved.groups },
+    };
   } catch {
     return DEFAULT_LAYERS;
   }
@@ -432,6 +441,17 @@ export function MapPage() {
     const insertManifest = insertManifests[manifestUrlValue];
     return insertManifest ? [{ ...placement, manifest: insertManifest, manifestUrl: manifestUrlValue }] : [];
   }), [assetRevision, insertManifests, insertPlacements]);
+  const roofBands = useMemo(() => roofTierBands(overlay, insertPlacements), [insertPlacements, overlay]);
+  const visibleRoofBands = useMemo(
+    () => roofBands.filter((band) => layers.roofTiers.includes(band.tier)),
+    [layers.roofTiers, roofBands],
+  );
+  const toggleRoofTier = (tier: RoofTier) => setLayers((current) => ({
+    ...current,
+    roofTiers: current.roofTiers.includes(tier)
+      ? current.roofTiers.filter((value) => value !== tier)
+      : [...current.roofTiers, tier],
+  }));
   const hoveredArea = useMemo(
     () => areaAt(overlay, coordinate, insertPlacements),
     [coordinate, insertPlacements, overlay],
@@ -618,6 +638,7 @@ export function MapPage() {
               manifestUrl={manifestUrl}
               points={coordinatesReady ? points : []}
               insertRenders={activeInsertRenders}
+              supportBands={visibleRoofBands}
               layers={canvasLayers}
               initialFocus={sharedView}
               selectedKey={selected?.key}
@@ -897,6 +918,30 @@ export function MapPage() {
               <input type="checkbox" checked={layers.coordinateGrid} onChange={() => setLayers((value) => ({ ...value, coordinateGrid: !value.coordinateGrid }))} />
               <span title="шаг 10 игровых метров"><strong>Сетка координат</strong></span>
             </label>
+          </section>
+
+          <section className="maps-roof-tiers" aria-labelledby="maps-roof-tiers-title">
+            <h2 id="maps-roof-tiers-title">Уровни крыши</h2>
+            {overlay && !overlay.areas ? (
+              <p className="maps-sidebar-hint">У этой карты нет данных о зонах.</p>
+            ) : (
+              <div className="maps-layer-list">
+                {roofBands.map((band) => (
+                  <label className={band.tiles ? "maps-layer maps-roof-tier" : "maps-layer maps-roof-tier is-empty"} key={band.tier}>
+                    <input
+                      type="checkbox"
+                      checked={band.tiles > 0 && layers.roofTiers.includes(band.tier)}
+                      disabled={!band.tiles}
+                      onChange={() => toggleRoofTier(band.tier)}
+                    />
+                    <i className={band.hatched ? "is-hatched" : undefined} style={{ backgroundColor: band.color }} aria-hidden="true" />
+                    <span><strong>{band.label}</strong><small>{band.detail}</small></span>
+                    {overlay && <output>{band.tiles}</output>}
+                  </label>
+                ))}
+              </div>
+            )}
+            <p className="maps-sidebar-hint">Без заливки — открытое небо. Уровень определяется самой сильной заблокированной поддержкой; точный набор — в «Поддержке тайлов».</p>
           </section>
 
           <p className="maps-sidebar-hint">
