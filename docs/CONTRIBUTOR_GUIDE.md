@@ -639,6 +639,11 @@ overrides и вычисляет версию карт по содержимом�
 - ручная UI-проверка, если менялся интерфейс;
 - миграция или порядок публикации, если затронуты оба репозитория.
 
+Изменение, заметное пользователю сайта, добавляет отметку в
+[`.changes/`](../.changes/README.md) с типом `major`, `minor` или `patch`.
+`CHANGELOG.md` и номер версии меняет только `npm run release` в релизном PR —
+правила в [`VERSIONING.md`](VERSIONING.md).
+
 ### 10.3. Проверки перед PR
 
 Data:
@@ -652,6 +657,7 @@ python -m scripts.<module_package>.validate --help  # затем запусти�
 App:
 
 ```powershell
+npm run changes:check
 npm run lint
 npm run test
 npm run build

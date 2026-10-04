@@ -8,6 +8,7 @@ SSMC Wiki — неофициальная модульная база данны�
 
 - [Планы и TODO](https://github.com/DeferW/ssmc-wiki-app/blob/main/docs/ROADMAP.md)
 - [Руководство контрибьютора](https://github.com/DeferW/ssmc-wiki-app/blob/main/docs/CONTRIBUTOR_GUIDE.md)
+- [Журнал изменений](CHANGELOG.md) и [правила версий](docs/VERSIONING.md)
 
 ## Роль репозитория
 
