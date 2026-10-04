@@ -1,3 +1,23 @@
+import { Fragment } from "react";
+import changelogSource from "../../CHANGELOG.md?raw";
+import { parseChangelog, pendingRelease } from "./changelog";
+
+const CHANGELOG_URL = "https://github.com/DeferW/ssmc-wiki-app/blob/main/CHANGELOG.md";
+const SHOWN_RELEASES = 3;
+const changeNotes = import.meta.glob<string>("../../.changes/*.md", { query: "?raw", import: "default", eager: true });
+const pending = pendingRelease(changeNotes, __APP_VERSION__);
+const changelog = [
+  ...(pending ? [pending] : []),
+  ...parseChangelog(changelogSource).filter((entry) => entry.version).slice(0, SHOWN_RELEASES),
+];
+
+/** Renders `code` spans; the changelog uses no other inline Markdown. */
+function inlineText(text: string) {
+  return text.split("`").map((part, index) => (
+    index % 2 ? <code key={index}>{part}</code> : <Fragment key={index}>{part}</Fragment>
+  ));
+}
+
 const repositories = [
   {
     code: "DATA",
@@ -27,8 +47,8 @@ export function ProjectPage() {
         </div>
         <div className="project-status" aria-label="Статус проекта">
           <span>STATUS</span>
-          <strong>RELEASE</strong>
-          <small>Проект в режиме поддержки</small>
+          <strong>RELEASE {__APP_VERSION__}</strong>
+          <small>Проект в режиме поддержки{__APP_COMMIT__ && <> · сборка <code>{__APP_COMMIT__}</code></>}</small>
         </div>
       </section>
 
@@ -43,6 +63,26 @@ export function ProjectPage() {
           <h2>Режим поддержки</h2>
           <p>Основные идеи воплощены. В дальнейшем возможны обновления и новые полезные модули.</p>
         </article>
+      </section>
+
+      <section className="project-changelog" aria-labelledby="project-changelog-title">
+        <header>
+          <p className="eyebrow">CHANGELOG</p>
+          <h2 id="project-changelog-title">Что нового</h2>
+        </header>
+        <div>
+          {changelog.map((entry, index) => (
+            <details key={entry.version ?? "unreleased"} open={index === 0 || (index === 1 && !changelog[0].version)}>
+              <summary>
+                <strong>{entry.version ?? "Не выпущено"}</strong>
+                <span>{entry.version ? entry.date : `уже на сайте, войдёт в ${entry.nextVersion}`}</span>
+              </summary>
+              {entry.intro && <p>{inlineText(entry.intro)}</p>}
+              {entry.items.length > 0 && <ul>{entry.items.map((item) => <li key={item}>{inlineText(item)}</li>)}</ul>}
+            </details>
+          ))}
+        </div>
+        <a href={CHANGELOG_URL} target="_blank" rel="noreferrer">[ ПОЛНЫЙ ЖУРНАЛ НА GITHUB ↗ ]</a>
       </section>
 
       <section className="project-repositories">
