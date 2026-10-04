@@ -227,7 +227,7 @@ function outerRadius(part: FireZonePart): number {
 export type PlacedZone = { templateId: string; tile: Point };
 
 /** Zones per map; keeps the canvas readable and the shared link short. */
-export const MAX_ZONES = 20;
+export const MAX_ZONES = 7;
 const ZONE_TOKEN = /^([A-Za-z0-9]+):(-?\d+):(-?\d+)$/;
 
 /** URL tokens `TemplateId:x:y`; unknown templates and malformed tokens are dropped. */
