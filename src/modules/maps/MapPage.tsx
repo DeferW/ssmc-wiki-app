@@ -5,14 +5,16 @@ import { modulePath } from "../../routes";
 import { CATEGORY_ORDER, HIDDEN_CATEGORY } from "../equipment/config";
 import { loadMapCatalog, loadMapOverlay, loadMapStaticItems, loadTileManifest } from "./api";
 import { isRoofTier, roofTierBands, type RoofTier } from "./areaSupport";
-import { addRulerPoint, formatDistance, measureTiles, type RulerState } from "./ruler";
+import { addRulerPoint, formatDistance, measureTiles, tileCentre, type RulerState } from "./ruler";
+import { loadFireZoneCatalog, MAX_ZONES, parseZones, serializeZones, toggleZone, zoneTemplates, type FireZoneCatalog, type PlacedZone } from "./fireZones";
 import { mapDataUrl } from "./config";
-import { MapCanvas, type MapCanvasHandle, type SelectionAnchor } from "./MapCanvas";
+import { MapCanvas, type MapCanvasHandle, type SelectionAnchor, type ZoneDrawable } from "./MapCanvas";
 import { MARKER_CATEGORIES, markerCategory, markerStyle, type MarkerCategoryDefinition } from "./markerConfig";
 import { activeInsertPlacements, areaAt, describeComponents, effectiveInsertProbability, previewMapPoints, insertVariations, pointDisplayName, pointProbabilityDescriptions, restoreInsertSelections, serializeInsertSelections, spawnOptions } from "./overlay";
 import type { ActiveInsertRender, CanvasStats, LayerSettings, MapCatalog, MapOverlay, MapStaticItem, MapStaticItemCatalog, OverlayCategory, OverlayGroup, OverlayPoint, Point, TileManifest } from "./types";
 
 const SETTINGS_KEY = "ssmc-map-layers-v5";
+type MapMode = "view" | "ruler" | "zones";
 const DEFAULT_GROUPS: Record<OverlayGroup, boolean> = {
   "loot-intel": false,
   "loot-weapons": false,
@@ -116,6 +118,13 @@ function initialLayers(): LayerSettings {
 function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} КБ`;
   return `${(bytes / 1024 / 1024).toFixed(1)} МБ`;
+}
+
+/** Query of the current address; HashRouter keeps it after "?" inside the hash. */
+function currentSearchParams(): URLSearchParams {
+  const hash = window.location.hash;
+  const query = hash.indexOf("?");
+  return new URLSearchParams(query >= 0 ? hash.slice(query + 1) : "");
 }
 
 function formatCoordinate(point?: Point): string {
@@ -231,7 +240,10 @@ export function MapPage() {
   const [stats, setStats] = useState<CanvasStats>({ loadedTiles: 0, loadedBytes: 0, pendingTiles: 0, failedTiles: 0, zoom: 0 });
   const [error, setError] = useState<string>();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [measuring, setMeasuring] = useState(false);
+  const [mapMode, setMapMode] = useState<MapMode>("view");
+  const measuring = mapMode === "ruler";
+  const [zoneTemplateId, setZoneTemplateId] = useState<string>();
+  const [fireZones, setFireZones] = useState<{ catalog?: FireZoneCatalog; error?: string }>({});
   // Scoped to the map: switching maps drops the old measurement without an effect.
   const [rulerSelection, setRulerSelection] = useState<{ scope: string; value: RulerState }>({ scope: "", value: {} });
   const requestedMap = searchParams.get("map");
@@ -558,20 +570,59 @@ export function MapPage() {
     setSelectionChoices([]);
   }, [mapScope]);
   const clearRuler = useCallback(() => setRulerSelection({ scope: "", value: {} }), []);
-  const toggleMeasuring = useCallback((value: boolean) => {
-    setMeasuring(value);
-    if (!value) clearRuler();
+  const switchMode = useCallback((mode: MapMode) => {
+    setMapMode(mode);
+    if (mode !== "ruler") clearRuler();
+    if (mode !== "zones") setZoneTemplateId(undefined);
   }, [clearRuler]);
+
+  const zoneTemplateList = useMemo(() => fireZones.catalog ? zoneTemplates(fireZones.catalog) : [], [fireZones.catalog]);
+  const zoneTemplatesById = useMemo(() => new Map(zoneTemplateList.map((template) => [template.id, template])), [zoneTemplateList]);
+  const zoneTokens = searchParams.getAll("zone");
+  const zoneTokenKey = zoneTokens.join("\0");
+  const placedZones = useMemo(
+    () => parseZones(zoneTokenKey ? zoneTokenKey.split("\0") : [], new Set(zoneTemplatesById.keys())),
+    [zoneTemplatesById, zoneTokenKey],
+  );
+  const zoneDrawables = useMemo<ZoneDrawable[]>(() => placedZones.flatMap((zone, index) => {
+    const template = zoneTemplatesById.get(zone.templateId);
+    return template ? [{ key: `${index}:${zone.templateId}`, tile: zone.tile, centre: tileCentre(zone.tile), label: template.label, color: template.color, shapes: template.shapes }] : [];
+  }), [placedZones, zoneTemplatesById]);
+  const needsFireZones = mapMode === "zones" || zoneTokens.length > 0;
   useEffect(() => {
-    if (!measuring) return;
+    if (!needsFireZones || fireZones.catalog || fireZones.error) return;
+    let active = true;
+    loadFireZoneCatalog()
+      .then((catalog) => { if (active) setFireZones({ catalog }); })
+      .catch((reason: unknown) => {
+        if (active) setFireZones({ error: reason instanceof Error ? reason.message : String(reason) });
+      });
+    return () => { active = false; };
+  }, [fireZones.catalog, fireZones.error, needsFireZones]);
+  const writeZones = useCallback((update: (zones: PlacedZone[]) => PlacedZone[]) => {
+    // Rendered searchParams lag behind quick successive taps, and react-router does
+    // not queue updates, so each change starts from the address as it is right now.
+    const next = currentSearchParams();
+    const zones = update(parseZones(next.getAll("zone"), new Set(zoneTemplatesById.keys())));
+    next.delete("zone");
+    for (const token of serializeZones(zones)) next.append("zone", token);
+    setSearchParams(next, { replace: true });
+  }, [setSearchParams, zoneTemplatesById]);
+  const onTileTap = useCallback((tile: Point) => {
+    if (mapMode === "ruler") onMeasure(tile);
+    else if (mapMode === "zones" && zoneTemplateId) writeZones((zones) => toggleZone(zones, zoneTemplateId, tile));
+  }, [mapMode, onMeasure, writeZones, zoneTemplateId]);
+  useEffect(() => {
+    if (mapMode === "view") return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      if (ruler.start) clearRuler();
-      else setMeasuring(false);
+      if (mapMode === "ruler" && ruler.start) clearRuler();
+      else if (mapMode === "zones" && zoneTemplateId) setZoneTemplateId(undefined);
+      else switchMode("view");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [clearRuler, measuring, ruler.start]);
+  }, [clearRuler, mapMode, ruler.start, switchMode, zoneTemplateId]);
   const onSelectedAnchor = useCallback((value?: SelectionAnchor) => setSelectionAnchor(value), []);
   const onShareTile = useCallback((value: Point, zoom: number) => {
     const next = new URLSearchParams(searchParams);
@@ -669,9 +720,10 @@ export function MapPage() {
               points={coordinatesReady ? points : []}
               insertRenders={activeInsertRenders}
               supportBands={visibleRoofBands}
-              measuring={measuring}
+              tileTaps={mapMode !== "view"}
+              onTileTap={onTileTap}
               ruler={ruler}
-              onMeasure={onMeasure}
+              zones={zoneDrawables}
               layers={canvasLayers}
               initialFocus={sharedView}
               selectedKey={selected?.key}
@@ -740,17 +792,18 @@ export function MapPage() {
           <div className="maps-corner-tools">
             <div className={coordinate ? "maps-coordinate" : "maps-coordinate is-empty"}>{formatCoordinate(coordinate)}</div>
             <nav className="maps-mode-dock" aria-label="Режим работы карты">
-              <button className={measuring ? undefined : "is-active"} type="button" aria-pressed={!measuring} onClick={() => toggleMeasuring(false)}>
+              <button className={mapMode === "view" ? "is-active" : undefined} type="button" aria-pressed={mapMode === "view"} onClick={() => switchMode("view")}>
                 <span aria-hidden="true">⌖</span><strong>Просмотр карты</strong>
               </button>
-              <button className={measuring ? "is-active" : undefined} type="button" aria-pressed={measuring} onClick={() => toggleMeasuring(!measuring)}>
+              <button className={measuring ? "is-active" : undefined} type="button" aria-pressed={measuring} onClick={() => switchMode(measuring ? "view" : "ruler")}>
                 <span aria-hidden="true">⟷</span><strong>Линейка</strong>
+              </button>
+              <button className={mapMode === "zones" ? "is-active" : undefined} type="button" aria-pressed={mapMode === "zones"} onClick={() => switchMode(mapMode === "zones" ? "view" : "zones")}>
+                <span aria-hidden="true">◎</span><strong>Зоны огня</strong>
+                {placedZones.length > 0 && <output>{placedZones.length}</output>}
               </button>
               <button type="button" disabled>
                 <span aria-hidden="true">✎</span><strong>Редактор</strong>
-              </button>
-              <button type="button" disabled>
-                <span aria-hidden="true">◎</span><strong>Зоны огня</strong>
               </button>
             </nav>
             {measuring && (
@@ -764,6 +817,61 @@ export function MapPage() {
                   <span>{ruler.start ? "Выберите конечный тайл" : "Выберите начальный тайл"}</span>
                 )}
                 {ruler.start && <button type="button" onClick={clearRuler}>Очистить</button>}
+              </section>
+            )}
+            {mapMode === "zones" && (
+              <section className="maps-zones" aria-label="Зоны огня">
+                {fireZones.error ? (
+                  <p className="maps-zones-hint">Зоны огня недоступны: {fireZones.error}</p>
+                ) : !fireZones.catalog ? (
+                  <p className="maps-zones-hint">Загрузка зон…</p>
+                ) : (
+                  <>
+                    <div className="maps-zones-palette" role="radiogroup" aria-label="Тип зоны">
+                      {zoneTemplateList.map((template) => (
+                        <button
+                          key={template.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={zoneTemplateId === template.id}
+                          className={zoneTemplateId === template.id ? "is-active" : undefined}
+                          title={[template.title, ...template.details].join("\n")}
+                          onClick={() => setZoneTemplateId((current) => current === template.id ? undefined : template.id)}
+                        >
+                          <i style={{ borderColor: template.color, backgroundColor: template.shapes[0].fill }} aria-hidden="true" />
+                          <span><strong>{template.label}</strong><small>{template.details[0]}</small></span>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="maps-zones-hint">
+                      {zoneTemplateId
+                        ? [...(zoneTemplatesById.get(zoneTemplateId)?.details.slice(1) ?? []), "Повторное касание того же тайла убирает зону"].join(". ") + "."
+                        : "Выберите тип зоны и коснитесь тайла на карте."}
+                    </p>
+                    {placedZones.length > 0 && (
+                      <ul className="maps-zones-list">
+                        {placedZones.map((zone, index) => {
+                          const template = zoneTemplatesById.get(zone.templateId);
+                          return (
+                            <li key={`${index}:${zone.templateId}`}>
+                              <i style={{ backgroundColor: template?.color }} aria-hidden="true" />
+                              <span>{template?.label} <code>{zone.tile.x}, {zone.tile.y}</code></span>
+                              <button type="button" aria-label={`Убрать ${template?.label}`} onClick={() => writeZones((zones) => zones.filter((_, current) => current !== index))}>×</button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                    {/* Sticks to the bottom of the scrolling panel, so the count and "remove all" stay reachable. */}
+                    <div className={placedZones.length >= MAX_ZONES ? "maps-zones-footer is-full" : "maps-zones-footer"}>
+                      <p role="status">
+                        Метки: {placedZones.length} / {MAX_ZONES}
+                        {placedZones.length >= MAX_ZONES && <span>Предел достигнут — уберите лишние, чтобы поставить новые.</span>}
+                      </p>
+                      {placedZones.length > 0 && <button type="button" onClick={() => writeZones(() => [])}>Убрать все</button>}
+                    </div>
+                  </>
+                )}
               </section>
             )}
           </div>

@@ -6,6 +6,7 @@ import { pointsOnSameTile } from "./overlay";
 import { markerStyle, type MarkerIcon } from "./markerConfig";
 import type { RoofTierBand } from "./areaSupport";
 import { formatDistance, measureTiles, tileAt, tileCentre, type RulerState } from "./ruler";
+import { liftLabels, tileRegion, type ZoneShape } from "./fireZones";
 import type { ActiveInsertRender, CanvasStats, GridManifest, LayerSettings, OverlayPoint, Point, TileManifest, ViewState } from "./types";
 
 type Props = {
@@ -15,10 +16,11 @@ type Props = {
   insertRenders: ActiveInsertRender[];
   supportBands?: RoofTierBand[];
   layers: LayerSettings;
-  /** Ruler mode: taps measure tiles instead of selecting markers. */
-  measuring?: boolean;
+  /** Ruler and zone modes: taps report the tile instead of selecting markers. */
+  tileTaps?: boolean;
+  onTileTap?: (tile: Point) => void;
   ruler?: RulerState;
-  onMeasure?: (tile: Point) => void;
+  zones?: ZoneDrawable[];
   initialFocus?: { world: Point; scale: number; key: string };
   selectedKey?: string;
   anchorKey?: string;
@@ -36,6 +38,8 @@ export type SelectionAnchor = {
   align: "left" | "right";
   vertical?: "above" | "below";
 };
+
+export type ZoneDrawable = { key: string; tile: Point; centre: Point; label: string; color: string; shapes: ZoneShape[] };
 
 type PointerDrag = { id: number; startX: number; startY: number; viewX: number; viewY: number; moved: boolean };
 type PinchGesture = { distance: number; center: Point; view: ViewState };
@@ -368,9 +372,10 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
   insertRenders,
   supportBands,
   layers,
-  measuring = false,
+  tileTaps = false,
+  onTileTap,
   ruler,
-  onMeasure,
+  zones,
   initialFocus,
   selectedKey,
   anchorKey,
@@ -487,6 +492,23 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
     }
     return { path, color: band.color, hatched: band.hatched };
   }), [grid, supportBands]);
+  // Zones snap to whole tiles; regions are rebuilt only when zones change.
+  const zonePaths = useMemo(() => (zones ?? []).flatMap((zone) => zone.shapes.map((shape) => {
+    const region = tileRegion(shape, zone.tile);
+    const area = new Path2D();
+    for (const [x, y, length] of region.runs) {
+      const topLeft = worldToMapPixel(grid, { x, y: y + 1 });
+      area.rect(topLeft.x, topLeft.y, length * grid.pixelsPerMeter, grid.pixelsPerMeter);
+    }
+    const outline = new Path2D();
+    for (const [x1, y1, x2, y2] of region.edges) {
+      const from = worldToMapPixel(grid, { x: x1, y: y1 });
+      const to = worldToMapPixel(grid, { x: x2, y: y2 });
+      outline.moveTo(from.x, from.y);
+      outline.lineTo(to.x, to.y);
+    }
+    return { area, outline, fill: shape.fill, stroke: shape.stroke, dashed: shape.dashed };
+  })), [grid, zones]);
   const neededUrls = useMemo(() => prioritizeTiles([
     ...plan.requests, ...insertLayers.flatMap((layer) => layer.plan.requests),
   ]), [plan, insertLayers]);
@@ -570,6 +592,16 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         context.restore();
       }
     }
+
+    for (const zone of zonePaths) {
+      context.fillStyle = zone.fill;
+      context.fill(zone.area);
+      context.strokeStyle = zone.stroke;
+      context.lineWidth = 2 / view.scale;
+      context.setLineDash(zone.dashed ? [7 / view.scale, 5 / view.scale] : []);
+      context.stroke(zone.outline);
+    }
+    context.setLineDash([]);
 
     if (hoverTile) {
       const topLeft = worldToMapPixel(grid, { x: hoverTile.x, y: hoverTile.y + 1 });
@@ -663,7 +695,53 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
     }
     context.restore();
 
-    const rulerEnd = ruler?.end ?? (measuring && ruler?.start ? hoverTile : undefined);
+    if (zones?.length) {
+      context.save();
+      context.font = "700 11px IBM Plex Mono, monospace";
+      context.textBaseline = "middle";
+      const visible = zones.flatMap((zone) => {
+        const pixel = worldToMapPixel(grid, zone.centre);
+        const x = view.x + pixel.x * view.scale;
+        const y = view.y + pixel.y * view.scale;
+        if (x < -80 || y < -40 || x > size.width + 80 || y > size.height + 40) return [];
+        const width = context.measureText(zone.label).width + 12;
+        return [{ zone, x, y, box: { x: x - width / 2, y: y - 27, width, height: 18 } }];
+      });
+      // Labels of nearby zones climb out of the way; earlier zones keep their place.
+      const lifts = liftLabels(visible.map((item) => item.box));
+      // Three passes: leader lines, then dots, then labels, so no line crosses a label.
+      visible.forEach(({ zone, x, y, box }, index) => {
+        if (lifts[index] <= 0) return;
+        context.strokeStyle = zone.color;
+        context.lineWidth = 1;
+        context.beginPath();
+        context.moveTo(x, y - 5);
+        context.lineTo(x, box.y - lifts[index] + box.height);
+        context.stroke();
+      });
+      for (const { zone, x, y } of visible) {
+        context.fillStyle = zone.color;
+        context.strokeStyle = "rgba(2, 5, 3, .9)";
+        context.lineWidth = 2;
+        context.beginPath();
+        context.arc(x, y, 4, 0, Math.PI * 2);
+        context.fill();
+        context.stroke();
+      }
+      visible.forEach(({ zone, box }, index) => {
+        const top = box.y - lifts[index];
+        context.fillStyle = "rgba(3, 6, 4, .9)";
+        context.fillRect(box.x, top, box.width, box.height);
+        context.strokeStyle = zone.color;
+        context.lineWidth = 1;
+        context.strokeRect(box.x + .5, top + .5, box.width - 1, box.height - 1);
+        context.fillStyle = zone.color;
+        context.fillText(zone.label, box.x + 6, top + 9.5);
+      });
+      context.restore();
+    }
+
+    const rulerEnd = ruler?.end ?? (tileTaps && ruler?.start ? hoverTile : undefined);
     if (ruler?.start) {
       const toScreen = (world: Point) => {
         const pixel = worldToMapPixel(grid, world);
@@ -718,7 +796,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       }
       context.restore();
     }
-  }, [drawnPoints, grid, hoverTile, insertLayers, layers, maximum, measuring, plan, ruler, selectedKey, size, supportPaths, tileRevision, view]);
+  }, [drawnPoints, grid, hoverTile, insertLayers, layers, maximum, plan, ruler, selectedKey, size, supportPaths, tileRevision, tileTaps, view, zonePaths, zones]);
 
   const mapPointAt = useCallback((screen: Point) => ({
     x: (screen.x - view.x) / view.scale,
@@ -762,13 +840,13 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
   return (
     <canvas
       ref={canvasRef}
-      className={measuring ? "map-canvas is-measuring" : "map-canvas"}
+      className={tileTaps ? "map-canvas is-measuring" : "map-canvas"}
       tabIndex={0}
       aria-label="Интерактивная карта. Перетаскивайте мышью, изменяйте масштаб колесом."
       onContextMenu={(event) => event.preventDefault()}
       onDoubleClick={(event) => {
         event.preventDefault();
-        if (measuring) return;
+        if (tileTaps) return;
         const screen = eventPoint(event, event.currentTarget);
         const world = mapPixelToWorld(grid, mapPointAt(screen));
         onShareTile(world, SHARED_TILE_ZOOM);
@@ -824,8 +902,8 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       onPointerUp={(event) => {
         const drag = dragRef.current;
         const wasPinching = Boolean(pinchRef.current);
-        if (!wasPinching && drag && !drag.moved && measuring) {
-          onMeasure?.(tileAt(mapPixelToWorld(grid, mapPointAt(eventPoint(event, event.currentTarget)))));
+        if (!wasPinching && drag && !drag.moved && tileTaps) {
+          onTileTap?.(tileAt(mapPixelToWorld(grid, mapPointAt(eventPoint(event, event.currentTarget)))));
         } else if (!wasPinching && drag && !drag.moved) {
           const nearest = nearestPoint(eventPoint(event, event.currentTarget));
           onSelect(nearest ? pointsOnSameTile(visiblePoints, nearest) : []);
