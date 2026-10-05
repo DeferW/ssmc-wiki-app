@@ -1,5 +1,25 @@
+import {
+  DEFAULT_CUSTOM_WEAPON,
+  DEFAULT_CUSTOM_XENO_ATTACK,
+} from "./attacker";
+import type { AttackerSide, CustomWeaponStats, CustomXenoAttackStats, SourceMode, XenoAttackKind } from "./attacker";
 import type { HitDirection } from "./damageMath";
-import type { TargetSelection } from "./target";
+import type { CustomTarget, TargetSelection } from "./target";
+
+// Attacker/custom fields are optional so the comparison view and older
+// callers keep working; a missing field means "marine, catalog weapon,
+// catalog target" — exactly what links made before custom values meant.
+export type DamageAttackerUrlState = {
+  attackerSide?: AttackerSide;
+  marineMode?: SourceMode;
+  customWeapon?: CustomWeaponStats;
+  xenoMode?: SourceMode;
+  xenoCasteId?: string | null;
+  xenoAttack?: XenoAttackKind;
+  customXeno?: CustomXenoAttackStats;
+  targetMode?: SourceMode;
+  customTarget?: CustomTarget | null;
+};
 
 export type DamageUrlState = {
   weaponId: string | null;
@@ -13,7 +33,7 @@ export type DamageUrlState = {
   hitDirection: HitDirection;
   activeAbilities: Set<string>;
   distance: number;
-};
+} & DamageAttackerUrlState;
 
 export type DamageBuildUrlState = Pick<DamageUrlState,
   | "wielded"
@@ -63,6 +83,93 @@ function targetFrom(value: string | null): TargetSelection | null {
   return null;
 }
 
+function nonNegativeNumber(value: string | undefined, fallback: number): number {
+  if (value === undefined || value === "") return fallback;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function optionalPositive(value: string | undefined): number | null {
+  if (value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function joinValues(values: (number | string | null)[]): string {
+  return values.map((value) => value ?? "").join("~");
+}
+
+export function readCustomWeapon(value: string | null): CustomWeaponStats {
+  if (!value) return DEFAULT_CUSTOM_WEAPON;
+  const [category, brute, burn, ap, rate, magazine] = value.split("~");
+  const d = DEFAULT_CUSTOM_WEAPON;
+  return {
+    category: category === "melee" ? "melee" : "bullet",
+    brute: nonNegativeNumber(brute, d.brute),
+    burn: nonNegativeNumber(burn, d.burn),
+    armorPiercing: nonNegativeNumber(ap, d.armorPiercing),
+    shotsPerSecond: nonNegativeNumber(rate, d.shotsPerSecond),
+    magazine: optionalPositive(magazine),
+  };
+}
+
+export function writeCustomWeapon(stats: CustomWeaponStats): string {
+  return joinValues([stats.category, stats.brute, stats.burn, stats.armorPiercing, stats.shotsPerSecond, stats.magazine]);
+}
+
+export function readCustomXeno(value: string | null): CustomXenoAttackStats {
+  if (!value) return DEFAULT_CUSTOM_XENO_ATTACK;
+  const [attack, brute, burn, ap, rate] = value.split("~");
+  const d = DEFAULT_CUSTOM_XENO_ATTACK;
+  return {
+    attack: attack === "tail" ? "tail" : "claw",
+    brute: nonNegativeNumber(brute, d.brute),
+    burn: nonNegativeNumber(burn, d.burn),
+    armorPiercing: nonNegativeNumber(ap, d.armorPiercing),
+    attacksPerSecond: nonNegativeNumber(rate, d.attacksPerSecond),
+  };
+}
+
+export function writeCustomXeno(stats: CustomXenoAttackStats): string {
+  return joinValues([stats.attack, stats.brute, stats.burn, stats.armorPiercing, stats.attacksPerSecond]);
+}
+
+export function readCustomTarget(value: string | null): CustomTarget | null {
+  if (!value) return null;
+  const parts = value.split("~");
+  const dead = optionalPositive(parts.at(-1));
+  if (dead == null) return null;
+  const critical = optionalPositive(parts.at(-2));
+  if (parts[0] === "m" && parts.length === 6) {
+    return {
+      kind: "marine",
+      bullet: nonNegativeNumber(parts[1], 0),
+      melee: nonNegativeNumber(parts[2], 0),
+      bio: nonNegativeNumber(parts[3], 0),
+      critical,
+      dead,
+    };
+  }
+  if (parts[0] === "x" && parts.length === 7) {
+    return {
+      kind: "xeno",
+      xenoArmor: nonNegativeNumber(parts[1], 0),
+      frontalArmor: Number.isFinite(Number(parts[2])) ? Number(parts[2]) : 0,
+      sideArmor: Number.isFinite(Number(parts[3])) ? Number(parts[3]) : 0,
+      immuneToArmorPiercing: parts[4] === "1",
+      critical,
+      dead,
+    };
+  }
+  return null;
+}
+
+export function writeCustomTarget(target: CustomTarget): string {
+  return target.kind === "marine"
+    ? joinValues(["m", target.bullet, target.melee, target.bio, target.critical, target.dead])
+    : joinValues(["x", target.xenoArmor, target.frontalArmor, target.sideArmor, target.immuneToArmorPiercing ? 1 : 0, target.critical, target.dead]);
+}
+
 export function readDamageUrlState(params: URLSearchParams): DamageUrlState {
   const attachmentBySlot: Record<string, string> = {};
   const attachmentActiveBySlot: Record<string, boolean> = {};
@@ -74,7 +181,18 @@ export function readDamageUrlState(params: URLSearchParams): DamageUrlState {
   }
   const direction = params.get("direction") as HitDirection | null;
   const target = targetFrom(params.get("target"));
+  const customTarget = readCustomTarget(params.get("ct"));
+  const targetMode: SourceMode = params.get("tm") === "custom" && customTarget ? "custom" : "catalog";
   return {
+    attackerSide: params.get("side") === "xeno" ? "xeno" : "marine",
+    marineMode: params.get("mm") === "custom" ? "custom" : "catalog",
+    customWeapon: readCustomWeapon(params.get("cw")),
+    xenoMode: params.get("xm") === "custom" ? "custom" : "catalog",
+    xenoCasteId: params.get("xeno"),
+    xenoAttack: params.get("xattack") === "tail" ? "tail" : "claw",
+    customXeno: readCustomXeno(params.get("cx")),
+    targetMode,
+    customTarget,
     weaponId: params.get("weapon"),
     wielded: params.get("hands") !== "1",
     ammoIndex: nonNegativeInteger(params.get("ammo")),
@@ -82,7 +200,7 @@ export function readDamageUrlState(params: URLSearchParams): DamageUrlState {
     attachmentBySlot,
     attachmentActiveBySlot,
     target,
-    targetMatured: target?.kind === "xeno" && params.get("maturity") === "mature",
+    targetMatured: targetMode === "catalog" && target?.kind === "xeno" && params.get("maturity") === "mature",
     hitDirection: direction && DIRECTIONS.has(direction) ? direction : "front",
     activeAbilities: new Set(params.getAll("ability").filter(Boolean)),
     distance: distanceFrom(params.get("distance")),
@@ -110,7 +228,28 @@ export function writeDamageUrlState(state: DamageUrlState): URLSearchParams {
   if (state.hitDirection !== "front") params.set("direction", state.hitDirection);
   for (const ability of [...state.activeAbilities].sort()) params.append("ability", ability);
   if (state.distance !== DEFAULT_DISTANCE) params.set("distance", String(state.distance));
+  writeAttackerParams(params, state);
   return params;
+}
+
+function writeAttackerParams(params: URLSearchParams, state: DamageAttackerUrlState) {
+  if (state.attackerSide === "xeno") {
+    params.set("side", "xeno");
+    if (state.xenoMode === "custom") {
+      params.set("xm", "custom");
+      if (state.customXeno) params.set("cx", writeCustomXeno(state.customXeno));
+    } else if (state.xenoCasteId) {
+      params.set("xeno", state.xenoCasteId);
+      if (state.xenoAttack === "tail") params.set("xattack", "tail");
+    }
+  } else if (state.marineMode === "custom") {
+    params.set("mm", "custom");
+    if (state.customWeapon) params.set("cw", writeCustomWeapon(state.customWeapon));
+  }
+  if (state.targetMode === "custom" && state.customTarget) {
+    params.set("tm", "custom");
+    params.set("ct", writeCustomTarget(state.customTarget));
+  }
 }
 
 function encodeBuild(build: DamageBuildUrlState): string {

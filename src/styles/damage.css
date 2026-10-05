@@ -495,3 +495,18 @@
  .scatter-fire-actions { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
  .scatter-fire-actions button { padding-inline: 3px; font-size: .64rem; white-space: nowrap; }
 }
+
+/* Attacker side / custom values */
+.direction-control.is-2-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.direction-control button:disabled { opacity: .4; cursor: default; }
+.direction-control button:disabled:hover { border-color: var(--line); color: var(--muted); }
+.attacker-controls { display: grid; gap: 7px; }
+.custom-form { display: grid; gap: 12px; }
+.custom-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.custom-field { display: grid; gap: 5px; align-content: start; min-width: 0; }
+.custom-field > span { color: var(--muted); font-size: .56rem; letter-spacing: .06em; text-transform: uppercase; }
+.custom-field input { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); font: inherit; font-size: .78rem; }
+.custom-field input:focus { border-color: var(--accent); outline: 0; }
+.custom-field small { color: var(--muted); font-size: .54rem; line-height: 1.35; }
+.custom-check { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: .66rem; cursor: pointer; }
+.custom-check input { accent-color: var(--accent); }

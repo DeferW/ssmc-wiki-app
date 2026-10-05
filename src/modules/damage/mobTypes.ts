@@ -16,6 +16,12 @@ export type XenoArmorStats = {
 // tier RMCFocusedShootingSystem grants a landed aimed shot.
 export type RmcSize = "Small" | "Humanoid" | "VerySmallXeno" | "SmallXeno" | "Xeno" | "Big" | "Immobile";
 
+// Base claw swing (MeleeWeapon) and tail stab (XenoTailStab + the granted
+// action's cooldown). Absent on catalogs built before attacksSchemaVersion 1.
+export type XenoClawAttack = { damage: Record<string, number>; attackRate: number };
+export type XenoTailAttack = { damage: Record<string, number>; armorPiercing: number; cooldownSeconds: number };
+export type XenoAttacks = { claw: XenoClawAttack | null; tail: XenoTailAttack | null };
+
 export type XenoCaste = {
   id: string;
   name: string;
@@ -28,6 +34,7 @@ export type XenoCaste = {
   thresholds: MobThresholdPair;
   maturedThresholds: MobThresholdPair | null;
   armor: XenoArmorStats;
+  attacks?: XenoAttacks;
   sprite: string | null;
 };
 

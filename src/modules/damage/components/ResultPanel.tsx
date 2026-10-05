@@ -50,6 +50,7 @@ export function ResultPanel({
   gunStacks,
   overheat,
   holoTargeting,
+  unit = "shot",
 }: {
   effectiveDamage: DamageTypeMap;
   projectilesPerShot?: number;
@@ -67,6 +68,8 @@ export function ResultPanel({
   gunStacks?: GunStacksConfig;
   overheat?: OverheatConfig;
   holoTargeting?: HoloTargetingConfig;
+  // "strike" for xeno attacks and melee: no ammo row, wording in hits.
+  unit?: "shot" | "strike";
 }) {
   const engagement = simulateEngagement({
     effectiveDamage,
@@ -94,19 +97,19 @@ export function ResultPanel({
     <section className="result-panel">
       <h3>Результат</h3>
       <dl className="stat-grid">
-        <div><dt>Урон 1-го выстрела</dt><dd>{firstShot ? formatDamage({ Piercing: firstShot.totalDamage }) ?? formatNumber(firstShot.totalDamage) : "—"}</dd></div>
+        <div><dt>{unit === "strike" ? "Урон 1-го удара" : "Урон 1-го выстрела"}</dt><dd>{firstShot ? (unit === "strike" ? formatNumber(firstShot.totalDamage) : formatDamage({ Piercing: firstShot.totalDamage }) ?? formatNumber(firstShot.totalDamage)) : "—"}</dd></div>
         <div><dt>До обездвиживания</dt><dd>{formatHits(engagement.hitsToCritical)}</dd></div>
         <div><dt>До смерти</dt><dd>{formatHits(engagement.hitsToDead)}</dd></div>
         <div><dt>Время до обездвиживания</dt><dd>{formatSeconds(engagement.timeToCriticalSeconds)}</dd></div>
         <div><dt>Время до смерти</dt><dd>{formatSeconds(engagement.timeToDeadSeconds)}</dd></div>
-        <div>
+        {unit === "shot" && <div>
           <dt>Патронов нужно</dt>
           <dd>
             {Number.isFinite(engagement.hitsToDead)
               ? `${formatNumber(ammoDead.shots)}${ammoDead.magazines != null ? ` (${formatNumber(ammoDead.magazines)} магазин${ammoDead.magazines === 1 ? "" : "а"})` : ""}`
               : "—"}
           </dd>
-        </div>
+        </div>}
         {overheat && <div><dt>Перегревов за бой</dt><dd>{engagement.overheatCount}</dd></div>}
         {holoTargeting && lastShot?.holoStacks != null && (
           <div>

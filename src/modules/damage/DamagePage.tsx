@@ -19,8 +19,21 @@ import { isCompatibleAttachment, lockedIntegratedAttachmentIds } from "./attachm
 import type { DamageTypeMap, HitDirection, HoloTargetingConfig, OverheatConfig } from "./damageMath";
 import { useMobCatalog } from "./mobCatalogStore";
 import { damageFalloffFrom, falloffThresholdsFrom } from "./projectileFalloff";
-import { targetArmorFrom, targetSizeFrom, targetThresholdsFrom } from "./target";
-import type { TargetSelection } from "./target";
+import { customTargetArmor, customTargetFrom, customTargetThresholds, targetArmorFrom, targetSizeFrom, targetThresholdsFrom } from "./target";
+import type { CustomTarget, TargetSelection } from "./target";
+import {
+  customWeaponProfile,
+  customXenoProfile,
+  DEFAULT_CUSTOM_WEAPON,
+  DEFAULT_CUSTOM_XENO_ATTACK,
+  hasCatalogXenoAttacks,
+  profileAgainstTarget,
+  XENO_VS_XENO_MULTIPLIER,
+  xenoCasteProfile,
+} from "./attacker";
+import type { AttackerSide, AttackProfile, CustomWeaponStats, CustomXenoAttackStats, SourceMode, XenoAttackKind } from "./attacker";
+import { CustomTargetForm, CustomWeaponForm, CustomXenoAttackForm, SegmentedControl } from "./components/CustomForms";
+import { XenoAttackerPicker, XenoAttackerSlot, XenoAttackStats } from "./components/XenoAttackerPicker";
 import { applyXenoAbilityBonuses, toggleXenoAbility, XENO_DEFENSIVE_ABILITIES } from "./xenoAbilities";
 import { WEAPON_GUN_STACKS } from "./weaponGunStacks";
 import { canDamageAnyTarget } from "./weaponEligibility";
@@ -38,7 +51,23 @@ import { WeaponPicker } from "./components/WeaponPicker";
 import { ScatterRange } from "./components/ScatterRange";
 import { DamageComparison, damageBuildSeed } from "./components/DamageComparison";
 
-type PickerState = { type: "weapon" } | { type: "attachment"; slotId: string } | { type: "target" } | null;
+type PickerState = { type: "weapon" } | { type: "attachment"; slotId: string } | { type: "target" } | { type: "xeno-attacker" } | null;
+
+const SOURCE_OPTIONS: { value: SourceMode; label: string }[] = [
+  { value: "catalog", label: "Каталог" },
+  { value: "custom", label: "Своё значение" },
+];
+
+function DirectionControl({ value, onChange }: { value: HitDirection; onChange: (value: HitDirection) => void }) {
+  return (
+    <SegmentedControl
+      label="Направление попадания"
+      value={value}
+      options={[{ value: "front", label: "Спереди" }, { value: "side", label: "Сбоку" }, { value: "back", label: "Сзади" }]}
+      onChange={onChange}
+    />
+  );
+}
 
 function numberField(container: unknown, key: string): number | undefined {
   return isMap(container) && typeof container[key] === "number" ? (container[key] as number) : undefined;
@@ -238,6 +267,15 @@ export function DamagePage() {
   const [activeAbilities, setActiveAbilities] = useState<Set<string>>(initialUrlState.activeAbilities);
   const [distance, setDistance] = useState(initialUrlState.distance);
   const [picker, setPicker] = useState<PickerState>(null);
+  const [attackerSide, setAttackerSide] = useState<AttackerSide>(initialUrlState.attackerSide ?? "marine");
+  const [marineMode, setMarineMode] = useState<SourceMode>(initialUrlState.marineMode ?? "catalog");
+  const [customWeapon, setCustomWeapon] = useState<CustomWeaponStats>(initialUrlState.customWeapon ?? DEFAULT_CUSTOM_WEAPON);
+  const [xenoMode, setXenoMode] = useState<SourceMode>(initialUrlState.xenoMode ?? "catalog");
+  const [xenoCasteId, setXenoCasteId] = useState<string | null>(initialUrlState.xenoCasteId ?? null);
+  const [xenoAttack, setXenoAttack] = useState<XenoAttackKind>(initialUrlState.xenoAttack ?? "claw");
+  const [customXeno, setCustomXeno] = useState<CustomXenoAttackStats>(initialUrlState.customXeno ?? DEFAULT_CUSTOM_XENO_ATTACK);
+  const [targetMode, setTargetMode] = useState<SourceMode>(initialUrlState.targetMode ?? "catalog");
+  const [customTarget, setCustomTarget] = useState<CustomTarget | null>(initialUrlState.customTarget ?? null);
 
   const selectedWeaponCandidate = selectedWeaponId && catalog ? catalog.items[selectedWeaponId] : null;
   const selectedWeapon = selectedWeaponCandidate?.category === "Оружие" && canDamageAnyTarget(selectedWeaponCandidate)
@@ -307,13 +345,31 @@ export function DamagePage() {
       hitDirection,
       activeAbilities,
       distance,
+      attackerSide,
+      marineMode,
+      customWeapon,
+      xenoMode,
+      xenoCasteId,
+      xenoAttack,
+      customXeno,
+      targetMode,
+      customTarget,
     });
     if (viewMode === "scatter") params.set("view", "scatter");
     setSearchParams(params, { replace: true });
   }, [
     activeAbilities,
     attachmentActiveBySlot,
+    attackerSide,
     catalog,
+    customTarget,
+    customWeapon,
+    customXeno,
+    marineMode,
+    targetMode,
+    xenoAttack,
+    xenoCasteId,
+    xenoMode,
     distance,
     effectiveAmmoIndex,
     effectiveAmmoModeIndex,
@@ -463,6 +519,42 @@ export function DamagePage() {
     ? applyXenoAbilityBonuses(baseTargetArmor, target.casteId, activeAbilities)
     : baseTargetArmor;
 
+  // Custom target replaces the catalog one in every calculation but keeps
+  // the catalog selection around, so switching back restores it.
+  const usingCustomTarget = targetMode === "custom" && customTarget != null;
+  const effectiveTargetArmor = usingCustomTarget ? customTargetArmor(customTarget) : targetArmor;
+  const effectiveThresholds = usingCustomTarget ? customTargetThresholds(customTarget) : targetThresholds;
+  const effectiveTargetSize = usingCustomTarget ? (customTarget.kind === "xeno" ? "Xeno" as const : null) : targetSize;
+  const hasTarget = usingCustomTarget || target != null;
+
+  const changeTargetMode = (mode: SourceMode) => {
+    if (mode === "custom" && !customTarget) {
+      setCustomTarget(customTargetFrom(targetArmor, targetThresholds, target?.kind ?? "xeno"));
+    }
+    setTargetMode(mode);
+  };
+  const changeCustomTargetKind = (kind: "marine" | "xeno") => {
+    if (customTarget?.kind === kind) return;
+    setCustomTarget(customTargetFrom(targetArmor, targetThresholds, kind));
+  };
+
+  const usesCatalogWeapon = viewMode !== "single" || (attackerSide === "marine" && marineMode === "catalog");
+  const attackerMode = attackerSide === "marine" ? marineMode : xenoMode;
+  const changeAttackerMode = (mode: SourceMode) => (attackerSide === "marine" ? setMarineMode(mode) : setXenoMode(mode));
+  const attackerCaste = xenoCasteId ? mobCatalog?.xenoCastes[xenoCasteId] : undefined;
+  const effectiveXenoAttack: XenoAttackKind = xenoAttack === "tail" && attackerCaste?.attacks?.tail ? "tail" : "claw";
+  const attackProfile: AttackProfile | null = usesCatalogWeapon
+    ? null
+    : attackerSide === "xeno"
+      ? xenoMode === "custom" ? customXenoProfile(customXeno) : xenoCasteProfile(mobCatalog, xenoCasteId, effectiveXenoAttack)
+      : customWeaponProfile(customWeapon);
+  const profileVsTarget = attackProfile && effectiveTargetArmor ? profileAgainstTarget(attackProfile, effectiveTargetArmor.kind) : null;
+
+  const selectXenoAttacker = (casteId: string) => {
+    setXenoCasteId(casteId);
+    setPicker(null);
+  };
+
   const activePickerSlot = picker?.type === "attachment"
     ? attachmentSlots.find((slot) => (slot.id ?? slot.slotId) === picker.slotId)
     : null;
@@ -501,10 +593,60 @@ export function DamagePage() {
           <DamagePanelHeader
             index="01"
             eyebrow="WEAPON SYSTEM"
-            title="Оружие"
-            description="Основное оружие, совместимые обвесы и боеприпасы."
+            title={viewMode === "single" ? "Атакующий" : "Оружие"}
+            description={viewMode === "single"
+              ? "Морпех с оружием или ксеноморф: из каталога или со своими значениями."
+              : "Основное оружие, совместимые обвесы и боеприпасы."}
           />
 
+          {viewMode === "single" && (
+            <div className="attacker-controls">
+              <SegmentedControl
+                label="Кто атакует"
+                value={attackerSide}
+                options={[{ value: "marine", label: "Морпех" }, { value: "xeno", label: "Ксеноморф" }]}
+                onChange={setAttackerSide}
+              />
+              <SegmentedControl label="Источник значений" value={attackerMode} options={SOURCE_OPTIONS} onChange={changeAttackerMode} />
+            </div>
+          )}
+
+          {!usesCatalogWeapon ? (
+            attackerSide === "marine" ? (
+              <CustomWeaponForm stats={customWeapon} onChange={setCustomWeapon} />
+            ) : xenoMode === "custom" ? (
+              <CustomXenoAttackForm stats={customXeno} onChange={setCustomXeno} />
+            ) : (
+              <>
+                <div className="primary-slot-row">
+                  <XenoAttackerSlot
+                    mobCatalog={mobCatalog}
+                    casteId={attackerCaste ? xenoCasteId : null}
+                    onOpen={() => setPicker({ type: "xeno-attacker" })}
+                    onClear={attackerCaste ? () => setXenoCasteId(null) : undefined}
+                  />
+                </div>
+                {mobLoading && !mobCatalog && <p className="muted">Загружаю данные о мобах…</p>}
+                {mobCatalog && !hasCatalogXenoAttacks(mobCatalog) && (
+                  <p className="muted">Атаки каст ещё не опубликованы в данных. Пока можно задать удар через «Своё значение».</p>
+                )}
+                {attackerCaste?.attacks && (
+                  <>
+                    <SegmentedControl
+                      label="Атака"
+                      value={effectiveXenoAttack}
+                      options={[
+                        { value: "claw", label: "Когти" },
+                        { value: "tail", label: "Хвост", disabled: !attackerCaste.attacks.tail },
+                      ]}
+                      onChange={setXenoAttack}
+                    />
+                    <XenoAttackStats caste={attackerCaste} />
+                  </>
+                )}
+              </>
+            )
+          ) : (<>
           <div className="primary-slot-row">
             <ItemSlot
               label="Выбрать оружие"
@@ -664,6 +806,7 @@ export function DamagePage() {
               <p className="muted">У этого оружия нет вариантов боеприпасов в каталоге.</p>
             )
           )}
+          </>)}
         </section>
       )}
 
@@ -677,6 +820,20 @@ export function DamagePage() {
             description="Противник, броня, направление атаки и пороги здоровья."
           />
 
+          <SegmentedControl label="Источник цели" value={targetMode} options={SOURCE_OPTIONS} onChange={changeTargetMode} />
+
+          {usingCustomTarget ? (
+            <>
+              <SegmentedControl
+                label="Тип цели"
+                value={customTarget.kind}
+                options={[{ value: "marine", label: "Морпех" }, { value: "xeno", label: "Ксеноморф" }]}
+                onChange={changeCustomTargetKind}
+              />
+              <CustomTargetForm target={customTarget} onChange={setCustomTarget} />
+              {customTarget.kind === "xeno" && <DirectionControl value={hitDirection} onChange={setHitDirection} />}
+            </>
+          ) : (<>
           <div className="primary-slot-row">
             <TargetSlot
               label="Выбрать цель"
@@ -721,22 +878,7 @@ export function DamagePage() {
             </div>
           )}
 
-          {target && targetArmor?.kind === "xeno" && (
-            <div className="direction-control" role="radiogroup" aria-label="Направление попадания">
-              {(["front", "side", "back"] as const).map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  role="radio"
-                  aria-checked={hitDirection === value}
-                  className={hitDirection === value ? "is-active" : ""}
-                  onClick={() => setHitDirection(value)}
-                >
-                  {value === "front" ? "Спереди" : value === "side" ? "Сбоку" : "Сзади"}
-                </button>
-              ))}
-            </div>
-          )}
+          {target && targetArmor?.kind === "xeno" && <DirectionControl value={hitDirection} onChange={setHitDirection} />}
 
           {xenoAbilities && xenoAbilities.length > 0 && (
             <div className="loadout-row">
@@ -787,6 +929,7 @@ export function DamagePage() {
               )}
             </dl>
           )}
+          </>)}
         </section>
       )}
 
@@ -798,7 +941,32 @@ export function DamagePage() {
             title="Расчёт"
             description="Дистанция, урон, расход боеприпасов и время поражения."
           />
-          {selectedWeapon && selectedProjectile && target && targetArmor && targetThresholds ? (
+          {profileVsTarget && attackProfile && effectiveTargetArmor && effectiveThresholds ? (
+            <>
+              <ResultPanel
+                effectiveDamage={profileVsTarget.damage}
+                distance={0}
+                falloffThresholds={[]}
+                weaponFalloffMultiplier={1}
+                baseArmorPiercing={profileVsTarget.armorPiercing}
+                baseDamageMultiplier={1}
+                baseShotsPerSecond={profileVsTarget.ratePerSecond}
+                weaponCategory={profileVsTarget.category}
+                target={effectiveTargetArmor}
+                hitDirection={hitDirection}
+                thresholds={effectiveThresholds}
+                magazineCapacity={profileVsTarget.magazine}
+                unit={profileVsTarget.unit}
+              />
+              {attackProfile.xenoAttack && (
+                <p className="holo-targeting-note">
+                  {effectiveTargetArmor.kind === "xeno"
+                    ? `Удар по ксеноморфу усилен ×${formatNumber(XENO_VS_XENO_MULTIPLIER[attackProfile.xenoAttack])}: ${attackProfile.xenoAttack === "tail" ? "хвост получает бонус к урону по ксено дважды" : "бонус когтей к урону по ксено"}.`
+                    : "Удар ксеноморфа режется бронёй ближнего боя."} Ситуативные усиления (феромоны, способности) не учитываются.
+                </p>
+              )}
+            </>
+          ) : usesCatalogWeapon && selectedWeapon && selectedProjectile && hasTarget && effectiveTargetArmor && effectiveThresholds ? (
             <>
               <h3>Дистанция</h3>
               <DistanceControl distance={distance} onChange={setDistance} />
@@ -812,9 +980,9 @@ export function DamagePage() {
                 baseDamageMultiplier={modifiedStats?.damageMultiplier ?? 1}
                 baseShotsPerSecond={modifiedStats?.shotsPerSecond ?? 0}
                 weaponCategory="bullet"
-                target={targetArmor}
+                target={effectiveTargetArmor}
                 hitDirection={hitDirection}
-                thresholds={targetThresholds}
+                thresholds={effectiveThresholds}
                 magazineCapacity={magazineCapacity}
                 gunStacks={selectedWeapon ? WEAPON_GUN_STACKS[selectedWeapon.id] : undefined}
                 overheat={overheat}
@@ -831,10 +999,10 @@ export function DamagePage() {
                   weaponFalloffMultiplier={weaponFalloffMultiplier}
                   armorPiercing={armorPiercing}
                   weaponCategory="bullet"
-                  target={targetArmor}
+                  target={effectiveTargetArmor}
                   hitDirection={hitDirection}
-                  targetSize={targetSize}
-                  criticalThreshold={targetThresholds.critical ?? null}
+                  targetSize={effectiveTargetSize}
+                  criticalThreshold={effectiveThresholds.critical ?? null}
                 />
               )}
             </>
@@ -842,7 +1010,7 @@ export function DamagePage() {
             <div className="damage-panel-empty">
               <span>CALCULATION STANDBY</span>
               <strong>Ожидание данных</strong>
-              <p>Заполните панели оружия и цели — результат появится здесь автоматически.</p>
+              <p>Заполните панели атакующего и цели — результат появится здесь автоматически.</p>
             </div>
           )}
         </section>
@@ -879,6 +1047,12 @@ export function DamagePage() {
             selectedId={effectiveAttachmentBySlot[picker.slotId] ?? null}
             onSelect={(id) => selectAttachment(picker.slotId, id)}
           />
+        </PickerModal>
+      )}
+
+      {viewMode === "single" && picker?.type === "xeno-attacker" && mobCatalog && (
+        <PickerModal title="Выбор касты" onClose={() => setPicker(null)}>
+          <XenoAttackerPicker mobCatalog={mobCatalog} selectedId={xenoCasteId} onSelect={selectXenoAttacker} />
         </PickerModal>
       )}
 
