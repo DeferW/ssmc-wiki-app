@@ -85,3 +85,18 @@ it("rejects a null map item document instead of treating it as a missing file", 
   const { root, path } = await fixture({}, catalog(), null);
   await expect(applyDataOverrides(root, path)).rejects.toThrow(/catalog/i);
 });
+
+it.each([
+  ["Одежда", "clothing"], ["Инструменты", "tools"], ["Электроника", "electronics"],
+  ["Провизия", "food"], ["Быт", "household"], ["Материалы", "materials"],
+  ["Контейнеры", "containers"],
+])("supports %s in both generated data and administrator overrides", async (category, categoryId) => {
+  const main = catalog();
+  main.items.Item.category = category;
+  const { root, path, read } = await fixture({ MapItem: { category } }, main);
+  expect(await applyDataOverrides(root, path)).toBe(1);
+  expect((await read()).publicCatalog.categories[category]).toEqual(["Item"]);
+  const mapItem = (await read("maps/static-items.json")).items.MapItem;
+  expect(mapItem.classification.categoryId).toBe(categoryId);
+  expect(mapItem.types).toEqual([categoryId]);
+});

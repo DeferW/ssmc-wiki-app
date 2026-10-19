@@ -3,9 +3,16 @@
   { "name": "Боезапас", "id": "ammunition" },
   { "name": "Обвесы", "id": "attachment" },
   { "name": "Броня", "id": "armor" },
+  { "name": "Одежда", "id": "clothing" },
   { "name": "Экипировка", "id": "equipment" },
   { "name": "Медицина", "id": "medicine" },
   { "name": "Снаряжение", "id": "gear" },
+  { "name": "Инструменты", "id": "tools" },
+  { "name": "Электроника", "id": "electronics" },
+  { "name": "Провизия", "id": "food" },
+  { "name": "Быт", "id": "household" },
+  { "name": "Материалы", "id": "materials" },
+  { "name": "Контейнеры", "id": "containers" },
   { "name": "Другое", "id": "other" },
   { "name": "Скрытые", "id": "hidden" }
 ]
