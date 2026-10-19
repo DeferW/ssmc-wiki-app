@@ -1,3 +1,5 @@
+import type { RoofTier } from "./areaSupport";
+
 export type Point = { x: number; y: number };
 
 export type MapEntry = {
@@ -192,6 +194,7 @@ export type ActiveInsertRender = InsertPlacement & {
 export type LayerSettings = Record<OverlayCategory, boolean> & {
   coordinateGrid: boolean;
   areaSupport: boolean;
+  roofTiers: RoofTier[];
   markerScale: number;
   groups: Record<OverlayGroup, boolean>;
 };

@@ -4,6 +4,11 @@ import { TileLoader } from "./tileLoader";
 import { planTiles, prioritizeTiles } from "./tilePlan";
 import { pointsOnSameTile } from "./overlay";
 import { markerStyle, type MarkerIcon } from "./markerConfig";
+import type { RoofTierBand } from "./areaSupport";
+import { formatDistance, measureTiles, tileAt, tileCentre, type RulerState } from "./ruler";
+import { liftLabels, tileRegion, type ZoneShape } from "./fireZones";
+import type { PlanElement } from "./planner/model";
+import { drawPlan } from "./planner/render";
 import type { ActiveInsertRender, CanvasStats, GridManifest, LayerSettings, OverlayPoint, Point, TileManifest, ViewState } from "./types";
 
 type Props = {
@@ -11,7 +16,17 @@ type Props = {
   manifestUrl: string;
   points: OverlayPoint[];
   insertRenders: ActiveInsertRender[];
+  supportBands?: RoofTierBand[];
   layers: LayerSettings;
+  /** Ruler and zone modes: taps report the tile instead of selecting markers. */
+  tileTaps?: boolean;
+  onTileTap?: (tile: Point) => void;
+  ruler?: RulerState;
+  zones?: ZoneDrawable[];
+  /** Planner layer drawn above markers and zones. */
+  planLayer?: PlanLayer;
+  /** Planner tools: a primary-button drag or tap goes here instead of panning the map. */
+  drawing?: DrawingHandlers;
   initialFocus?: { world: Point; scale: number; key: string };
   selectedKey?: string;
   anchorKey?: string;
@@ -30,9 +45,23 @@ export type SelectionAnchor = {
   vertical?: "above" | "below";
 };
 
+export type PlanLayer = { elements: PlanElement[]; preview?: PlanElement; selected?: number; hidden?: Set<number> };
+export type DrawingModifiers = { shift: boolean };
+/** Handlers receive the exact world position in tiles (fractional), not a snapped tile. */
+export type DrawingHandlers = {
+  onStart: (world: Point, modifiers: DrawingModifiers) => void;
+  onMove: (world: Point, modifiers: DrawingModifiers) => void;
+  onEnd: (world: Point, modifiers: DrawingModifiers) => void;
+  /** A second finger turned the gesture into pinch zoom. */
+  onCancel: () => void;
+};
+
+export type ZoneDrawable = { key: string; tile: Point; centre: Point; label: string; color: string; shapes: ZoneShape[] };
+
 type PointerDrag = { id: number; startX: number; startY: number; viewX: number; viewY: number; moved: boolean };
 type PinchGesture = { distance: number; center: Point; view: ViewState };
 const SHARED_TILE_ZOOM = 2.5;
+const RULER_COLOR = "#ffd65c";
 const CATEGORY_COLOR: Record<OverlayPoint["category"], string> = {
   loot: "#f0c15d",
   insert: "#53c8e8",
@@ -358,7 +387,14 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
   manifestUrl,
   points,
   insertRenders,
+  supportBands,
   layers,
+  tileTaps = false,
+  onTileTap,
+  ruler,
+  zones,
+  planLayer,
+  drawing,
   initialFocus,
   selectedKey,
   anchorKey,
@@ -373,6 +409,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
   const dragRef = useRef<PointerDrag | undefined>(undefined);
   const pointersRef = useRef(new Map<number, Point>());
   const pinchRef = useRef<PinchGesture | undefined>(undefined);
+  const drawRef = useRef<number | undefined>(undefined);
   const viewRef = useRef<ViewState>({ x: 0, y: 0, scale: 1 });
   const [size, setSize] = useState({ width: 1, height: 1 });
   const [view, setView] = useState<ViewState>({ x: 0, y: 0, scale: 1 });
@@ -467,6 +504,31 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       };
     })
   )), [grid, insertRenders, size, view]);
+  const supportPaths = useMemo(() => (supportBands ?? []).filter((band) => band.runs.length).map((band) => {
+    const path = new Path2D();
+    for (const [x, y, length] of band.runs) {
+      const topLeft = worldToMapPixel(grid, { x, y: y + 1 });
+      path.rect(topLeft.x, topLeft.y, length * grid.pixelsPerMeter, grid.pixelsPerMeter);
+    }
+    return { path, color: band.color, hatched: band.hatched };
+  }), [grid, supportBands]);
+  // Zones snap to whole tiles; regions are rebuilt only when zones change.
+  const zonePaths = useMemo(() => (zones ?? []).flatMap((zone) => zone.shapes.map((shape) => {
+    const region = tileRegion(shape, zone.tile);
+    const area = new Path2D();
+    for (const [x, y, length] of region.runs) {
+      const topLeft = worldToMapPixel(grid, { x, y: y + 1 });
+      area.rect(topLeft.x, topLeft.y, length * grid.pixelsPerMeter, grid.pixelsPerMeter);
+    }
+    const outline = new Path2D();
+    for (const [x1, y1, x2, y2] of region.edges) {
+      const from = worldToMapPixel(grid, { x: x1, y: y1 });
+      const to = worldToMapPixel(grid, { x: x2, y: y2 });
+      outline.moveTo(from.x, from.y);
+      outline.lineTo(to.x, to.y);
+    }
+    return { area, outline, fill: shape.fill, stroke: shape.stroke, dashed: shape.dashed };
+  })), [grid, zones]);
   const neededUrls = useMemo(() => prioritizeTiles([
     ...plan.requests, ...insertLayers.flatMap((layer) => layer.plan.requests),
   ]), [plan, insertLayers]);
@@ -524,6 +586,42 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       }
       context.restore();
     }
+
+    if (supportPaths.length) {
+      const left = -view.x / view.scale;
+      const top = -view.y / view.scale;
+      const right = (size.width - view.x) / view.scale;
+      const bottom = (size.height - view.y) / view.scale;
+      const spacing = 9 / view.scale;
+      for (const band of supportPaths) {
+        context.fillStyle = band.color;
+        context.fill(band.path);
+        if (!band.hatched) continue;
+        // Hatching keeps blocked zones readable without relying on colour alone.
+        context.save();
+        context.clip(band.path);
+        context.strokeStyle = "rgba(10, 6, 6, .45)";
+        context.lineWidth = 1.5 / view.scale;
+        context.beginPath();
+        const start = Math.floor((left + top) / spacing) * spacing;
+        for (let offset = start; offset <= right + bottom; offset += spacing) {
+          context.moveTo(offset - top, top);
+          context.lineTo(offset - bottom, bottom);
+        }
+        context.stroke();
+        context.restore();
+      }
+    }
+
+    for (const zone of zonePaths) {
+      context.fillStyle = zone.fill;
+      context.fill(zone.area);
+      context.strokeStyle = zone.stroke;
+      context.lineWidth = 2 / view.scale;
+      context.setLineDash(zone.dashed ? [7 / view.scale, 5 / view.scale] : []);
+      context.stroke(zone.outline);
+    }
+    context.setLineDash([]);
 
     if (hoverTile) {
       const topLeft = worldToMapPixel(grid, { x: hoverTile.x, y: hoverTile.y + 1 });
@@ -616,7 +714,116 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
       );
     }
     context.restore();
-  }, [drawnPoints, grid, hoverTile, insertLayers, layers, maximum, plan, selectedKey, size, tileRevision, view]);
+
+    if (zones?.length) {
+      context.save();
+      context.font = "700 11px IBM Plex Mono, monospace";
+      context.textBaseline = "middle";
+      const visible = zones.flatMap((zone) => {
+        const pixel = worldToMapPixel(grid, zone.centre);
+        const x = view.x + pixel.x * view.scale;
+        const y = view.y + pixel.y * view.scale;
+        if (x < -80 || y < -40 || x > size.width + 80 || y > size.height + 40) return [];
+        const width = context.measureText(zone.label).width + 12;
+        return [{ zone, x, y, box: { x: x - width / 2, y: y - 27, width, height: 18 } }];
+      });
+      // Labels of nearby zones climb out of the way; earlier zones keep their place.
+      const lifts = liftLabels(visible.map((item) => item.box));
+      // Three passes: leader lines, then dots, then labels, so no line crosses a label.
+      visible.forEach(({ zone, x, y, box }, index) => {
+        if (lifts[index] <= 0) return;
+        context.strokeStyle = zone.color;
+        context.lineWidth = 1;
+        context.beginPath();
+        context.moveTo(x, y - 5);
+        context.lineTo(x, box.y - lifts[index] + box.height);
+        context.stroke();
+      });
+      for (const { zone, x, y } of visible) {
+        context.fillStyle = zone.color;
+        context.strokeStyle = "rgba(2, 5, 3, .9)";
+        context.lineWidth = 2;
+        context.beginPath();
+        context.arc(x, y, 4, 0, Math.PI * 2);
+        context.fill();
+        context.stroke();
+      }
+      visible.forEach(({ zone, box }, index) => {
+        const top = box.y - lifts[index];
+        context.fillStyle = "rgba(3, 6, 4, .9)";
+        context.fillRect(box.x, top, box.width, box.height);
+        context.strokeStyle = zone.color;
+        context.lineWidth = 1;
+        context.strokeRect(box.x + .5, top + .5, box.width - 1, box.height - 1);
+        context.fillStyle = zone.color;
+        context.fillText(zone.label, box.x + 6, top + 9.5);
+      });
+      context.restore();
+    }
+
+    if (planLayer && (planLayer.elements.length || planLayer.preview)) {
+      drawPlan(context, planLayer.elements, (world) => {
+        const pixel = worldToMapPixel(grid, world);
+        return { x: view.x + pixel.x * view.scale, y: view.y + pixel.y * view.scale };
+      }, planLayer);
+    }
+
+    const rulerEnd = ruler?.end ?? (tileTaps && ruler?.start ? hoverTile : undefined);
+    if (ruler?.start) {
+      const toScreen = (world: Point) => {
+        const pixel = worldToMapPixel(grid, world);
+        return { x: view.x + pixel.x * view.scale, y: view.y + pixel.y * view.scale };
+      };
+      const tileBox = (tile: Point) => {
+        const topLeft = toScreen({ x: tile.x, y: tile.y + 1 });
+        const bottomRight = toScreen({ x: tile.x + 1, y: tile.y });
+        // Keep the endpoint visible when zoomed far out.
+        const side = Math.max(8, bottomRight.x - topLeft.x);
+        const centre = { x: (topLeft.x + bottomRight.x) / 2, y: (topLeft.y + bottomRight.y) / 2 };
+        return { x: centre.x - side / 2, y: centre.y - side / 2, side };
+      };
+      context.save();
+      context.lineJoin = "round";
+      const start = toScreen(tileCentre(ruler.start));
+      if (rulerEnd) {
+        const end = toScreen(tileCentre(rulerEnd));
+        context.lineCap = "round";
+        context.strokeStyle = "rgba(2, 5, 3, .85)";
+        context.lineWidth = 5;
+        context.beginPath(); context.moveTo(start.x, start.y); context.lineTo(end.x, end.y); context.stroke();
+        context.strokeStyle = RULER_COLOR;
+        context.lineWidth = 2;
+        if (!ruler.end) context.setLineDash([7, 5]);
+        context.beginPath(); context.moveTo(start.x, start.y); context.lineTo(end.x, end.y); context.stroke();
+        context.setLineDash([]);
+      }
+      for (const tile of rulerEnd ? [ruler.start, rulerEnd] : [ruler.start]) {
+        const box = tileBox(tile);
+        context.fillStyle = "rgba(255, 214, 92, .22)";
+        context.strokeStyle = RULER_COLOR;
+        context.lineWidth = 2;
+        context.fillRect(box.x, box.y, box.side, box.side);
+        context.strokeRect(box.x, box.y, box.side, box.side);
+      }
+      if (rulerEnd) {
+        const end = toScreen(tileCentre(rulerEnd));
+        const label = formatDistance(measureTiles(ruler.start, rulerEnd).distance);
+        context.font = "700 12px IBM Plex Mono, monospace";
+        const width = context.measureText(label).width + 14;
+        const x = Math.min(Math.max((start.x + end.x) / 2 - width / 2, 4), size.width - width - 4);
+        const y = Math.min(Math.max((start.y + end.y) / 2 - 30, 4), size.height - 26);
+        context.fillStyle = "rgba(3, 6, 4, .92)";
+        context.strokeStyle = RULER_COLOR;
+        context.lineWidth = 1;
+        context.fillRect(x, y, width, 22);
+        context.strokeRect(x + .5, y + .5, width - 1, 21);
+        context.fillStyle = RULER_COLOR;
+        context.textBaseline = "middle";
+        context.fillText(label, x + 7, y + 11.5);
+      }
+      context.restore();
+    }
+  }, [drawnPoints, grid, hoverTile, insertLayers, layers, maximum, plan, ruler, selectedKey, size, supportPaths, planLayer, tileRevision, tileTaps, view, zonePaths, zones]);
 
   const mapPointAt = useCallback((screen: Point) => ({
     x: (screen.x - view.x) / view.scale,
@@ -660,12 +867,13 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
   return (
     <canvas
       ref={canvasRef}
-      className="map-canvas"
+      className={tileTaps || drawing ? "map-canvas is-measuring" : "map-canvas"}
       tabIndex={0}
       aria-label="Интерактивная карта. Перетаскивайте мышью, изменяйте масштаб колесом."
       onContextMenu={(event) => event.preventDefault()}
       onDoubleClick={(event) => {
         event.preventDefault();
+        if (tileTaps || drawing) return;
         const screen = eventPoint(event, event.currentTarget);
         const world = mapPixelToWorld(grid, mapPointAt(screen));
         onShareTile(world, SHARED_TILE_ZOOM);
@@ -674,6 +882,16 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         const point = eventPoint(event, event.currentTarget);
         event.currentTarget.setPointerCapture(event.pointerId);
         pointersRef.current.set(event.pointerId, point);
+        if (drawing && pointersRef.current.size === 1 && event.button === 0) {
+          drawRef.current = event.pointerId;
+          dragRef.current = undefined;
+          drawing.onStart(mapPixelToWorld(grid, mapPointAt(point)), { shift: event.shiftKey });
+          return;
+        }
+        if (drawRef.current !== undefined) {
+          drawRef.current = undefined;
+          drawing?.onCancel();
+        }
         if (pointersRef.current.size === 1) {
           dragRef.current = { id: event.pointerId, startX: point.x, startY: point.y, viewX: view.x, viewY: view.y, moved: false };
           pinchRef.current = undefined;
@@ -698,6 +916,10 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
           vertical: screen.y > size.height * 0.45 ? "above" : "below",
         });
         if (pointersRef.current.has(event.pointerId)) pointersRef.current.set(event.pointerId, screen);
+        if (drawRef.current === event.pointerId) {
+          drawing?.onMove(world, { shift: event.shiftKey });
+          return;
+        }
         const pinch = pinchRef.current;
         if (pinch && pointersRef.current.size >= 2) {
           const [first, second] = [...pointersRef.current.values()];
@@ -719,9 +941,18 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         setView((current) => ({ ...current, x: drag.viewX + dx, y: drag.viewY + dy }));
       }}
       onPointerUp={(event) => {
+        if (drawRef.current === event.pointerId) {
+          drawRef.current = undefined;
+          pointersRef.current.delete(event.pointerId);
+          drawing?.onEnd(mapPixelToWorld(grid, mapPointAt(eventPoint(event, event.currentTarget))), { shift: event.shiftKey });
+          event.currentTarget.releasePointerCapture(event.pointerId);
+          return;
+        }
         const drag = dragRef.current;
         const wasPinching = Boolean(pinchRef.current);
-        if (!wasPinching && drag && !drag.moved) {
+        if (!wasPinching && drag && !drag.moved && tileTaps) {
+          onTileTap?.(tileAt(mapPixelToWorld(grid, mapPointAt(eventPoint(event, event.currentTarget)))));
+        } else if (!wasPinching && drag && !drag.moved) {
           const nearest = nearestPoint(eventPoint(event, event.currentTarget));
           onSelect(nearest ? pointsOnSameTile(visiblePoints, nearest) : []);
         }
@@ -735,6 +966,10 @@ export const MapCanvas = forwardRef<MapCanvasHandle, Props>(function MapCanvas({
         event.currentTarget.releasePointerCapture(event.pointerId);
       }}
       onPointerCancel={(event) => {
+        if (drawRef.current === event.pointerId) {
+          drawRef.current = undefined;
+          drawing?.onCancel();
+        }
         pointersRef.current.delete(event.pointerId);
         pinchRef.current = undefined;
         dragRef.current = undefined;
