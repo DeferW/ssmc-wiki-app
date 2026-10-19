@@ -17,17 +17,16 @@ export async function applyDataOverrides(dataRoot, overridesPath) {
     document.schemaVersion = 2;
     document.items = {};
   }
-  if (document.schemaVersion !== 2 || !isObject(document.items)) {
+  if (!isObject(document) || document.schemaVersion !== 2 || !isObject(document.items)) {
     throw new Error("config/catalog-overrides.json must use schemaVersion 2");
   }
 
-  const catalogs = [catalog, mapItems].filter(Boolean);
-  for (const target of catalogs) {
-    if (!isObject(target.items) || !isObject(target.publicCatalog) || !Array.isArray(target.publicCatalog.itemIds)) {
-      throw new Error("Generated catalog has an unsupported structure");
-    }
-  }
+  validateCatalog(catalog, catalogPath, 4, true);
+  if (mapItems !== undefined) validateCatalog(mapItems, mapItemsPath, 1, false);
+  const catalogs = mapItems === undefined ? [catalog] : [catalog, mapItems];
   const editedIds = new Set();
+  const appliedIds = [];
+  const skippedIds = [];
   for (const [itemId, override] of Object.entries(document.items)) {
     const category = isObject(override) ? override.category : undefined;
     const categoryId = categoryIds.get(category);
@@ -55,13 +54,15 @@ export async function applyDataOverrides(dataRoot, overridesPath) {
         delete item.edited;
       }
     }
-    if (!found) throw new Error(`Catalog override references unpublished item: ${itemId}`);
+    if (found) appliedIds.push(itemId);
+    else skippedIds.push(itemId);
   }
 
   for (const target of catalogs) rebuildCategories(target);
   catalog.overrides = {
     schemaVersion: 2,
-    appliedItemIds: Object.keys(document.items).sort(),
+    appliedItemIds: appliedIds.sort(),
+    skippedItemIds: skippedIds.sort(),
     editedItemIds: [...editedIds].sort(),
   };
   catalog.counts.editedItems = editedIds.size;
@@ -71,7 +72,10 @@ export async function applyDataOverrides(dataRoot, overridesPath) {
     writeFile(catalogPath, `${JSON.stringify(catalog, null, 2)}\n`, "utf8"),
     ...(mapItems ? [writeFile(mapItemsPath, `${JSON.stringify(mapItems, null, 2)}\n`, "utf8")] : []),
   ]);
-  return Object.keys(document.items).length;
+  if (skippedIds.length) {
+    console.warn(`Skipped ${skippedIds.length} app catalog overrides: items are not published in catalog/catalog.json or maps/static-items.json: ${skippedIds.join(", ")}. Check game source changes and data build reports; overrides are retained for future builds.`);
+  }
+  return appliedIds.length;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
@@ -88,13 +92,34 @@ async function readJsonOptional(path) {
   try {
     return await readJson(path);
   } catch (error) {
-    if (error?.code === "ENOENT") return null;
+    if (error?.code === "ENOENT") return undefined;
     throw error;
   }
 }
 
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function validateCatalog(target, path, schemaVersion, requireItems) {
+  if (!isObject(target) || target.schemaVersion !== schemaVersion || !isObject(target.items)
+      || !isObject(target.publicCatalog) || !Array.isArray(target.publicCatalog.itemIds)
+      || !isObject(target.counts)) {
+    throw new Error(`Generated catalog has an unsupported structure or schema: ${path}`);
+  }
+  const ids = target.publicCatalog.itemIds;
+  if (requireItems && ids.length === 0) throw new Error(`Generated catalog is empty: ${path}`);
+  const seen = new Set();
+  for (const id of ids) {
+    if (typeof id !== "string" || !id || seen.has(id)
+        || !Object.hasOwn(target.items, id) || !isObject(target.items[id])) {
+      throw new Error(`Generated catalog has an invalid public item reference: ${String(id)} (${path})`);
+    }
+    seen.add(id);
+    if (!categoryIds.has(target.items[id].category)) {
+      throw new Error(`Generated catalog has an unknown category for ${id}: ${target.items[id].category} (${path})`);
+    }
+  }
 }
 
 function rebuildCategories(target) {

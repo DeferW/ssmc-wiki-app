@@ -2,7 +2,7 @@
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { syncData } from "./sync-data.mjs";
 
 const roots = [];
@@ -23,7 +23,10 @@ async function fixture() {
   await writeFile(resolve(source, "maps/tile.webp"), "first image");
   return { root, source };
 }
-afterEach(async () => { for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true }); });
+afterEach(async () => {
+  vi.restoreAllMocks();
+  for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true });
+});
 
 it("replaces stale files, applies empty overrides and uses a deterministic content revision", async () => {
   const { root, source } = await fixture();
@@ -44,8 +47,8 @@ it("keeps the previous snapshot when an override fails validation", async () => 
   await syncData(root, source);
   const path = resolve(root, "public/data/catalog/catalog.json");
   const before = await readFile(path, "utf8");
-  await writeFile(resolve(root, "config/catalog-overrides.json"), JSON.stringify({ schemaVersion: 2, items: { Missing: { category: "Оружие" } } }));
-  await expect(syncData(root, source)).rejects.toThrow("unpublished item");
+  await writeFile(resolve(root, "config/catalog-overrides.json"), JSON.stringify({ schemaVersion: 2, items: { Missing: { category: "Invalid category" } } }));
+  await expect(syncData(root, source)).rejects.toThrow("Unknown category");
   expect(await readFile(path, "utf8")).toBe(before);
 });
 
@@ -54,4 +57,22 @@ it("rejects overlapping source and destination directories before replacing data
   await syncData(root, source);
   await expect(syncData(root, resolve(root, "public/data"))).rejects.toThrow("must be separate");
   expect(await readFile(resolve(root, "public/data/maps/tile.webp"), "utf8")).toBe("first image");
+});
+
+it("prepares a new snapshot with stale overrides without changing source data", async () => {
+  const { root, source } = await fixture();
+  await syncData(root, source);
+  const original = await readFile(resolve(source, "catalog/catalog.json"), "utf8");
+  await writeFile(resolve(source, "maps/tile.webp"), "updated image");
+  await writeFile(resolve(root, "config/catalog-overrides.json"), JSON.stringify({
+    schemaVersion: 2, items: { RMCIntelFolder: { category: "Другое" }, Item: { category: "Оружие" } },
+  }));
+  vi.spyOn(console, "warn").mockImplementation(() => {});
+  await syncData(root, source);
+  const result = JSON.parse(await readFile(resolve(root, "public/data/catalog/catalog.json"), "utf8"));
+  expect(result.items.Item.category).toBe("Оружие");
+  expect(result.overrides.appliedItemIds).toEqual(["Item"]);
+  expect(result.overrides.skippedItemIds).toEqual(["RMCIntelFolder"]);
+  expect(await readFile(resolve(root, "public/data/maps/tile.webp"), "utf8")).toBe("updated image");
+  expect(await readFile(resolve(source, "catalog/catalog.json"), "utf8")).toBe(original);
 });
